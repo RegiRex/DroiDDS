@@ -9,7 +9,11 @@ runner and passing local checks; full-runtime/platform qualification and the
 3dsrecomp binary notice inventory remain open. DDS-003's bounded first fixture
 scope is implemented: four native/interpreter cases, strict expected results and
 negative controls. See [build evidence](builds/0.0.1-foundation.md).
-DDS-004 onward remain planned. The table defines acceptance, not completion of
+<!-- CodexAstraUlt: DDS-010 now has an implemented CPU-only Android cross-build
+and device runner; preserve its unexecuted Thor/Vulkan gates. -->
+DDS-010 now has a CPU loader APK/build audit and local ADB runner; see
+[the probe](ANDROID_PROBE.md). Thor execution and Vulkan draw remain open.
+Other DDS-004 onward items remain planned. The table defines acceptance, not completion of
 every item merely because a related source component exists.
 The original [119-ticket catalog](research/2026-10-17/06_IMPLEMENTATION_BACKLOG.md)
 is reference material, not an instruction to implement everything at once.

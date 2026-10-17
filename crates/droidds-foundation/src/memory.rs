@@ -13,6 +13,14 @@ pub struct Memory {
     pub faults: u64,
 }
 
+// CodexAstraUlt: The shared public fixture bus has one deterministic initial
+// state; Default and explicit construction must preserve identical test bytes.
+impl Default for Memory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Memory {
     // CodexAstraUlt: Deterministic nonzero backing lets full-image comparison
     // detect unintended stores outside the expected output, including zeroing.

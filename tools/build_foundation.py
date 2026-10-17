@@ -227,7 +227,10 @@ def main() -> int:
         run_logged("format", [cargo, "fmt", "--all", "--", "--check"], out, evidence["steps"])
         run_logged("clippy", [cargo, "clippy", "--locked", "--workspace", "--all-targets",
                              "-j", str(args.jobs), "--", "-D", "warnings"], out, evidence["steps"])
-        for package in ("recomp3ds", "recomp-abi", "zakuro-cpu", "droidds-foundation"):
+        # CodexAstraUlt: Include the Android bridge's host-executable FFI tests;
+        # these validate ownership/error paths, never actual Android execution.
+        for package in ("recomp3ds", "recomp-abi", "zakuro-cpu", "droidds-foundation",
+                        "droidds-android-probe"):
             run_logged("test-" + package,
                        [cargo, "test", "--locked", "-p", package, "-j", str(args.jobs),
                         "--", "--nocapture"],

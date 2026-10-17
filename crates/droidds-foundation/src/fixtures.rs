@@ -17,6 +17,10 @@ pub struct Fixture {
     pub memory: Memory,
     pub expected: Snapshot,
     pub fallback_steps: u64,
+    // CodexAstraUlt: Exact route evidence for these tiny known fixtures prevents
+    // a native-entry call or incidental fallback from masquerading as AOT proof.
+    pub native_budget: u64,
+    pub native_lookups: u64,
     pub thumb_entry: Option<u32>,
 }
 
@@ -91,6 +95,8 @@ pub fn fixtures() -> Vec<Fixture> {
         cpu,
         memory,
         fallback_steps: 0,
+        native_budget: 11,
+        native_lookups: 0,
         thumb_entry: None,
     };
 
@@ -124,6 +130,8 @@ pub fn fixtures() -> Vec<Fixture> {
         cpu,
         memory,
         fallback_steps: 0,
+        native_budget: 7,
+        native_lookups: 0,
         thumb_entry: Some(START | 1),
     };
 
@@ -153,6 +161,8 @@ pub fn fixtures() -> Vec<Fixture> {
         cpu,
         memory,
         fallback_steps: 3,
+        native_budget: 2,
+        native_lookups: 0,
         thumb_entry: None,
     };
 
@@ -184,6 +194,8 @@ pub fn fixtures() -> Vec<Fixture> {
         cpu,
         memory,
         fallback_steps: 0,
+        native_budget: 5,
+        native_lookups: 1,
         thumb_entry: Some(target | 1),
     };
     vec![arm_case, thumb_case, missing_case, interwork_case]
@@ -203,6 +215,8 @@ pub fn endless() -> Fixture {
         cpu,
         memory,
         fallback_steps: 0,
+        native_budget: 0,
+        native_lookups: 0,
         thumb_entry: None,
     }
 }

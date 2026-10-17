@@ -8,8 +8,29 @@ rust-version.workspace = true
 publish.workspace = true
 description = "DroidDS synthetic CPU recompilation foundation checks"
 
+# CodexAstraUlt: Android consumes only the original fixtures, ABI loader and CPU
+# oracle. Code discovery, C generation and host compilation stay on the desktop.
+[features]
+default = ["host"]
+host = ["dep:recomp3ds"]
+
+[[bin]]
+name = "droidds-foundation"
+path = "src/main.rs"
+required-features = ["host"]
+
+[[test]]
+name = "supervisor"
+path = "tests/supervisor.rs"
+required-features = ["host"]
+
+[[test]]
+name = "source_emission"
+path = "tests/source_emission.rs"
+required-features = ["host"]
+
 [dependencies]
-recomp3ds.workspace = true
+recomp3ds = { workspace = true, optional = true }
 recomp-abi.workspace = true
 zakuro-cpu.workspace = true
 serde_json.workspace = true

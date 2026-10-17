@@ -5,8 +5,9 @@ open-source projects; continue from measured foundation results, not the old
 planning-only state. -->
 - Development is authorized. The first Linux CPU foundation build 0.0.1 passes;
   read docs/BUILDING.md and docs/builds/0.0.1-foundation.md. Keep Android, graphics
-  and real-title claims separate. The owner asked to checkpoint at this first
-  build; follow subsequent direction before expanding into another milestone.
+  and real-title claims separate. The owner has continued into Android; manual
+  owner testing of the Linux build is not a prerequisite. Read
+  docs/ANDROID_PROBE.md for the bounded CPU loader probe and actual device gate.
 - Reuse candidates include 3dsrecomp, Zakuro, AnyPS5, Azahar, Citra MMJ and Uberhar.
   Read docs/REUSE_CANDIDATES.md and THIRD_PARTY_NOTICES.md before importing new code.
   DroidDS is an independent integration project; licenses are evaluated per actual

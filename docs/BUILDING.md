@@ -83,6 +83,12 @@ Read [upstream integration](UPSTREAM_INTEGRATION.md),
 component. The current build reuses only 3dsrecomp's compiler/ABI and Zakuro's CPU
 interpreter/common code. Android and renderer components are deliberate next steps.
 
+<!-- CodexAstraUlt: Android now has its own bounded build target; the Linux suite
+is an automated regression gate, not a manual owner-testing prerequisite. -->
+For the Android CPU loader app, use [Android probe instructions](ANDROID_PROBE.md).
+It shares these fixtures and preserves this Linux suite. Android package checks
+and actual Thor execution are reported separately.
+
 ## This prepared cloud workspace
 
 The toolchain is retained outside the checkout. Activate it for each new shell:

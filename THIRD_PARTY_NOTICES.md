@@ -6,6 +6,12 @@ DroidDS's first Linux harness obtains its upstream components directly through
 full-commit Cargo Git dependencies. This repository does not vendor their source
 or distribute the resulting binaries. This is the source/provenance record for
 that integration, not a complete notice bundle for a future APK or native binary.
+<!-- CodexAstraUlt: The first Android probe adds original integration code and
+uses the same registry/upstream dependencies; it is locally built, not released. -->
+The 0.0.2 Android CPU probe uses the same pinned ABI/interpreter dependencies.
+Its original Java/JNI/Rust shell adds no registry dependency. A local debug APK
+can be built for development; public CI audits it without uploading binaries.
+The notice gap below remains open before binary redistribution.
 See [the integration decisions](docs/UPSTREAM_INTEGRATION.md) and `Cargo.lock` for
 the selected source and resolved dependency graph.
 

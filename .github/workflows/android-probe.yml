@@ -1,0 +1,63 @@
+# CodexAstraUlt: Cross-build only the original public CPU probe. A successful
+# Ubuntu job is packaging evidence, not Android device/game execution.
+name: Android CPU probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "upstream.lock.toml"
+      - "crates/**"
+      - "android/probe/**"
+      - "tools/**"
+      - ".github/workflows/android-probe.yml"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-cross-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pinned toolchains
+        shell: bash
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup target add --toolchain 1.95.0 aarch64-linux-android
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;27.3.13750724"
+      - name: Test evidence and device boundaries
+        run: python3 -m unittest discover -s tools/tests -v
+      - name: Build and audit Android probe
+        shell: bash
+        run: |
+          python3 tools/build_android_probe.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --output out/ci-android-probe --jobs 2
+      - name: Record build result
+        if: always()
+        shell: bash
+        run: |
+          if [ -f out/ci-android-probe/build-report.json ]; then
+            python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          report = json.loads(Path("out/ci-android-probe/build-report.json").read_text())
+          print("Android probe build:", report["status"])
+          print("Actual Android execution:", report["runtime_status"])
+          print("APK SHA256:", report.get("apk_sha256", "not produced"))
+          if "error" in report:
+              print("Failure:", report["error"])
+          print("No binary upload: upstream notice inventory and release signing remain separate work.")
+          PY
+          fi

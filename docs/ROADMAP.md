@@ -8,7 +8,11 @@ Date: 2026-10-17. **The first CPU foundation build 0.0.1 passes locally.**
 Exact dependencies, an original test host, strict comparisons and four synthetic
 native/fallback cases are implemented. See [build evidence](builds/0.0.1-foundation.md).
 M0/M1 are partially demonstrated; full runtime builds, broader CPU/module tests,
-Android, graphics and game-performance gates below remain open.
+graphics and game-performance gates below remain open.
+<!-- CodexAstraUlt: The owner continued directly to Android after the automated
+Linux gate; cross-compilation does not close A0's execution/graphics criteria. -->
+The 0.0.2 [Android CPU probe](ANDROID_PROBE.md) implements the first A0 package and
+loader-test slice. Actual Thor execution and the Vulkan draw remain open.
 
 | Milestone | Deliverable | Exit evidence | Dependencies |
 | --- | --- | --- | --- |
@@ -57,8 +61,8 @@ their prerequisites pass. Device measurements always serialize.
    this batch into a frontend, complete emulator or private APK project.
 
 The CPU subset of this initial batch is now implemented and locally verified.
-Next, reproduce it on the local Linux setup, expand DDS-004/005 and begin the
-smallest A0 Android probe where device access is available. DDS-006 source/test
+The owner need not repeat Linux tests manually. Expand DDS-004/005 and execute the
+small A0 Android probe where device access is available. DDS-006 source/test
 work can proceed separately. Do not treat the first four fixtures as complete M1.
 
 Read-only reviews of Android constraints and existing GPU tests can run alongside

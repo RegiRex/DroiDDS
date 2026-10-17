@@ -2,7 +2,10 @@
 # revisions; the first build includes CPU tooling only, not a desktop frontend.
 [workspace]
 resolver = "2"
-members = ["crates/droidds-foundation"]
+members = ["crates/droidds-foundation", "crates/droidds-android-probe"]
+# CodexAstraUlt: Preserve the default host command while Android explicitly
+# selects its runtime-only package and disables the producer/compiler feature.
+default-members = ["crates/droidds-foundation"]
 
 [workspace.package]
 version = "0.0.1"

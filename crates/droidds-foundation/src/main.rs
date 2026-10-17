@@ -1,9 +1,7 @@
 //! CodexAstraUlt: First Linux CPU foundation build. Generate real C from public
 //! synthetic ARM/Thumb inputs, load it through recomp-abi and require evidence.
 
-mod fixtures;
-mod memory;
-mod runner;
+use droidds_foundation::{fixtures, generator, libraries, memory, runner};
 
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -12,7 +10,7 @@ use std::process::{Command, ExitCode, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use recomp3ds::{codegen, compile, discover, image::Segment};
+use recomp3ds::compile;
 use serde_json::{json, Value};
 
 // CodexAstraUlt: The public command creates a fresh output directory and a
@@ -43,10 +41,18 @@ fn command() -> Result<(), String> {
     if arguments.first().is_some_and(|arg| arg == "--worker") && arguments.len() == 2 {
         return suite(Path::new(&arguments[1]));
     }
-    if arguments.len() != 1 || arguments[0].to_string_lossy().starts_with('-') {
-        return Err("usage: droidds-foundation <new-output-directory>".to_owned());
+    // CodexAstraUlt: Cross-builds emit C on this host without probing a compiler
+    // or loading generated code. Android receives only prebuilt native libraries.
+    let emit_only =
+        arguments.first().is_some_and(|arg| arg == "--emit-sources") && arguments.len() == 2;
+    if !emit_only && (arguments.len() != 1 || arguments[0].to_string_lossy().starts_with('-')) {
+        return Err(
+            "usage: droidds-foundation <new-output-directory> | --emit-sources <new-directory>"
+                .to_owned(),
+        );
     }
-    let directory = std::path::absolute(&arguments[0]).map_err(|error| error.to_string())?;
+    let directory = std::path::absolute(&arguments[usize::from(emit_only)])
+        .map_err(|error| error.to_string())?;
     if let Some(parent) = directory.parent() {
         fs::create_dir_all(parent).map_err(|error| format!("create output parent: {error}"))?;
     }
@@ -56,6 +62,15 @@ fn command() -> Result<(), String> {
             directory.display()
         )
     })?;
+    if emit_only {
+        let manifest = generator::emit_suite(&directory)?;
+        write_report(&directory.join("manifest.json"), &manifest)?;
+        println!(
+            "DroidDS original fixture sources emitted: {}",
+            directory.display()
+        );
+        return Ok(());
+    }
     let mut worker = Command::new(std::env::current_exe().map_err(|error| error.to_string())?);
     worker.arg("--worker").arg(&directory);
     install_stop_handlers()?;
@@ -195,37 +210,7 @@ fn build(
     directory: &Path,
     compiler: &compile::Compiler,
 ) -> Result<recomp_abi::Library, String> {
-    fs::create_dir(directory).map_err(|error| format!("create fixture output: {error}"))?;
-    let program = discover::Program {
-        text: Segment {
-            base: memory::START,
-            bytes: fixture.text.clone(),
-        },
-        seeds: fixture
-            .seeds
-            .iter()
-            .map(|&address| (address, discover::Source::Entry))
-            .collect(),
-        slots: Some(Default::default()),
-    };
-    let analysis = discover::analyze(&program);
-    if analysis.functions.is_empty() {
-        return Err(format!("{}: discovery found no functions", fixture.name));
-    }
-    let unit = codegen::Unit {
-        module: None,
-        program: &program,
-        analysis: &analysis,
-    };
-    let generated = codegen::generate(&[unit], &[]);
-    let mut sources = Vec::new();
-    for (name, contents) in generated {
-        fs::write(directory.join(&name), contents)
-            .map_err(|error| format!("write {name}: {error}"))?;
-        if name.ends_with(".c") {
-            sources.push(name);
-        }
-    }
+    let sources = generator::emit(fixture, directory)?;
     let library_path = directory.join("libfixture.so");
     compile::compile(
         compiler,
@@ -235,39 +220,7 @@ fn build(
         &|_, _| true,
         false,
     )?;
-    let mut library = recomp_abi::Library::open(&library_path)?;
-    if library.generation() != recomp_abi::GENERATION || library.origins(0).is_none() {
-        return Err("generated library generation/origin metadata is missing or wrong".to_owned());
-    }
-    let stale = library.check(0, 0, |address, destination| {
-        let start = address as usize;
-        destination.copy_from_slice(&fixture.memory.bytes[start..start + destination.len()]);
-    });
-    if stale != 0
-        || library
-            .lookup(fixture.cpu.regs[15] | u32::from(fixture.cpu.cpsr.thumb))
-            .is_none()
-    {
-        return Err(format!(
-            "{}: missing or stale initial native entry",
-            fixture.name
-        ));
-    }
-    if fixture
-        .thumb_entry
-        .is_some_and(|address| library.lookup(address).is_none())
-    {
-        return Err(format!(
-            "{}: expected Thumb native entry is missing",
-            fixture.name
-        ));
-    }
-    if library.lookup(memory::EXTRA).is_some() {
-        return Err("deliberately absent entry unexpectedly has native code".to_owned());
-    }
-    fs::write(directory.join("guest-code.bin"), &fixture.text)
-        .map_err(|error| error.to_string())?;
-    Ok(library)
+    libraries::open_fixture(fixture, &library_path)
 }
 
 // CodexAstraUlt: Run both engines and hand-derived expectations. Record actual

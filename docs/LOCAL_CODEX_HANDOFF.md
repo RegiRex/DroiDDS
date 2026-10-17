@@ -16,8 +16,12 @@ Work in a separate DroidDS checkout. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`
 `docs/ARCHITECTURE.md` and `docs/BACKLOG.md`. Keep Uberhar files, APK and saves intact.
 Check branch and local changes before fetching; do not reset another session's work.
 
-The initial CPU dependency/build/fixture batch is implemented. Reproduce it locally,
-then continue DDS-004/005 and the A0 Android probe against the documented gates.
+<!-- CodexAstraUlt: Continue the owner's Android direction without requiring a
+redundant manual Linux run before the small target-device probe. -->
+The initial CPU dependency/build/fixture batch is implemented. The automated Linux
+gate already passes; manual owner repetition is not a prerequisite. Start the
+[0.0.2 Android CPU probe](ANDROID_PROBE.md) on the connected Thor, then continue
+DDS-004/005 and the remaining A0 gates.
 Do not attempt all prompts in the research archive. No game upload, full Android
 frontend, release signing change or retail APK is needed for this first batch.
 
@@ -61,9 +65,11 @@ application artifact, establish DroidDS's own versioning, signing and release ga
 ## Suggested task to give local Codex when ready
 
 > Continue DroidDS from the published plans. Read AGENTS.md and the research review.
-> Reproduce the 0.0.1 CPU foundation with tools/build_foundation.py. Read its evidence
-> and report tests that actually ran. Then select one bounded DDS-004/005 task;
-> begin the small A0 Android probe only with its fixture/device prerequisites met.
+> Read the verified CPU foundation evidence and docs/ANDROID_PROBE.md. Build the
+> 0.0.2 Android probe using the documented SDK/NDK, select the authorized Thor's
+> explicit ADB serial, and run tools/run_android_probe.py against that local APK.
+> Record its actual result without claiming game or Vulkan compatibility. Continue
+> one bounded DDS-004/005 task or the remaining A0 Vulkan probe after that result.
 > Use CodexAstraUlt comments, preserve local
 > changes, keep all retail inputs/derived outputs private, and leave Uberhar intact.
 > Do not execute the archive's entire prompt pack or claim Android/game readiness
