@@ -50,7 +50,7 @@ jobs:
         run: |
           if [ -f out/ci-android-probe/build-report.json ]; then
             python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
+          import json, sys
           from pathlib import Path
           report = json.loads(Path("out/ci-android-probe/build-report.json").read_text())
           print("Android probe build:", report["status"])
@@ -58,6 +58,11 @@ jobs:
           print("APK SHA256:", report.get("apk_sha256", "not produced"))
           if "error" in report:
               print("Failure:", report["error"])
+              # CodexAstraUlt: Preserve a useful failure reason in the check
+              # summary without publishing binary artifacts or credentials.
+              detail = str(report["error"])
+              escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print("::error::" + escaped, file=sys.stderr)
           print("No binary upload: upstream notice inventory and release signing remain separate work.")
           PY
           fi

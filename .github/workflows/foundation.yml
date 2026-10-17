@@ -43,7 +43,7 @@ jobs:
         run: |
           if [ -f out/ci-foundation/build-report.json ]; then
             python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
+          import json, sys
           from pathlib import Path
           report = json.loads(Path("out/ci-foundation/build-report.json").read_text())
           print("CPU foundation status:", report["status"])
@@ -52,6 +52,16 @@ jobs:
                   print(f"- {step['step']}: {step['tests']}")
           if "error" in report:
               print("Failure:", report["error"])
+              # CodexAstraUlt: Expose the bounded build failure as a public check
+              # annotation; full job logs can require a separate GitHub login.
+              detail = str(report["error"])
+              for step in report["steps"]:
+                  if step.get("exit_code", 0) != 0 and step.get("log"):
+                      path = Path("out/ci-foundation") / step["log"]
+                      if path.is_file():
+                          detail += "\n" + path.read_text(errors="replace")[-5000:]
+              escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print("::error::" + escaped, file=sys.stderr)
           print("Linux synthetic CPU evidence only; Android and game compatibility are untested.")
           PY
           fi

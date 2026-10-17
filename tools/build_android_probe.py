@@ -105,16 +105,20 @@ def main() -> int:
               "compile_target_api": 35, "ndk": NDK_VERSION, "build_tools": BUILD_TOOLS_VERSION,
               "commands": commands}
 
-    def run(name: str, argv: list, timeout: int = 600, extra_env: dict | None = None) -> str:
+    def run(name: str, argv: list, timeout: int = 600, extra_env: dict | None = None,
+            json_stdout: bool = False) -> str:
         """CodexAstraUlt: Preserve command logs/status and terminate owned descendants."""
         argv = [str(x) for x in argv]
         print(f"[{name}]", flush=True)
         log = out / f"{name}.log"
         entry = {"step": name, "argv": argv, "log": log.name}
         commands.append(entry)
-        with log.open("wb") as stream:
+        # CodexAstraUlt: Cold Cargo downloads write progress to stderr. Preserve
+        # that evidence separately so it cannot corrupt machine-readable JSON.
+        error_log = out / f"{name}-stderr.log"
+        with log.open("wb") as stream, error_log.open("wb") as errors:
             process = subprocess.Popen(argv, cwd=ROOT, env=env | (extra_env or {}),
-                                       stdout=stream, stderr=subprocess.STDOUT,
+                                       stdout=stream, stderr=errors if json_stdout else subprocess.STDOUT,
                                        start_new_session=True)
             try:
                 entry["exit_code"] = process.wait(timeout=timeout)
@@ -124,7 +128,8 @@ def main() -> int:
                 raise RuntimeError(f"{name}: timed out or interrupted") from None
         text = log.read_text(encoding="utf-8", errors="replace")
         if entry["exit_code"]:
-            raise RuntimeError(f"{name} failed: {text[-5000:]}")
+            diagnostic = text + error_log.read_text(encoding="utf-8", errors="replace")
+            raise RuntimeError(f"{name} failed: {diagnostic[-5000:]}")
         return text
 
     try:
@@ -142,7 +147,8 @@ def main() -> int:
             raise RuntimeError("Pinned Rust 1.95.0 is required")
         report["clang"] = run("clang-version", [cc, "--version"]).splitlines()[0]
         report["java"] = run("java-version", [java / "bin/java", "-version"]).strip()
-        metadata = json.loads(run("metadata", ["cargo", "metadata", "--locked", "--format-version", "1"]))
+        metadata = json.loads(run("metadata", ["cargo", "metadata", "--locked", "--format-version", "1"],
+                                  json_stdout=True))
         pins = tomllib.loads((ROOT / "upstream.lock.toml").read_text())
         report["sources"] = validate_graph(metadata, pins)
         tree = run("android-dependencies", ["cargo", "tree", "--locked", "-p",
