@@ -2,8 +2,8 @@
   "commentary": "CodexAstraUlt: Actual local evidence; Android execution remains not_run.",
   "schema": 1,
   "version": "0.0.2",
-  "base_commit": "e6f978927844994ca445df0db39be59dff1045ef",
-  "completed_utc": "2026-10-17T18:23:19.489076+00:00",
+  "source_commit": "3b008951826e2ecc641b5726c0753c542838b877",
+  "completed_utc": "2026-10-17T18:31:33.116205+00:00",
   "android_cross_build": {
     "status": "built",
     "runtime_status": "not_run",
@@ -129,18 +129,18 @@
         "sha256": "a1984d29bcfcb6594df1cea12aedd1788932ec11c016b7722c1f916ea2ff334c"
       }
     },
-    "apk_sha256": "c95f4006cc0dd0fdca9c135eec44e3d3a231c25752c0a797eda7378d175dd569",
+    "apk_sha256": "02d0c959ebef8a4cf86bc3fda567a6f2acffd16fc7678d3bbd13b14fc3fb65df",
     "apk_bytes": 5882899,
     "inputs_sha256": {
       "Cargo.toml": "85953ae99ffc643fa2aa34768407c34b2266f8dfc8d0104383ab8f6de68ec82a",
       "Cargo.lock": "1e001e1470e82e9702934d36c77732cf5371c1b2f03b2ef2064f76580c632546",
       "rust-toolchain.toml": "dce62a74168884f77b896b82638625bfdd6779ebeb3e25621d436ce6454aca58",
       "upstream.lock.toml": "fd50a80e567f5a26a275ad9b5ba5390e88bee955b1a44d05accada975a785bc4",
-      "tools/build_android_probe.py": "e6215c16fb5b332bd45574cfd9a4dce105e4a461f939ada0de82ffa5c98fe68e",
-      "tools/build_foundation.py": "40057c9052ced4151bd7136a361920c84c928963d3a7ba72810448c4fd41b5ea",
+      "tools/build_android_probe.py": "2b28f8eef636d4f23a580f205d84b9d0f511bb9d11e5154645435afb3b86c0f0",
+      "tools/build_foundation.py": "f82a652383941c90a30a1285a4855dd3c1b5099fd1f5368d53dffa4d7c436b11",
       "tools/run_android_probe.py": "aefa0f2b8b9f87e5f89603a3293ecc177631f3727222081620be1e1caddead3a",
       "tools/tests/test_build_android_probe.py": "e74acae5e77777337184eae5a276c798811fcf8c36ea16c081eb441e3db34f7f",
-      "tools/tests/test_build_foundation.py": "88535f6f82b03c4360bf5c1036bfb52471c4a53df4c79aced969031a6ff28ee0",
+      "tools/tests/test_build_foundation.py": "1cb942213a192e895571cf9987139a3993b5ab7468811c2f01239d7b9b22a412",
       "tools/tests/test_run_android_probe.py": "4490a8bf8f1f978531ded8d52e6e5289c709de534d684714ba51c87783a98517",
       "crates/droidds-android-probe/src/lib.rs": "13aa754e5ba6ab5bdf83a49d3dda1e5ee5785422a96d623f5d47ee33fdd6e767",
       "crates/droidds-foundation/src/fixtures.rs": "c40b49d0a9c4c5bdd597c578842067ef7bc4ef3b5171d5d3a6a411b04fe16769",
@@ -201,7 +201,7 @@
         "filtered": 0
       }
     },
-    "python_tests_passed": 44,
+    "python_tests_passed": 46,
     "synthetic": {
       "abi": 4,
       "cases": [

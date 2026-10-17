@@ -30,6 +30,7 @@ Android device probe and graphics foundation from the roadmap.
 | --- | --- |
 | [Build and run](docs/BUILDING.md) | Reproduce the first Linux CPU foundation |
 | [Android CPU probe](docs/ANDROID_PROBE.md) | Build the ARM64 test app and run it on the Thor |
+| [Android build evidence](docs/builds/0.0.2-android-probe.md) | Executed package/regression checks and device gates still open |
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |
 | [Additional reuse candidates](docs/REUSE_CANDIDATES.md) | AnyPS5, Azahar, Citra MMJ and Uberhar source review |
 | [Architecture](docs/ARCHITECTURE.md) | Components, design decisions, boundaries and risks |
