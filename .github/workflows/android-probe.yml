@@ -30,12 +30,13 @@ jobs:
     timeout-minutes: 25
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      RUSTUP_TOOLCHAIN: "1.95.0"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pinned toolchains
         shell: bash
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt,clippy
           rustup target add --toolchain 1.95.0 aarch64-linux-android
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;27.3.13750724"
       - name: Test evidence and device boundaries

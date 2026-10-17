@@ -116,13 +116,18 @@ def terminate_group(process: subprocess.Popen) -> None:
 
 
 def run_logged(name: str, command: list[str], out: Path, results: list,
-               timeout: int = 900, require_tests: bool = False) -> str:
+               timeout: int = 900, require_tests: bool = False,
+               separate_stderr: bool = False) -> str:
     """CodexAstraUlt: Preserve command status and complete bounded command logs."""
     print(f"[{name}] {shlex.join(command)}", flush=True)
     path = out / f"{name}.log"
-    with path.open("w", encoding="utf-8") as log:
+    # CodexAstraUlt: Rustup may install/sync a pinned component on first use.
+    # Its stderr diagnostics must not alter the compiler's stdout version string.
+    error_path = out / f"{name}-stderr.log"
+    with path.open("w", encoding="utf-8") as log, error_path.open("w", encoding="utf-8") as errors:
         process = subprocess.Popen(command, cwd=ROOT, stdout=log,
-                                   stderr=subprocess.STDOUT, start_new_session=True)
+                                   stderr=errors if separate_stderr else subprocess.STDOUT,
+                                   start_new_session=True)
         try:
             code = process.wait(timeout=timeout)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
@@ -134,7 +139,8 @@ def run_logged(name: str, command: list[str], out: Path, results: list,
     result = {"step": name, "command": command, "exit_code": code, "log": path.name}
     results.append(result)
     if code:
-        print(output[-6000:], file=sys.stderr)
+        diagnostic = output + error_path.read_text(encoding="utf-8", errors="replace")
+        print(diagnostic[-6000:], file=sys.stderr)
         raise RuntimeError(f"{name} failed with exit code {code}; see {path}")
     if require_tests:
         # CodexAstraUlt: A zero-test run does not satisfy a required suite. Keep
@@ -188,13 +194,13 @@ def main() -> int:
         # first runner deliberately uses a single explicit executable path.
         os.environ["CC"] = shutil.which(compiler)
         versions = {
-            "rustc": run_logged("rustc-version", ["rustc", "--version", "--verbose"], out, evidence["steps"]),
-            "cargo": run_logged("cargo-version", [cargo, "--version"], out, evidence["steps"]),
+            "rustc": run_logged("rustc-version", ["rustc", "--version", "--verbose"], out, evidence["steps"], separate_stderr=True),
+            "cargo": run_logged("cargo-version", [cargo, "--version"], out, evidence["steps"], separate_stderr=True),
             "cc": run_logged("cc-version", [os.environ["CC"], "--version"], out, evidence["steps"]),
         }
         expected_rust = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())["toolchain"]["channel"]
         if not versions["rustc"].startswith(f"rustc {expected_rust} "):
-            raise RuntimeError("Rust version does not match rust-toolchain.toml")
+            raise RuntimeError(f"Rust version does not match rust-toolchain.toml; observed {versions['rustc']!r}")
         evidence["toolchains"] = versions
         evidence["cc_path"] = os.environ["CC"]
         pins = tomllib.loads((ROOT / "upstream.lock.toml").read_text())

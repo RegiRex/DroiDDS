@@ -142,9 +142,9 @@ def main() -> int:
         if not re.search(rf"Pkg.Revision\s*=\s*{re.escape(NDK_VERSION)}\s*$", properties, re.M):
             raise RuntimeError("NDK directory does not contain the pinned revision")
         report["inputs_sha256"] = inputs()
-        report["rustc"] = run("rust-version", ["rustc", "--version"]).strip()
+        report["rustc"] = run("rust-version", ["rustc", "--version"], json_stdout=True).strip()
         if not report["rustc"].startswith("rustc 1.95.0 "):
-            raise RuntimeError("Pinned Rust 1.95.0 is required")
+            raise RuntimeError(f"Pinned Rust 1.95.0 is required; observed {report['rustc']!r}")
         report["clang"] = run("clang-version", [cc, "--version"]).splitlines()[0]
         report["java"] = run("java-version", [java / "bin/java", "-version"]).strip()
         metadata = json.loads(run("metadata", ["cargo", "metadata", "--locked", "--format-version", "1"],

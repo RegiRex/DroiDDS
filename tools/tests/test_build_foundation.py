@@ -3,6 +3,8 @@
 import copy
 import importlib.util
 from pathlib import Path
+import sys
+import tempfile
 import unittest
 
 SPEC = importlib.util.spec_from_file_location(
@@ -128,6 +130,30 @@ class ReportGateTests(unittest.TestCase):
         self.report["negative_controls"].pop()
         with self.assertRaisesRegex(ValueError, "negative controls"):
             RUNNER.validate_report(self.report, self.pins)
+
+
+class MachineOutputTests(unittest.TestCase):
+    """CodexAstraUlt: First-use diagnostics cannot contaminate required tool output."""
+
+    def test_stderr_kept_separate_from_machine_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            steps = []
+            text = RUNNER.run_logged("probe", [sys.executable, "-c",
+                "import sys; print('tool 1.2.3'); print('initializing', file=sys.stderr)"],
+                out, steps, separate_stderr=True)
+            self.assertEqual(text, "tool 1.2.3\n")
+            self.assertEqual((out / "probe-stderr.log").read_text(), "initializing\n")
+            self.assertEqual(steps[0]["exit_code"], 0)
+
+    def test_valid_stdout_cannot_hide_failed_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            steps = []
+            with self.assertRaisesRegex(RuntimeError, "exit code 7"):
+                RUNNER.run_logged("probe", [sys.executable, "-c",
+                    "import sys; print('tool 1.2.3'); sys.exit(7)"],
+                    Path(directory), steps, separate_stderr=True)
+            self.assertEqual(steps[0]["exit_code"], 7)
 
 
 if __name__ == "__main__":

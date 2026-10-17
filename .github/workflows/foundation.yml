@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 25
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      RUSTUP_TOOLCHAIN: "1.95.0"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pinned Rust
