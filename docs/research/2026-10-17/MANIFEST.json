@@ -1,0 +1,79 @@
+{
+  "project": "3DS Native Recompilation Runtime research and Codex pack",
+  "prepared": "2026-10-17",
+  "validation": "UTF-8; balanced triple-backtick fences; local Markdown links resolved",
+  "files": [
+    {
+      "name": "00_README.md",
+      "lines": 133,
+      "words": 1201,
+      "bytes": 9010,
+      "sha256": "b98ede7cacbebb1eb71c65192f9fef952f08a4390d7117c785b386f8633a92e1",
+      "fence_lines": 0
+    },
+    {
+      "name": "01_3DS_RECOMPILATION_TECHNICAL_OVERVIEW.md",
+      "lines": 1194,
+      "words": 5991,
+      "bytes": 42960,
+      "sha256": "ef5b8d482698681b18d588805fb8f182523f42aa660b4cd65fe14ca9e810db74",
+      "fence_lines": 20
+    },
+    {
+      "name": "02_SPEC_3DS_NATIVE_RECOMP_RUNTIME.md",
+      "lines": 1583,
+      "words": 7284,
+      "bytes": 54430,
+      "sha256": "c5f2c04b83e6a5dc854d9f59b3a30dd0c730266eff0118a9fdd2a9673d578078",
+      "fence_lines": 32
+    },
+    {
+      "name": "03_EXISTING_PROJECTS_AND_GAP_MATRIX.md",
+      "lines": 782,
+      "words": 4556,
+      "bytes": 31612,
+      "sha256": "98d386b1332a269ec381d545768ba940ab7daf07cc0f938010abfe92e670640d",
+      "fence_lines": 6
+    },
+    {
+      "name": "04_REFERENCES.md",
+      "lines": 574,
+      "words": 2457,
+      "bytes": 22316,
+      "sha256": "d21a171cdc04c19c197bf2aafd1aeadbc9d8ccb9d4e00eb5a78d146167f89288",
+      "fence_lines": 2
+    },
+    {
+      "name": "05_CODEX_PROMPT_PACK.md",
+      "lines": 717,
+      "words": 3857,
+      "bytes": 27414,
+      "sha256": "a3667bf7973117d1703b114d8035a01d32c0796309f8478e1e4a38e015f61cea",
+      "fence_lines": 50
+    },
+    {
+      "name": "06_IMPLEMENTATION_BACKLOG.md",
+      "lines": 1986,
+      "words": 8075,
+      "bytes": 61183,
+      "sha256": "cf68074a859466c651c47b4f89efad9032663b43502c6c0c9e7254c0d544c54e",
+      "fence_lines": 8
+    },
+    {
+      "name": "07_UBERHAR_RELATIONSHIP_AND_MIGRATION.md",
+      "lines": 393,
+      "words": 1818,
+      "bytes": 13464,
+      "sha256": "62960e171bb433f36a94ee627b34497ac621774e0b0661302e1d3ced3a567df3",
+      "fence_lines": 14
+    },
+    {
+      "name": "3DS_RECOMPILATION_MASTER_DOCUMENT.md",
+      "lines": 7437,
+      "words": 35433,
+      "bytes": 264063,
+      "sha256": "2049d1b886aa4bd20950e9f12b36475467442b91fa1348f88bdae4cc91194727",
+      "fence_lines": 132
+    }
+  ]
+}

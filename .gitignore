@@ -1,0 +1,28 @@
+# CodexAstraUlt: Exclude private title inputs, generated code and signing material;
+# public synthetic fixtures need explicit provenance and staged-content review.
+/titles-private/
+/private/
+/out/
+/build/
+/target/
+**/target/
+/.gradle/
+**/.gradle/
+**/local.properties
+*.3ds
+*.cci
+*.cia
+*.cxi
+*.ncch
+*.romfs
+*.apk
+*.aab
+*.so
+*.o
+*.jks
+*.keystore
+*.pem
+*.key
+*.log
+.env
+.env.*
