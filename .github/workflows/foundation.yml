@@ -1,0 +1,57 @@
+# CodexAstraUlt: Public CI runs only original CPU fixtures and source dependencies.
+# No game data, title-derived package or binary publication is part of this gate.
+name: CPU foundation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "upstream.lock.toml"
+      - "crates/**"
+      - "tools/**"
+      - ".github/workflows/foundation.yml"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-cpu-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt,clippy
+      - name: Test dependency pin checks
+        run: python3 -m unittest discover -s tools/tests -v
+      - name: Build and exercise CPU foundation
+        run: python3 tools/build_foundation.py --output out/ci-foundation --jobs 2
+      - name: Record result in job summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f out/ci-foundation/build-report.json ]; then
+            python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          report = json.loads(Path("out/ci-foundation/build-report.json").read_text())
+          print("CPU foundation status:", report["status"])
+          for step in report["steps"]:
+              if "tests" in step:
+                  print(f"- {step['step']}: {step['tests']}")
+          if "error" in report:
+              print("Failure:", report["error"])
+          print("Linux synthetic CPU evidence only; Android and game compatibility are untested.")
+          PY
+          fi

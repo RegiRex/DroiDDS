@@ -5,6 +5,11 @@
 Reviewed 2026-10-17 for RegiRex/DroidDS. The repository initially contained only
 `README.md` at `7bed6324c5b27c4ae4a4e6fd400432c9ab44db01`.
 
+<!-- CodexAstraUlt: Preserve this reconnaissance snapshot while linking the later
+implementation evidence so historical untested statements are not current status. -->
+This is the initial source-review record. Subsequent implementation and actual
+tests are recorded in [the first build report](builds/0.0.1-foundation.md).
+
 ## Input inventory
 
 Uploaded archive: `3ds-recomp-codex-pack.zip` (attachment path used a `1-` prefix).

@@ -2,7 +2,15 @@
 
 <!-- CodexAstraUlt: Reduce the supplied 119-ticket catalog to bounded work packages with explicit tests and links back to the source requirements. -->
 
-All tickets are **planned**, including those partly informed by source inspection.
+<!-- CodexAstraUlt: Replace the all-planned status with the delivered CPU subset;
+retain unresolved provenance, full-runtime and broader semantic gates explicitly. -->
+DDS-001/002 now have a pinned CPU dependency inventory, original workspace, build
+runner and passing local checks; full-runtime/platform qualification and the
+3dsrecomp binary notice inventory remain open. DDS-003's bounded first fixture
+scope is implemented: four native/interpreter cases, strict expected results and
+negative controls. See [build evidence](builds/0.0.1-foundation.md).
+DDS-004 onward remain planned. The table defines acceptance, not completion of
+every item merely because a related source component exists.
 The original [119-ticket catalog](research/2026-10-17/06_IMPLEMENTATION_BACKLOG.md)
 is reference material, not an instruction to implement everything at once.
 
@@ -25,7 +33,7 @@ is reference material, not an instruction to implement everything at once.
 | DDS-015 | Dark Moon-specific diagnosis and correction | Matching opening moon/ghost clips; CPU/HLE/PICA route evidence; minimized reproducer for each fault; no-glitch acceptance separate from speed; long-run memory evidence | 014; early diagnosis in 011 | Owner goal; TEST-006/013/014 |
 | DDS-016 | Stage-specific performance and product qualification | 1×/2×/4× matrix, sustained thermals/memory, Thor physical-display test; regression title matrix; each claimed improvement has a matched baseline | 014; Dark Moon claims require 015 | PERF/TEST; later M6/M7 work |
 
-## Ready-to-start task: DDS-001/002
+## Foundation context and continuation
 
 Deliver a source/ABI map, version/feature manifest and one reproducible Linux build
 entry point. Use the exact commits in the [review](RESEARCH_REVIEW.md); preserve
@@ -38,9 +46,9 @@ skips. A clean build with zero relevant tests is build evidence only. Resolve
 whether missing 3dsrecomp notices affect source import/distribution before either;
 the pack's MIT summary is not a complete notice inventory.
 
-Then select DDS-003. Keep its first fixture small enough to review: one ARM/Thumb
-transition, fixed memory output and intentional fallback is sufficient to start.
-Broader VFP/CRO/service coverage belongs to named follow-up cases.
+DDS-003 now supplies separate ARM/Thumb cases, actual native ARM-to-Thumb
+interworking, fixed memory output and intentional missing-entry fallback. Continue
+with DDS-004/005; broader VFP/CRO/service coverage remains named follow-up work.
 A missing-compiler skip cannot pass DDS-003/M1 or unblock A0. Static 16 KiB
 alignment checks do not establish runtime compatibility on a 16 KiB-page host;
 record that execution as untested unless such a device actually runs the fixture.

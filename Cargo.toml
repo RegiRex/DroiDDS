@@ -1,0 +1,23 @@
+# CodexAstraUlt: A small original integration workspace consumes exact upstream
+# revisions; the first build includes CPU tooling only, not a desktop frontend.
+[workspace]
+resolver = "2"
+members = ["crates/droidds-foundation"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.95"
+publish = false
+
+[workspace.dependencies]
+recomp3ds = { git = "https://github.com/fearkov/3dsrecomp", rev = "c3f21f94ba50d688025febc8974ff348d471b587", default-features = false, features = ["host"] }
+recomp-abi = { git = "https://github.com/fearkov/3dsrecomp", rev = "c3f21f94ba50d688025febc8974ff348d471b587", default-features = false, features = ["load"] }
+zakuro-cpu = { git = "https://github.com/fearkov/zakuro", rev = "412900a5a020301da15c1cc382585e05a489a535" }
+serde_json = "1.0"
+libc = "0.2"
+
+# CodexAstraUlt: Keep symbols for diagnosing this first host proof. Do not enable
+# fast-math or alter the upstream generated-C semantic flags for speed claims.
+[profile.release]
+debug = 1

@@ -1,0 +1,174 @@
+{
+  "schema": 1,
+  "milestone": "0.0.1-cpu-foundation",
+  "status": "passed",
+  "started_utc": "20261017T174035.357066Z",
+  "finished_utc": "2026-10-17T17:40:40.339756+00:00",
+  "evidence_kind": "Linux x86-64 local synthetic build; not Android or game validation",
+  "base_commit_before_development": "630e365e59b8e72d68da9817881a6aac6cb9bc51",
+  "source_identity": "SHA-256 of tested build input files below; development files were not committed at execution",
+  "inputs_sha256": {
+    "Cargo.toml": "a7434e5f86e637ad6035b93dfe41f7c21116bb1168abcecc3ec7ff6a47a7f9ca",
+    "Cargo.lock": "42d085a4249ec3490496bbb30f727c187849966cf33594dd1a94f847671324cb",
+    "rust-toolchain.toml": "dce62a74168884f77b896b82638625bfdd6779ebeb3e25621d436ce6454aca58",
+    "upstream.lock.toml": "fd50a80e567f5a26a275ad9b5ba5390e88bee955b1a44d05accada975a785bc4",
+    "tools/build_foundation.py": "84a9b6e49260e1066349b61a1b52598bf61e96c4b0843fb755e044fb2f3fd043",
+    "tools/tests/test_build_foundation.py": "88535f6f82b03c4360bf5c1036bfb52471c4a53df4c79aced969031a6ff28ee0",
+    "crates/droidds-foundation/src/fixtures.rs": "2129ae88acc7bec563a7fd3fe0821ba864b25af7b28218562fb70ceafeacb6b7",
+    "crates/droidds-foundation/src/main.rs": "7270f8c14f69a5f32c6a67620005f2f1e6433ecf162f3fe7076cc51f790f9f85",
+    "crates/droidds-foundation/src/memory.rs": "3ff3cfdd24e5df0c32b9e2ecdcfb8dd9a4e0b98ad86d62744c7a143f9b08551e",
+    "crates/droidds-foundation/src/runner.rs": "e38ea1264ebfb2ccc42189d7abb0dd92656f11851dabd4dd43b0c46d457d643a",
+    "crates/droidds-foundation/tests/supervisor.rs": "40ec713c85315074b5e5ad668b775f0c52fb456c0f1fab683c298da66b14ffef",
+    "crates/droidds-foundation/Cargo.toml": "805548c93ceed10f06f1d9d32e54b04418c7d3e01f3230684b18474475519aa0"
+  },
+  "upstreams": {
+    "recomp3ds": {
+      "source": "git+https://github.com/fearkov/3dsrecomp?rev=c3f21f94ba50d688025febc8974ff348d471b587#c3f21f94ba50d688025febc8974ff348d471b587",
+      "version": "0.1.0"
+    },
+    "recomp-abi": {
+      "source": "git+https://github.com/fearkov/3dsrecomp?rev=c3f21f94ba50d688025febc8974ff348d471b587#c3f21f94ba50d688025febc8974ff348d471b587",
+      "version": "0.1.0"
+    },
+    "zakuro-cpu": {
+      "source": "git+https://github.com/fearkov/zakuro?rev=412900a5a020301da15c1cc382585e05a489a535#412900a5a020301da15c1cc382585e05a489a535",
+      "version": "0.2.27"
+    },
+    "zakuro-common": {
+      "source": "git+https://github.com/fearkov/zakuro?rev=412900a5a020301da15c1cc382585e05a489a535#412900a5a020301da15c1cc382585e05a489a535",
+      "version": "0.2.27"
+    }
+  },
+  "toolchains": {
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.95.0\nLLVM version: 22.1.2\n",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)\n",
+    "cc": "cc (Debian 14.2.0-19) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+  },
+  "python": "3.12.14",
+  "tests": [
+    {
+      "suite": "test-recomp3ds",
+      "passed": 51,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0
+    },
+    {
+      "suite": "test-recomp-abi",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0
+    },
+    {
+      "suite": "test-zakuro-cpu",
+      "passed": 92,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0
+    },
+    {
+      "suite": "test-droidds-foundation",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0
+    }
+  ],
+  "python_gate_tests": 15,
+  "abi": 4,
+  "generation": 3,
+  "cases": [
+    {
+      "checkpoint_svc": 42,
+      "fallback_steps": 0,
+      "guest_code_hex": "0700a0e30371a0e30510a0e3012090e00c0052e30930a0036330a013002084e5046084e5005094e52a0000ef",
+      "instruction_callbacks": 0,
+      "interpreter_steps": 11,
+      "memory_bytes_compared": 65536,
+      "name": "arm_integer_memory",
+      "native_budget_charged": 11,
+      "native_calls": 1,
+      "native_lookup_hits": 0,
+      "status": "passed"
+    },
+    {
+      "checkpoint_svc": 42,
+      "fallback_steps": 0,
+      "guest_code_hex": "072005214218226063680c2a2adf",
+      "instruction_callbacks": 0,
+      "interpreter_steps": 7,
+      "memory_bytes_compared": 65536,
+      "name": "thumb_integer_memory",
+      "native_budget_charged": 7,
+      "native_calls": 1,
+      "native_lookup_hits": 0,
+      "status": "passed"
+    },
+    {
+      "checkpoint_svc": 42,
+      "fallback_steps": 3,
+      "guest_code_hex": "0700a0e318ff2fe1",
+      "instruction_callbacks": 0,
+      "interpreter_steps": 5,
+      "memory_bytes_compared": 65536,
+      "name": "arm_missing_entry_fallback",
+      "native_budget_charged": 2,
+      "native_calls": 1,
+      "native_lookup_hits": 0,
+      "status": "passed"
+    },
+    {
+      "checkpoint_svc": 42,
+      "fallback_steps": 0,
+      "guest_code_hex": "0700a0e318ff2fe1000000000000000000000000000000000000000000000000053020602adf",
+      "instruction_callbacks": 0,
+      "interpreter_steps": 5,
+      "memory_bytes_compared": 65536,
+      "name": "arm_to_thumb_native",
+      "native_budget_charged": 5,
+      "native_calls": 1,
+      "native_lookup_hits": 1,
+      "status": "passed"
+    }
+  ],
+  "negative_controls": [
+    {
+      "name": "nan_shaped_integer_register_mismatch",
+      "rejection": "native: r6: expected 7fc00001, got 7fc00002",
+      "status": "passed"
+    },
+    {
+      "name": "nan_shaped_integer_memory_mismatch",
+      "rejection": "native: memory byte 00004004 differs",
+      "status": "passed"
+    },
+    {
+      "accepted_as_completed": false,
+      "interpreter_steps": 256,
+      "name": "guest_instruction_limit",
+      "native_budget_charged": 256,
+      "native_calls": 8,
+      "status": "passed"
+    },
+    {
+      "limit_ms": 150,
+      "name": "process_watchdog",
+      "status": "passed",
+      "terminated": true
+    }
+  ],
+  "local_executable_sha256": "4787f21b83a2ec5e0aca87a496d336d0f5fbc7ba6fbd7d916278fb8ccd738db0",
+  "not_tested": [
+    "Android",
+    "GPU",
+    "retail games",
+    "VFP instructions",
+    "CRO lifecycle",
+    "writable executable invalidation"
+  ]
+}

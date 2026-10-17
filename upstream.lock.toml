@@ -1,0 +1,21 @@
+# CodexAstraUlt: Record intended CPU foundation sources independently from the
+# Cargo resolution; the build runner checks both this file and the active graph.
+schema = 1
+
+[recompiler]
+repository = "https://github.com/fearkov/3dsrecomp"
+revision = "c3f21f94ba50d688025febc8974ff348d471b587"
+packages = ["recomp3ds", "recomp-abi"]
+abi = 4
+generation = 3
+
+[runtime]
+repository = "https://github.com/fearkov/zakuro"
+revision = "412900a5a020301da15c1cc382585e05a489a535"
+packages = ["zakuro-cpu", "zakuro-common"]
+
+[verification]
+# CodexAstraUlt: Use the selected runtime interpreter directly, not the optional
+# upstream verifier with a different historical CPU pin and permissive oracle.
+upstream_verify_feature = false
+oracle = "strict-synthetic-known-output"

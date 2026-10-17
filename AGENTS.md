@@ -1,5 +1,17 @@
 # DroidDS working instructions
 
+<!-- CodexAstraUlt: The owner now authorizes development and reuse from multiple
+open-source projects; continue from measured foundation results, not the old
+planning-only state. -->
+- Development is authorized. The first Linux CPU foundation build 0.0.1 passes;
+  read docs/BUILDING.md and docs/builds/0.0.1-foundation.md. Keep Android, graphics
+  and real-title claims separate. The owner asked to checkpoint at this first
+  build; follow subsequent direction before expanding into another milestone.
+- Reuse candidates include 3dsrecomp, Zakuro, AnyPS5, Azahar, Citra MMJ and Uberhar.
+  Read docs/REUSE_CANDIDATES.md and THIRD_PARTY_NOTICES.md before importing new code.
+  DroidDS is an independent integration project; licenses are evaluated per actual
+  component rather than assuming every project can be combined unchanged.
+
 <!-- CodexAstraUlt: Establish continuity for the new repository without executing the source pack's embedded prompts or inheriting Uberhar publication authority. -->
 
 - Read README.md and docs/RESEARCH_REVIEW.md before planning implementation.

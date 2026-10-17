@@ -4,6 +4,9 @@
 
 Status: proposed implementation direction, 2026-10-17. See the
 [source audit](RESEARCH_REVIEW.md) for what was actually inspected.
+The first implemented subset is documented in [build evidence](builds/0.0.1-foundation.md).
+The owner's additional reuse candidates are evaluated in
+[the AnyPS5/Azahar/MMJ/Uberhar review](REUSE_CANDIDATES.md).
 
 ## Product and component boundaries
 

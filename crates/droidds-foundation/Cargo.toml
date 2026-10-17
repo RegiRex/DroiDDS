@@ -1,0 +1,16 @@
+# CodexAstraUlt: The foundation executable is an original synthetic test host,
+# reusing upstream code generation, ABI loading and CPU interpretation unchanged.
+[package]
+name = "droidds-foundation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "DroidDS synthetic CPU recompilation foundation checks"
+
+[dependencies]
+recomp3ds.workspace = true
+recomp-abi.workspace = true
+zakuro-cpu.workspace = true
+serde_json.workspace = true
+libc.workspace = true

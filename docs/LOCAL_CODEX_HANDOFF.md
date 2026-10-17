@@ -2,8 +2,11 @@
 
 <!-- CodexAstraUlt: Supply an executable project direction without silently starting implementation or requiring a cloud-to-local session bridge. -->
 
-DroidDS planning is complete enough to start DDS-001/002. Implementation has not
-started. The existing Nobara laptop and USB-connected Thor can host the private
+<!-- CodexAstraUlt: Supersede the initial planning-only handoff after the first
+verified CPU build; local work should reproduce it and continue the next gates. -->
+DroidDS's first Linux CPU foundation build 0.0.1 passes in cloud. Read
+[build instructions](BUILDING.md) and [the result](builds/0.0.1-foundation.md).
+The existing Nobara laptop and USB-connected Thor can host the private
 development/test loop once their current readiness is checked. This cloud chat
 does not share a live session, device connection or private files with local Codex.
 
@@ -13,8 +16,8 @@ Work in a separate DroidDS checkout. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`
 `docs/ARCHITECTURE.md` and `docs/BACKLOG.md`. Keep Uberhar files, APK and saves intact.
 Check branch and local changes before fetching; do not reset another session's work.
 
-The first implementation batch is source/dependency/ABI reconciliation and a
-repeatable Linux build, followed by the small synthetic AOT/interpreter fixture.
+The initial CPU dependency/build/fixture batch is implemented. Reproduce it locally,
+then continue DDS-004/005 and the A0 Android probe against the documented gates.
 Do not attempt all prompts in the research archive. No game upload, full Android
 frontend, release signing change or retail APK is needed for this first batch.
 
@@ -58,10 +61,10 @@ application artifact, establish DroidDS's own versioning, signing and release ga
 ## Suggested task to give local Codex when ready
 
 > Continue DroidDS from the published plans. Read AGENTS.md and the research review.
-> Implement only DDS-001/002 first: reconcile exact producer/runtime/verifier pins,
-> document the real ABI and provenance gaps, establish a locked Linux build and
-> report tests that actually ran. Then tackle the small public synthetic fixture
-> in DDS-003 if the foundation passes. Use CodexAstraUlt comments, preserve local
+> Reproduce the 0.0.1 CPU foundation with tools/build_foundation.py. Read its evidence
+> and report tests that actually ran. Then select one bounded DDS-004/005 task;
+> begin the small A0 Android probe only with its fixture/device prerequisites met.
+> Use CodexAstraUlt comments, preserve local
 > changes, keep all retail inputs/derived outputs private, and leave Uberhar intact.
 > Do not execute the archive's entire prompt pack or claim Android/game readiness
 > from compilation alone. Checkpoint after each ticket and report concrete blockers.

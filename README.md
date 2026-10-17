@@ -6,22 +6,30 @@ An Android ARM64 3DS recompilation project, planned around **3dsrecomp + Zakuro*
 The desktop builder will translate supported guest CPU code into native libraries;
 a shared runtime will retain 3DS services, graphics, audio and interpreter fallback.
 
-**Status, 2026-10-17: planning and source reconnaissance. No DroidDS runtime,
-APK, game compatibility result or performance improvement has been demonstrated.**
+<!-- CodexAstraUlt: Replace planning-only status after the first verified host
+build; keep its small CPU proof separate from Android and game qualification. -->
+**Status, 2026-10-17: the first Linux CPU foundation build, 0.0.1, passes.**
+Four original ARM/Thumb cases execute generated native code and match the selected
+interpreter and known expected outputs, including native interworking and deliberate
+missing-entry fallback. Validation passed 151 Rust tests and 15 Python gate tests,
+plus the executable's four cases and four negative controls.
 
-The first objective is a reproducible Linux synthetic fixture that executes both
-recompiled and interpreted code, with trustworthy comparison results. A small
-Android/Bionic loading experiment should run early to expose platform risks.
-Real-title and sustained Thor testing follow those foundations.
+This is an original DroidDS integration workspace using pinned 3dsrecomp compiler/
+ABI and Zakuro CPU components. Android, HLE services, graphics and game performance
+are not included in this first build. Continue the CPU lifecycle/semantic gates,
+then the small Android/Bionic probe and graphics foundation from the roadmap.
 
 | Read | Purpose |
 | --- | --- |
+| [Build and run](docs/BUILDING.md) | Reproduce the first Linux CPU foundation |
+| [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |
+| [Additional reuse candidates](docs/REUSE_CANDIDATES.md) | AnyPS5, Azahar, Citra MMJ and Uberhar source review |
 | [Architecture](docs/ARCHITECTURE.md) | Components, design decisions, boundaries and risks |
 | [Roadmap](docs/ROADMAP.md) | Ordered milestones with measurable exit gates |
 | [Implementation backlog](docs/BACKLOG.md) | Bounded tasks, dependencies and acceptance checks |
 | [Testing strategy](docs/TEST_STRATEGY.md) | CPU correctness, graphics continuity, memory and device tests |
 | [Research review](docs/RESEARCH_REVIEW.md) | ZIP inventory, verified pins, source findings and corrections |
-| [Local Codex handoff](docs/LOCAL_CODEX_HANDOFF.md) | How to start implementation on the Nobara/Thor setup |
+| [Local Codex handoff](docs/LOCAL_CODEX_HANDOFF.md) | How to continue on the Nobara/Thor setup |
 | [Original research pack](docs/research/2026-10-17/00_README.md) | Preserved input; proposals and example prompts, not completed work |
 
 CPU recompilation does not remove PICA graphics translation or guarantee smooth

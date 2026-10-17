@@ -2,9 +2,13 @@
 
 <!-- CodexAstraUlt: Replace the research pack's broad serial implementation sequence with evidence-gated work and early Android, memory and correctness risk checks. -->
 
-Date: 2026-10-17. **All implementation milestones below are planned.** Completed
-planning work: archive validation, upstream source reconnaissance and these plans.
-There are no build, runtime, Android or performance results yet.
+<!-- CodexAstraUlt: Record the first CPU implementation without promoting full
+milestones whose instruction/lifecycle/device gates have not been exercised. -->
+Date: 2026-10-17. **The first CPU foundation build 0.0.1 passes locally.**
+Exact dependencies, an original test host, strict comparisons and four synthetic
+native/fallback cases are implemented. See [build evidence](builds/0.0.1-foundation.md).
+M0/M1 are partially demonstrated; full runtime builds, broader CPU/module tests,
+Android, graphics and game-performance gates below remain open.
 
 | Milestone | Deliverable | Exit evidence | Dependencies |
 | --- | --- | --- | --- |
@@ -42,7 +46,7 @@ page-size configurations explicitly rather than claiming universal compatibility
 M3's private baseline and M4's Android host work may proceed independently once
 their prerequisites pass. Device measurements always serialize.
 
-## First implementation batch
+## Initial batch and next work
 
 1. **DDS-001/002:** resolve the actual source/ABI/verifier dependency graph and
    build the pinned Linux tools with a recorded exact toolchain.
@@ -51,6 +55,11 @@ their prerequisites pass. Device measurements always serialize.
    comparison machinery itself.
 3. Produce a reproducibility report and select the next bounded task. Do not turn
    this batch into a frontend, complete emulator or private APK project.
+
+The CPU subset of this initial batch is now implemented and locally verified.
+Next, reproduce it on the local Linux setup, expand DDS-004/005 and begin the
+smallest A0 Android probe where device access is available. DDS-006 source/test
+work can proceed separately. Do not treat the first four fixtures as complete M1.
 
 Read-only reviews of Android constraints and existing GPU tests can run alongside
 this batch. A failed toolchain, provenance or oracle gate gets a focused diagnosis

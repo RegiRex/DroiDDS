@@ -1,0 +1,5 @@
+# CodexAstraUlt: Pin the selected Zakuro minimum to an exact reproducible release.
+[toolchain]
+channel = "1.95.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

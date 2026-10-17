@@ -26,3 +26,6 @@
 *.log
 .env
 .env.*
+# CodexAstraUlt: Local Python runner bytecode is generated setup output.
+__pycache__/
+*.pyc
