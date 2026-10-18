@@ -175,12 +175,12 @@ def binary_manifest(package="org.droidds.probe", debuggable=True, test_only=True
 class ManifestTests(unittest.TestCase):
     """CodexAstraUlt: Package restrictions apply before any device mutation."""
 
-    def decode(self, content):
+    def decode(self, content, allow_prerelease=False):
         with tempfile.TemporaryDirectory() as temp:
             apk = Path(temp) / "fixture.apk"
             with zipfile.ZipFile(apk, "w") as archive:
                 archive.writestr("AndroidManifest.xml", content)
-            return RUNNER.apk_manifest(apk)
+            return RUNNER.apk_manifest(apk, allow_prerelease=allow_prerelease)
 
     def test_utf8_and_utf16_android_string_pools(self):
         for utf8 in (True, False):
@@ -194,6 +194,15 @@ class ManifestTests(unittest.TestCase):
         for options in ({"debuggable": False}, {"test_only": False}):
             with self.assertRaisesRegex(ValueError, "debuggable|testOnly"):
                 self.decode(binary_manifest(**options))
+
+    def test_published_probe_requires_explicit_prerelease_scope(self):
+        decoded = self.decode(binary_manifest(test_only=False), allow_prerelease=True)
+        self.assertFalse(decoded["test_only"])
+        self.assertEqual(decoded["package"], "org.droidds.probe")
+        self.assertTrue(decoded["debuggable"])
+        for options in ({"package": "another.app"}, {"debuggable": False}):
+            with self.assertRaises(ValueError):
+                self.decode(binary_manifest(test_only=False, **options), allow_prerelease=True)
 
     def test_truncated_and_malformed_manifests_are_rejected(self):
         good = binary_manifest()

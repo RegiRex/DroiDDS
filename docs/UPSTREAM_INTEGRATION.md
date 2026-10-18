@@ -105,28 +105,29 @@ an arbitrary downloaded library.
 
 ## Reuse and distribution boundary
 
-<!-- CodexAstraUlt: Preserve factual notices and restrict the first published deliverable to original source/build instructions while the upstream notice provenance remains unresolved. -->
+<!-- CodexAstraUlt: Replace the initial source-only distribution hold after the
+owner's prerelease request and actual notice assembly; preserve missing-notice
+provenance without inventing upstream copyright attribution. -->
 
-The first public deliverable consists of DroidDS's original harness, original
-synthetic fixtures, build/CI configuration, source pins and reports. It neither
-ships upstream source copies nor attaches a compiled harness or generated shared
-library. Local builds and CI fetch the declared dependencies from their original
-sources. This choice lets implementation and tests proceed without treating an
-incomplete attribution record as a finished binary distribution inventory.
+The first Linux milestone published original source, synthetic fixtures, build
+configuration, pins and reports without binaries. The owner subsequently
+requested a downloadable Android CPU probe prerelease. That APK contains the
+original synthetic fixtures and selected upstream ABI/interpreter support.
 
-[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) records the supplied Zakuro
-notice verbatim and the separate 3dsrecomp evidence gap. Do not borrow Zakuro's
-copyright line for 3dsrecomp, infer one from commit authors, or label an invented
-notice as upstream's. A Cargo `license = "MIT"` declaration is useful licensing
-evidence but does not supply the missing copyright notice.
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) records the actual dependency
+and toolchain notices, assembled by `tools/collect_android_notices.py`. The full
+bundle is embedded in the APK and published beside it. This includes all supplied
+registry and Zakuro notices, Rust runtime and NDK support notices, and both
+3dsrecomp manifests with their explicit MIT declarations plus clearly labeled
+standard MIT terms. The missing standalone 3dsrecomp copyright notice is recorded;
+no holder is invented or borrowed from Zakuro. The explicit MIT declarations
+support the current probe's distribution, resolving the earlier blanket hold.
 
-**Remaining distribution question:** which upstream-supplied copyright and full
-license notice apply to 3dsrecomp and its ABI at the selected commit? Record an
-authoritative source when available and assemble notices for the resolved target
-dependency closure before publishing compiled binaries or vendoring those files.
-No upstream contact or submission is part of this first build.
+The tag workflow verifies the signed APK and stages only its four public release
+assets. The one-off diagnostic key is never uploaded or retained. Stable product
+signing remains separate work, and no upstream contact or submission is implied.
 
-Generated source and libraries remain local build products in this milestone.
-Even synthetic generated output can contain upstream ABI/support code. Retail
-inputs and all retail-derived output remain private under the existing project
-rules; a completed third-party notice inventory would not change that boundary.
+Retail inputs and all retail-derived output remain private. The public release
+contains only the original CPU test fixtures; Android device execution, graphics
+and real-title compatibility remain separate qualification gates. Future source
+reuse requires its own actual dependency and notice review.

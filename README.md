@@ -21,6 +21,13 @@ and packages those fixtures for ARM64/Bionic in a small test app. See
 [Android build/device instructions](docs/ANDROID_PROBE.md). Actual Thor execution,
 graphics and game compatibility remain unverified.
 
+<!-- CodexAstraUlt: Direct the owner to the installable diagnostic prerelease;
+the APK executes CPU fixtures and is not yet a game player. -->
+The **[0.0.2 Android probe prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.2-probe.1)**
+provides an installable ARM64 APK. Launch **DroidDS Probe** to run its four CPU
+checks automatically; no game file or manual Linux test is needed. See the release
+notes for the diagnostic signing identity and installation requirements.
+
 This is an original DroidDS integration workspace using pinned 3dsrecomp compiler/
 ABI and Zakuro CPU components. HLE services, graphics and game performance are
 not included in these CPU probes. Continue the CPU lifecycle/semantic gates,

@@ -1,0 +1,118 @@
+# CodexAstraUlt: Only a deliberately pushed probe tag can publish an APK. Build
+# jobs have no release token; the publish job receives only four public assets.
+name: Android probe prerelease
+
+on:
+  push:
+    tags: ["v*-probe.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: probe-prerelease-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      RUSTUP_TOOLCHAIN: "1.95.0"
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Validate tag and release notes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, "tools")
+          from prepare_probe_release import identity
+          tag = os.environ["RELEASE_TAG"]
+          identity(tag, os.environ["GITHUB_SHA"])
+          notes = Path("docs/releases") / (tag[1:] + ".md")
+          if not notes.is_file():
+              raise SystemExit("This tag needs reviewed release notes")
+          PY
+      - name: Install pinned toolchains
+        shell: bash
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt,clippy
+          rustup target add --toolchain 1.95.0 aarch64-linux-android
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;27.3.13750724"
+      - name: Validate release gates and CPU foundation
+        shell: bash
+        run: |
+          python3 -m unittest discover -s tools/tests -v
+          python3 tools/build_foundation.py --output out/prerelease-foundation --jobs 2
+      - name: Build signed installable diagnostic APK
+        shell: bash
+        run: |
+          python3 tools/build_android_probe.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --output out/prerelease-android --jobs 2 --prerelease --debug-keystore "$RUNNER_TEMP/droidds-probe.keystore"
+      - name: Prepare verified public assets
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          python3 tools/prepare_probe_release.py --build out/prerelease-android --output out/prerelease-bundle --sdk "$ANDROID_HOME" --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
+      - name: Store only release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: probe-prerelease
+          path: |
+            out/prerelease-bundle/DroidDS-*-android-arm64.apk
+            out/prerelease-bundle/BUILD_REPORT.json
+            out/prerelease-bundle/SHA256SUMS
+            out/prerelease-bundle/THIRD_PARTY_NOTICES.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Remove ephemeral diagnostic signing key
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/droidds-probe.keystore"
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: probe-prerelease
+          path: release-assets
+      - name: Verify downloaded assets
+        run: python3 tools/prepare_probe_release.py --verify-bundle release-assets --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
+      - name: Create draft, verify uploads, then publish prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # CodexAstraUlt: Failure to query releases is a failure, never evidence
+          # that replacing an existing release or draft would be safe.
+          existing=$(gh api "repos/$GH_REPO/releases" --paginate --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .id")
+          if [ -n "$existing" ]; then
+            echo "A release or draft already exists for this tag; refusing replacement." >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" release-assets/* --verify-tag --draft --prerelease --latest=false --title "DroidDS ${RELEASE_TAG#v} — Android CPU probe" --notes-file "docs/releases/${RELEASE_TAG#v}.md"
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/release-asset-names.txt"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          actual = (Path(os.environ["RUNNER_TEMP"]) / "release-asset-names.txt").read_text().splitlines()
+          expected = sorted(path.name for path in Path("release-assets").iterdir())
+          if sorted(actual) != expected:
+              raise SystemExit("Uploaded release assets differ; leaving draft unpublished")
+          PY
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

@@ -64,6 +64,8 @@ jobs:
               detail = str(report["error"])
               escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
               print("::error::" + escaped, file=sys.stderr)
-          print("No binary upload: upstream notice inventory and release signing remain separate work.")
+          # CodexAstraUlt: Main-branch checks remain audit-only; deliberate probe
+          # tags use the separate verified prerelease publication workflow.
+          print("Audit-only build. Downloadable probes are published by the separate tag workflow.")
           PY
           fi

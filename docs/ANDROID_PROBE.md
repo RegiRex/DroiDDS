@@ -50,9 +50,37 @@ The separate local debug key lives at `build/android-probe-debug.keystore`; keep
 to allow subsequent test updates. Its conventional password is not a production
 secret. The tool never reuses Uberhar's key. The package is test-only/debuggable,
 has no network/storage permissions and retains one private latest-report file.
-Do not publish the APK as a release: the [upstream notice inventory](../THIRD_PARTY_NOTICES.md)
-and product signing policy remain separate work. Source, scripts and CI are public;
-the APK is built locally for development.
+
+<!-- CodexAstraUlt: Replace the former local-only distribution restriction after
+the owner's prerelease authorization and completed artifact notice assembly. -->
+The public prerelease uses a separate build mode: `--prerelease` stages a manifest
+with `testOnly=false`, allowing installation from the browser or file manager.
+It retains `debuggable=true` for bounded ADB report retrieval. Every APK embeds
+the full [third-party notice bundle](../THIRD_PARTY_NOTICES.md). The default local
+build above remains test-only.
+
+## Download the prerelease
+
+<!-- CodexAstraUlt: Make the owner-facing test a direct APK installation; distinguish
+the disposable first diagnostic signer from a stable product signing identity. -->
+
+Open the [DroidDS prereleases](https://github.com/RegiRex/DroidDS/releases) and
+download `DroidDS-0.0.2-android-arm64.apk` from `v0.0.2-probe.1`. It requires ARM64
+Android 10 or newer. Install it, launch **DroidDS Probe**, and let its four CPU
+tests run automatically. No game file or Linux test is needed. The app displays
+the result; **Run again** repeats it.
+
+The first public probe has a one-off CI diagnostic signing key, whose public
+certificate fingerprint is in `BUILD_REPORT.json`. Its private key is not
+published or retained. It cannot update a differently signed local probe, and a
+future probe may require an explicit reinstall. Automation never uninstalls the
+existing app or deletes its data to resolve a signature conflict. Stable product
+signing remains separate work. This package is independent of Uberhar.
+
+The tag workflow validates the Linux foundation, builds and audits the APK, and
+publishes only the APK, `BUILD_REPORT.json`, `SHA256SUMS` and
+`THIRD_PARTY_NOTICES.txt`. Existing releases are never overwritten. This remains
+a CPU diagnostic, with Android device execution pending until a real run.
 
 ## Run the probe from the laptop
 
@@ -67,6 +95,12 @@ python3 tools/run_android_probe.py \
   --apk out/android-probe-local/droidds-android-probe-debug.apk \
   --output out/thor-probe-local
 ```
+
+<!-- CodexAstraUlt: Require an explicit public-probe selection while preserving the
+default test-only APK guard and the same package/data boundaries. -->
+For the downloaded prerelease, point `--apk` at that file and add
+`--allow-prerelease`. The runner still requires the exact debuggable probe package;
+the flag only permits its normal-install manifest.
 
 The runner inspects the real APK manifest before installation, verifies the
 installed APK hash, launches with a fresh request ID, and requires the matching

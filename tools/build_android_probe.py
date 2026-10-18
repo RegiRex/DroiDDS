@@ -15,9 +15,11 @@ import signal
 import subprocess
 import sys
 import tomllib
+import xml.etree.ElementTree as ET
 import zipfile
 
 from build_foundation import ROOT, interrupted, snapshot, terminate_group, validate_graph
+from run_android_probe import apk_manifest
 
 NDK_VERSION = "27.3.13750724"
 BUILD_TOOLS_VERSION = "35.0.0"
@@ -25,6 +27,24 @@ TARGET = "aarch64-linux-android"
 PACKAGE = "org.droidds.probe"
 CASES = {"arm_integer_memory", "thumb_integer_memory",
          "arm_missing_entry_fallback", "arm_to_thumb_native"}
+
+
+def stage_manifest(source: Path, destination: Path, prerelease: bool) -> None:
+    """CodexAstraUlt: Enable browser installation only for the requested public probe."""
+    if not prerelease:
+        shutil.copyfile(source, destination)
+        return
+    android = "http://schemas.android.com/apk/res/android"
+    ET.register_namespace("android", android)
+    tree = ET.parse(source)
+    root = tree.getroot()
+    application = root.find("application")
+    if root.get("package") != PACKAGE or application is None:
+        raise ValueError("Only the synthetic DroidDS probe may be staged for publication")
+    if application.get("{" + android + "}debuggable") != "true":
+        raise ValueError("Probe report retrieval requires the diagnostic debuggable flag")
+    application.set("{" + android + "}testOnly", "false")
+    tree.write(destination, encoding="utf-8", xml_declaration=True)
 
 
 def sha256(path: Path) -> str:
@@ -78,6 +98,8 @@ def main() -> int:
     parser.add_argument("--java-home", type=Path, default=os.environ.get("JAVA_HOME"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--jobs", type=int, default=2)
+    parser.add_argument("--prerelease", action="store_true",
+                        help="make the diagnostic probe installable from a downloaded APK")
     parser.add_argument("--debug-keystore", type=Path,
                         default=ROOT / "build/android-probe-debug.keystore")
     args = parser.parse_args()
@@ -103,6 +125,7 @@ def main() -> int:
     report = {"schema": 1, "kind": "droidds-android-probe-build", "status": "building",
               "runtime_status": "not_run", "target": TARGET, "minimum_api": 29,
               "compile_target_api": 35, "ndk": NDK_VERSION, "build_tools": BUILD_TOOLS_VERSION,
+              "distribution": "prerelease" if args.prerelease else "local-debug",
               "commands": commands}
 
     def run(name: str, argv: list, timeout: int = 600, extra_env: dict | None = None,
@@ -151,6 +174,13 @@ def main() -> int:
                                   json_stdout=True))
         pins = tomllib.loads((ROOT / "upstream.lock.toml").read_text())
         report["sources"] = validate_graph(metadata, pins)
+        # CodexAstraUlt: Ship supplied dependency notices and explicit SPDX-based
+        # terms in the APK itself, as well as beside a downloadable prerelease.
+        notices = out / "THIRD_PARTY_NOTICES.txt"
+        run("dependency-notices", [sys.executable, ROOT / "tools/collect_android_notices.py",
+                                   "--ndk", ndk, "--output", notices])
+        report["third_party_notices"] = {"file": notices.name, "sha256": sha256(notices),
+                                         "apk_entry": "assets/THIRD_PARTY_NOTICES.txt"}
         tree = run("android-dependencies", ["cargo", "tree", "--locked", "-p",
                    "droidds-android-probe", "--target", TARGET, "-e", "normal,build", "--prefix", "none"])
         if any(re.search(rf"^{name}\s", tree, re.M) for name in
@@ -209,17 +239,21 @@ def main() -> int:
         run("dex", [build_tools / "d8", "--min-api", "29", "--lib", android_jar,
                     "--output", dex, *sorted(classes.rglob("*.class"))])
         raw_apk = out / "probe-unaligned.apk"
+        staged_manifest = out / "AndroidManifest.xml"
+        stage_manifest(ROOT / "android/probe/AndroidManifest.xml", staged_manifest, args.prerelease)
+        report["staged_manifest_sha256"] = sha256(staged_manifest)
         run("manifest", [build_tools / "aapt2", "link", "-I", android_jar, "--manifest",
-                         ROOT / "android/probe/AndroidManifest.xml", "-o", raw_apk])
+                         staged_manifest, "-o", raw_apk])
         with zipfile.ZipFile(raw_apk, "a") as archive:
             archive.write(dex / "classes.dex", "classes.dex", compress_type=zipfile.ZIP_DEFLATED)
             for path in sorted(libs.glob("*.so")):
                 archive.write(path, "lib/arm64-v8a/" + path.name, compress_type=zipfile.ZIP_STORED)
             archive.write(ROOT / "THIRD_PARTY_NOTICES.md", "assets/THIRD_PARTY_NOTICES.md",
                           compress_type=zipfile.ZIP_DEFLATED)
+            archive.write(notices, "assets/THIRD_PARTY_NOTICES.txt", compress_type=zipfile.ZIP_DEFLATED)
         aligned = out / "probe-aligned.apk"
         run("zipalign", [build_tools / "zipalign", "-P", "16", "-f", "4", raw_apk, aligned])
-        # CodexAstraUlt: This isolated, stable DEBUG key is never a release key
+        # CodexAstraUlt: This isolated diagnostic key is not a product signing key
         # and is never copied from Uberhar. Its conventional password is public.
         key = args.debug_keystore.resolve()
         if not key.exists():
@@ -229,18 +263,31 @@ def main() -> int:
                 "-dname", "CN=DroidDS development,O=Android,C=US", "-keyalg", "RSA",
                 "-keysize", "2048", "-validity", "10000", "-storetype", "JKS", "-noprompt"])
             key.chmod(0o600)
-        apk = out / "droidds-android-probe-debug.apk"
+        apk = out / ("droidds-android-probe-prerelease.apk" if args.prerelease
+                     else "droidds-android-probe-debug.apk")
         run("sign", [build_tools / "apksigner", "sign", "--ks", key, "--ks-key-alias",
             "droidds-probe-debug", "--ks-pass", "pass:android", "--key-pass", "pass:android",
             "--out", apk, aligned])
         report["signature_verification"] = run("verify-signature", [build_tools / "apksigner",
                                                "verify", "--verbose", "--print-certs", apk])
+        # CodexAstraUlt: Publish a certificate fingerprint, never the signing key.
+        # The first disposable probe has no previously established public signer.
+        certificates = re.findall(r"Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]{64})",
+                                  report["signature_verification"])
+        if len(certificates) != 1:
+            raise ValueError("Expected exactly one verified APK signing certificate")
+        report["signing_certificate_sha256"] = certificates[0].lower()
         run("verify-apk-alignment", [build_tools / "zipalign", "-c", "-P", "16", "-v", "4", apk])
         badging = run("verify-package", [build_tools / "aapt2", "dump", "badging", apk])
         if f"package: name='{PACKAGE}'" not in badging or "native-code: 'arm64-v8a'" not in badging:
             raise ValueError("APK package/ABI differs from the Android probe")
         if not re.search(r"^(?:minSdkVersion|sdkVersion):'29'$", badging, re.M) or "targetSdkVersion:'35'" not in badging:
             raise ValueError("APK API levels differ from the probe contract")
+        actual_manifest = apk_manifest(apk, allow_prerelease=args.prerelease)
+        if actual_manifest["test_only"] != (not args.prerelease):
+            raise ValueError("Packaged APK install mode differs from the requested mode")
+        report.update(manifest=actual_manifest, test_only=actual_manifest["test_only"],
+                      debuggable=actual_manifest["debuggable"])
         if inputs() != report["inputs_sha256"]:
             raise ValueError("Build inputs changed during execution; rerun from stable sources")
         report.update(status="built", apk=apk.name, apk_sha256=sha256(apk),

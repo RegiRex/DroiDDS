@@ -108,7 +108,7 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
         raise ValueError("Negative control did not prove rejection")
 
 
-def apk_manifest(apk: Path) -> dict:
+def apk_manifest(apk: Path, allow_prerelease: bool = False) -> dict:
     """CodexAstraUlt: Inspect Android binary XML before installing anything on a device.
 
     Only the bounded manifest identity is decoded. This avoids requiring the full
@@ -219,8 +219,10 @@ def apk_manifest(apk: Path) -> dict:
         raise ValueError("APK needs literal versionCode and versionName")
     if not application or application.get((android, "debuggable")) is not True:
         raise ValueError("Probe APK must be debuggable for bounded run-as report retrieval")
-    if application.get((android, "testOnly")) is not True:
-        raise ValueError("Probe APK must be marked testOnly")
+    # CodexAstraUlt: The owner authorized a browser-installable prerelease.
+    # Keep the package/debug guards; accepting that mode requires explicit scope.
+    if application.get((android, "testOnly")) is not True and not allow_prerelease:
+        raise ValueError("Probe APK must be marked testOnly; use --allow-prerelease for the published probe")
     return {"package": PACKAGE, "version_code": version_code, "version_name": version_name,
             "debuggable": True, "test_only": application.get((android, "testOnly")) is True}
 
@@ -365,6 +367,8 @@ def main() -> int:
     parser.add_argument("--serial", required=True, help="explicit serial from adb devices")
     parser.add_argument("--apk", type=Path, required=True, help="locally built synthetic probe APK")
     parser.add_argument("--output", type=Path, required=True, help="new local evidence directory")
+    parser.add_argument("--allow-prerelease", action="store_true",
+                        help="accept the browser-installable org.droidds.probe diagnostic APK")
     parser.add_argument("--timeout", type=float, default=60, help="probe deadline, 5–120 seconds")
     args = parser.parse_args()
     if sys.platform != "linux":
@@ -389,7 +393,7 @@ def main() -> int:
         shutil.copyfile(source_apk, apk)
         with apk.open("rb") as artifact:
             evidence["apk_sha256"] = hashlib.file_digest(artifact, "sha256").hexdigest()
-        manifest = apk_manifest(apk)
+        manifest = apk_manifest(apk, allow_prerelease=args.allow_prerelease)
         evidence["apk_manifest"] = manifest
         executable = shutil.which("adb")
         if not executable:

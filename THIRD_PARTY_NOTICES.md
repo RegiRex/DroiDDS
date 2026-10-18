@@ -1,17 +1,21 @@
 # Third-party source and notice record
 
-<!-- CodexAstraUlt: Record only supplied attribution; distinguish direct source dependencies from copied code and from a complete redistribution notice bundle. -->
+<!-- CodexAstraUlt: Replace the earlier source-only notice record with an
+artifact notice collector now that the owner authorizes an Android prerelease.
+Preserve attribution without inventing missing upstream copyright notices. -->
 
-DroidDS's first Linux harness obtains its upstream components directly through
-full-commit Cargo Git dependencies. This repository does not vendor their source
-or distribute the resulting binaries. This is the source/provenance record for
-that integration, not a complete notice bundle for a future APK or native binary.
-<!-- CodexAstraUlt: The first Android probe adds original integration code and
-uses the same registry/upstream dependencies; it is locally built, not released. -->
-The 0.0.2 Android CPU probe uses the same pinned ABI/interpreter dependencies.
-Its original Java/JNI/Rust shell adds no registry dependency. A local debug APK
-can be built for development; public CI audits it without uploading binaries.
-The notice gap below remains open before binary redistribution.
+DroidDS obtains its upstream components through full-commit Cargo Git dependencies.
+The 0.0.2 Android CPU probe uses the same pinned ABI/interpreter components as the
+Linux foundation. Its original Java/JNI/Rust shell adds no registry dependency.
+The owner has authorized a downloadable Android probe prerelease.
+
+`tools/collect_android_notices.py` assembles `THIRD_PARTY_NOTICES.txt` from the
+actual locked package sources and pinned toolchain, for inclusion in the APK and
+beside its download. It preserves complete supplied license files and their byte
+hashes, the explicit 3dsrecomp MIT declarations and standard terms, Rust's runtime
+copyright record, and NDK support notices. This Markdown file documents that
+process; the generated text is the distribution notice bundle.
+
 See [the integration decisions](docs/UPSTREAM_INTEGRATION.md) and `Cargo.lock` for
 the selected source and resolved dependency graph.
 
@@ -29,10 +33,24 @@ selected Git tree, and no supplied copyright notice was found in the inspected
 source. No copyright notice has been inferred from author identities or from
 Zakuro's separate license.
 
-The complete upstream notice provenance remains unresolved. Resolve it before
-distributing compiled artifacts containing this code or copying its implementation
-into DroidDS. The first public build workflow publishes original harness source,
-configuration and test records rather than binary artifacts.
+<!-- CodexAstraUlt: The earlier blanket redistribution hold was more conservative
+than the evidence required. The explicit upstream MIT declarations supply the
+license choice; retain standard terms and document the missing supplied notice. -->
+
+An inspection of the upstream's full reachable history on 2026-10-18 found no
+additional LICENSE/NOTICE/COPYING file; current HEAD still equals the pinned
+revision. The missing standalone file does not erase the explicit MIT license
+declarations. The prerelease relies on those upstream declarations and includes
+both original manifests plus the standard MIT permission, condition and warranty
+text. That text is labeled as reconstructed from the SPDX declaration, not as an
+upstream-supplied license file. No copyright holder or year is invented, and
+Zakuro's separate copyright notice is not applied to 3dsrecomp.
+
+This resolves the earlier self-imposed blanket hold for the current probe. Future
+dependency revisions must be reviewed again; if upstream supplies a copyright or
+notice file later, retain it. `recomp-abi` links into the probe. `recomp3ds` runs on
+the build host and emits support code for the original synthetic fixtures; its
+host executable is not bundled into the APK.
 
 ## Zakuro
 
@@ -110,17 +128,40 @@ runtime library graph. `unicode-ident` explicitly includes Unicode-3.0 obligatio
 in addition to its MIT/Apache alternative. Do not drop that conjunction when
 assembling a distribution's notices.
 
-## Distribution follow-up
+## Android distribution bundle
 
-<!-- CodexAstraUlt: Keep the resolved source inventory distinct from a completed artifact-specific notice bundle and from the missing upstream 3dsrecomp notice. -->
+<!-- CodexAstraUlt: Include supplied runtime/toolchain notices in addition to
+Cargo declarations, and distinguish conservative attribution from actual linkage. -->
 
 A registry checksum is an integrity identifier, not a license. The supplied
-license/notice files must be retained and assembled for a distributed artifact's
-target and enabled features. This first source release does not copy registry
-implementation or claim that a complete binary notice bundle has been assembled.
-The registry inventory does not resolve the separate 3dsrecomp notice gap above.
+license/notice files listed above are collected verbatim. The collector deliberately
+includes all 23 third-party packages in the resolved cross-platform workspace,
+including host-only and procedural-macro dependencies. This keeps all supplied
+notices without asserting that every package's code links into the APK.
 
-Compiler runtimes, C support code, target-specific dependencies and any future
-Android/GPU/service dependencies must be included when qualifying that artifact.
-This record does not relicense upstream source or cover Nintendo game content,
-private title-derived code, or future Uberhar/Azahar code reuse.
+The collector additionally preserves:
+
+- Rust 1.95.0's `share/doc/rust/COPYRIGHT-library.html` in its original HTML form,
+  including standard-library dependencies, copyright attribution and license
+  exceptions. Rust provides this separate runtime-specific record; the much larger
+  compiler inventory is not an APK input.
+- Android NDK `27.3.13750724`'s root `NOTICE`, `NOTICE.toolchain` and
+  `toolchains/llvm/prebuilt/linux-x86_64/NOTICE`. These supplied broad records
+  cover CRT/compiler support and preserve LLVM exceptions and other applicable
+  notices. Including the records does not bundle the NDK's compiler or tools.
+
+Android's framework and shared system libraries are supplied by the device. The
+APK's ELF audit permits only the packaged probe/fixture libraries and Android
+`libc`, `libm`, `libdl`, and `liblog`; it does not package a C++ standard library.
+The probe does not copy Java library implementations or bundle the JDK/Android
+SDK. Its Java shell is original DroidDS code.
+
+The collector fails before packaging if a required supplied file is missing or
+empty, the reviewed package inventory/license expressions change, upstream Git
+pins differ, or the Rust/NDK versions differ. Regression tests cover these gates,
+retention of exact supplied bytes, and the Unicode license conjunction.
+
+This record does not relicense upstream source or select a license for original
+DroidDS code. No Nintendo game content or private title-derived code is included.
+Any future Android/GPU/service component or Uberhar/Azahar/MMJ/AnyPS5 reuse needs
+its own actual-source license review and notice update.
