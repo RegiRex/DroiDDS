@@ -22,7 +22,9 @@ import zipfile
 
 PACKAGE = "org.droidds.probe"
 REPORT_PATH = "files/latest-probe.json"
-MAX_REPORT_BYTES = 1024 * 1024 + 16 * 1024
+# CodexAstraUlt: Bound the original CPU report plus the new native Vulkan report
+# and Android shell metadata without permitting an unbounded device read.
+MAX_REPORT_BYTES = 1024 * 1024 + 64 * 1024 + 16 * 1024
 CASES = {
     "arm_integer_memory": (11, 0, 0, 11),
     "thumb_integer_memory": (7, 0, 0, 7),
@@ -40,6 +42,54 @@ def utc_now() -> str:
 def integer(value: object, minimum: int = 0) -> bool:
     """CodexAstraUlt: JSON booleans must not qualify as measured integers."""
     return type(value) is int and value >= minimum
+
+
+def validate_graphics_report(report: object) -> None:
+    """CodexAstraUlt: Require measured Vulkan output; unavailable never means passed."""
+    if not isinstance(report, dict):
+        raise ValueError("Vulkan report must be an object")
+    required = {"schema": 1, "kind": "droidds-vulkan-probe", "status": "passed",
+                "width": 16, "height": 16, "required_cycles": 3, "cycles_completed": 3,
+                "pipeline_creation_count": 3, "draw_count": 12}
+    for key, expected in required.items():
+        if type(report.get(key)) is not type(expected) or report[key] != expected:
+            raise ValueError(f"Missing or incorrect Vulkan proof: {key}")
+    if "error" not in report or report["error"] is not None:
+        raise ValueError("Vulkan passed report must have no execution error")
+    device = report.get("device")
+    if not isinstance(device, dict):
+        raise ValueError("Missing Vulkan physical device")
+    name = device.get("name")
+    if not isinstance(name, str) or not name.strip() or len(name.encode("utf-8")) >= 256:
+        raise ValueError("Invalid Vulkan physical device name")
+    for key in ("type", "api_version", "driver_version", "vendor_id", "device_id"):
+        if not integer(device.get(key)) or device[key] > 0xffffffff:
+            raise ValueError(f"Invalid Vulkan physical device field: {key}")
+    # CodexAstraUlt: Accept actual hardware and software Vulkan devices so the
+    # same output gate serves handheld and host tests; neither identifies a Thor.
+    api = device["api_version"]
+    if device["type"] > 4 or api >> 29 or ((api >> 22) & 0x7f) != 1:
+        raise ValueError("Invalid Vulkan physical device type or API version")
+    cases = report.get("cases")
+    names = {"solid_red", "solid_green", "split_red_green"}
+    if not isinstance(cases, list) or len(cases) != len(names):
+        raise ValueError("Missing Vulkan output cases")
+    actual_names = [case.get("name") if isinstance(case, dict) else None for case in cases]
+    if any(not isinstance(name, str) for name in actual_names) or set(actual_names) != names:
+        raise ValueError("Missing, duplicate or unknown Vulkan output cases")
+    for case in cases:
+        if case.get("status") != "passed":
+            raise ValueError(f"Vulkan output case did not pass: {case['name']}")
+        for key, expected in (("cycles_completed", 3), ("pixels_checked", 768),
+                              ("mismatched_pixels", 0)):
+            if type(case.get(key)) is not int or case[key] != expected:
+                raise ValueError(f"Missing or incorrect Vulkan output proof: {case['name']}/{key}")
+    controls = report.get("negative_controls")
+    if not isinstance(controls, dict) or controls.get("pixel_mutation_rejected") is not True:
+        raise ValueError("Vulkan pixel mutation did not prove comparator rejection")
+    for key in ("checks_completed", "required_checks"):
+        if type(controls.get(key)) is not int or controls[key] != 9:
+            raise ValueError(f"Missing or incorrect Vulkan comparator control: {key}")
 
 
 def validate_report(report: object, request_id: str, manifest: dict) -> None:
@@ -75,6 +125,21 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
             shell.get("app_version_name") != manifest["version_name"] or
             report.get("version") != manifest["version_name"]):
         raise ValueError("Android report version differs from the installed APK")
+    # CodexAstraUlt: Preserve historical CPU-only evidence without letting future
+    # versions silently inherit an obsolete proof contract or omit the GPU run.
+    if report["version"] not in ("0.0.2", "0.0.3"):
+        raise ValueError("Unsupported Android probe report version")
+    if report["version"] == "0.0.3":
+        if report.get("cpu_status") != "passed":
+            raise ValueError("Android CPU status did not pass")
+        for key in ("manufacturer", "model", "android_release"):
+            if not isinstance(shell.get(key), str) or not shell[key].strip():
+                raise ValueError(f"Missing Android device identity: {key}")
+        if not integer(shell.get("android_api"), 29):
+            raise ValueError("Missing or unsupported Android API")
+        if not integer(shell.get("elapsed_realtime_ms")):
+            raise ValueError("Missing Android elapsed execution duration")
+        validate_graphics_report(report.get("graphics_probe"))
     cases = report.get("cases")
     if not isinstance(cases, list) or len(cases) != len(CASES):
         raise ValueError("Missing or unknown CPU cases")
@@ -402,12 +467,12 @@ def main() -> int:
         execute_probe(adb, apk, manifest, evidence, args.timeout)
         evidence["device_execution_verified"] = True
         evidence["status"] = "passed"
-        print(f"Android CPU probe passed on the selected device; evidence: {output}")
+        print(f"Android probe passed on the selected device; evidence: {output}")
         return 0
     except (OSError, RuntimeError, ValueError, KeyError, TypeError, AttributeError,
             UnicodeError, zipfile.BadZipFile, struct.error, KeyboardInterrupt) as exc:
         evidence["error"] = str(exc)
-        print(f"Android CPU probe did not pass: {exc}", file=sys.stderr)
+        print(f"Android probe did not pass: {exc}", file=sys.stderr)
         return 1
     finally:
         evidence["finished_utc"] = utc_now()

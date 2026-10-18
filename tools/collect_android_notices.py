@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -14,6 +15,21 @@ ROOT = Path(__file__).resolve().parents[1]
 NDK_VERSION = "27.3.13750724"
 RECOMP_REV = "c3f21f94ba50d688025febc8974ff348d471b587"
 ZAKURO_REV = "412900a5a020301da15c1cc382585e05a489a535"
+
+# CodexAstraUlt: Vulkan's core API includes these seven video declaration
+# headers even though the probe performs no video work. Require each pinned
+# header so a missing input cannot silently disappear from the notice bundle.
+VULKAN_HEADERS = (
+    "vulkan/vulkan.h", "vulkan/vulkan_core.h", "vulkan/vk_platform.h",
+    "vk_video/vulkan_video_codecs_common.h",
+    "vk_video/vulkan_video_codec_h264std.h",
+    "vk_video/vulkan_video_codec_h264std_decode.h",
+    "vk_video/vulkan_video_codec_h264std_encode.h",
+    "vk_video/vulkan_video_codec_h265std.h",
+    "vk_video/vulkan_video_codec_h265std_decode.h",
+    "vk_video/vulkan_video_codec_h265std_encode.h",
+)
+NDK_INCLUDE = Path("toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include")
 
 # CodexAstraUlt: This exact inventory intentionally fails when a new package or
 # license appears; updating Cargo dependencies requires reviewing its notices.
@@ -73,6 +89,40 @@ def supplied_file(path: Path, label: str) -> str:
     return (f"\n----- BEGIN {label} -----\n"
             f"Original file SHA-256: {hashlib.sha256(data).hexdigest()}\n\n"
             + data.decode("utf-8") + f"\n----- END {label} -----\n")
+
+
+def header_notice(path: Path, label: str) -> str:
+    """CodexAstraUlt: Preserve actual attribution without copying API declarations."""
+    data = path.read_bytes()
+    block = next((part for part in re.findall(rb"/\*.*?\*/", data, re.S)
+                  if re.search(rb"copyright", part, re.I)), None)
+    if block is None:
+        raise ValueError(f"Missing copyright comment: {label}")
+    declarations = [value.strip() for value in
+                    re.findall(rb"SPDX-License-Identifier:\s*([^\r\n*]+)", block)]
+    if declarations != [b"Apache-2.0"]:
+        raise ValueError(f"Changed Vulkan header license: {label}")
+    return (f"\n----- BEGIN {label} copyright comment -----\n"
+            f"Original full header SHA-256: {hashlib.sha256(data).hexdigest()}\n\n"
+            + block.decode("utf-8")
+            + f"\n----- END {label} copyright comment -----\n")
+
+
+def vulkan_notices(ndk: Path) -> str:
+    """CodexAstraUlt: Retain the actual API-header notices omitted by older NDK summaries."""
+    includes = ndk / NDK_INCLUDE
+    # CodexAstraUlt: Require the reviewed core/video set, while conservatively
+    # retaining any additional supplied video header's attribution as well.
+    headers = set(VULKAN_HEADERS) | {
+        str(path.relative_to(includes)) for path in (includes / "vk_video").glob("*.h")
+    }
+    return ("\nVulkan API headers from the pinned Android NDK follow. These are the\n"
+            "verbatim first copyright comments; full header hashes identify the\n"
+            "inputs without reproducing API declarations. Full Apache-2.0 terms\n"
+            "are retained above in the supplied LICENSE-APACHE files. Video API\n"
+            "declarations are transitive core-header inputs, not probe features.\n"
+            + "".join(header_notice(includes / relative, f"Android NDK/{relative}")
+                      for relative in sorted(headers)))
 
 
 def registry_section(package: dict) -> str:
@@ -136,7 +186,7 @@ def assemble(metadata: dict, ndk: Path, sysroot: Path, rust_version: str) -> str
     if names != required or len(names) != len(third_party):
         raise ValueError("Resolved package inventory changed; review notices before release")
     emitted: set[str] = set()
-    output = ["DroidDS Android CPU probe - third-party notices\n\n",
+    output = ["DroidDS Android CPU/Vulkan probe - third-party notices\n\n",
               "CodexAstraUlt: Generated from locked fetched sources and the build's toolchain.\n",
               "This preserves all resolved Cargo dependency notices, including host-only,\n",
               "procedural-macro and other-target packages. Inclusion does not assert that\n",
@@ -167,6 +217,7 @@ def assemble(metadata: dict, ndk: Path, sysroot: Path, rust_version: str) -> str
     # and retain exception text without claiming unrelated SDK code is bundled.
     for relative in ("NOTICE", "NOTICE.toolchain", "toolchains/llvm/prebuilt/linux-x86_64/NOTICE"):
         output.append(supplied_file(ndk / relative, f"Android NDK/{relative}"))
+    output.append(vulkan_notices(ndk))
     return "".join(output)
 
 

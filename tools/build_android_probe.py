@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 from build_foundation import ROOT, interrupted, snapshot, terminate_group, validate_graph
+from build_vulkan_probe import generate_shaders
 from run_android_probe import apk_manifest
 
 NDK_VERSION = "27.3.13750724"
@@ -82,7 +83,9 @@ def audit_elf(text: str, packaged: set[str]) -> dict:
     if "TEXTREL" in text:
         raise ValueError("ELF contains text relocations")
     needed = re.findall(r"\(NEEDED\).*?\[([^]]+)\]", text)
-    allowed = packaged | {"libc.so", "libm.so", "libdl.so", "liblog.so"}
+    # CodexAstraUlt: The Vulkan probe uses Android's platform loader, without
+    # bundling a desktop loader or requiring a vendor-specific graphics service.
+    allowed = packaged | {"libc.so", "libm.so", "libdl.so", "liblog.so", "libvulkan.so"}
     unexpected = set(needed) - allowed
     if unexpected:
         raise ValueError(f"Unpackaged/non-Android dependencies: {sorted(unexpected)}")
@@ -219,9 +222,13 @@ def main() -> int:
         run("rust-android", ["cargo", "build", "--locked", "--release", "--target", TARGET,
                              "-p", "droidds-android-probe", "-j", args.jobs], extra_env=cross_env)
         shutil.copy2(ROOT / "target" / TARGET / "release/libdroidds_android_probe.so", libs)
-        run("jni-bridge", [cc, *c_flags, *link_flags, "-Wall", "-Wextra", "-Werror",
+        # CodexAstraUlt: Compile and validate original shaders offline. The APK
+        # creates real Vulkan pipelines but carries no runtime shader compiler.
+        report["vulkan_shaders"] = generate_shaders(ndk, out / "shaders", run)
+        run("jni-bridge", [cc, *c_flags, *link_flags, "-std=c11", "-Wall", "-Wextra", "-Werror",
             "-Wl,-soname,libdroidds_probe_jni.so", ROOT / "android/probe/jni/probe_jni.c",
-            "-L", libs, "-ldroidds_android_probe", "-o", libs / "libdroidds_probe_jni.so"])
+            ROOT / "android/probe/jni/vulkan_probe.c", "-I", out / "shaders",
+            "-L", libs, "-ldroidds_android_probe", "-lvulkan", "-o", libs / "libdroidds_probe_jni.so"])
         packaged = {path.name for path in libs.glob("*.so")}
         report["elf"] = {}
         for path in sorted(libs.glob("*.so")):

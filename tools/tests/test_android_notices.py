@@ -132,6 +132,14 @@ class NoticeTests(unittest.TestCase):
             path = self.root / file
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(f"Supplied runtime {file}\n")
+        # CodexAstraUlt: Model real NDK header comment shape without copying
+        # upstream attribution into synthetic fixture ownership statements.
+        for file in notices.VULKAN_HEADERS:
+            path = self.root / notices.NDK_INCLUDE / file
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("#ifndef TEST_API\n/*\n** Copyright Synthetic Test Holder\n"
+                            "** SPDX-License-Identifier: Apache-2.0\n*/\n"
+                            "typedef int TestApiDeclaration;\n")
         return {"packages": packages}
 
     def test_full_bundle_keeps_runtime_and_build_records(self):
@@ -142,6 +150,9 @@ class NoticeTests(unittest.TestCase):
         self.assertIn("Supplied runtime NOTICE.toolchain", result)
         self.assertIn("Supplied windows-link/license-mit", result)
         self.assertIn("Inclusion does not assert", result)
+        self.assertIn("vulkan/vulkan_core.h copyright comment", result)
+        self.assertIn("vk_video/vulkan_video_codecs_common.h copyright comment", result)
+        self.assertNotIn("typedef int TestApiDeclaration", result)
 
     def test_missing_rust_runtime_notice_fails(self):
         metadata = self.full_inputs()
@@ -156,6 +167,54 @@ class NoticeTests(unittest.TestCase):
         with patch.object(notices, "command", return_value=str(self.root)):
             with self.assertRaises(FileNotFoundError):
                 notices.assemble(metadata, self.root, self.root, "rustc 1.95.0 example")
+
+    def test_header_notice_preserves_comment_and_full_header_hash(self):
+        self.full_inputs()
+        path = self.root / notices.NDK_INCLUDE / "vulkan/vulkan_core.h"
+        data = (b"#ifndef TEST\r\n/*\r\n** Copyright Synthetic Test Holder\r\n"
+                b"** SPDX-License-Identifier: Apache-2.0\r\n*/\r\n"
+                b"typedef int TestApiDeclaration;\r\n")
+        path.write_bytes(data)
+        result = notices.header_notice(path, "test header")
+        self.assertIn(data[data.index(b"/*"):data.index(b"*/") + 2].decode(), result)
+        self.assertIn(notices.hashlib.sha256(data).hexdigest(), result)
+        self.assertNotIn("TestApiDeclaration", result)
+
+    def test_missing_required_vulkan_header_fails(self):
+        self.full_inputs()
+        (self.root / notices.NDK_INCLUDE / "vulkan/vulkan_core.h").unlink()
+        with self.assertRaises(FileNotFoundError):
+            notices.vulkan_notices(self.root)
+
+    def test_missing_transitive_video_header_fails(self):
+        self.full_inputs()
+        (self.root / notices.NDK_INCLUDE / "vk_video/vulkan_video_codecs_common.h").unlink()
+        with self.assertRaises(FileNotFoundError):
+            notices.vulkan_notices(self.root)
+
+    def test_changed_vulkan_header_license_fails(self):
+        self.full_inputs()
+        path = self.root / notices.NDK_INCLUDE / "vulkan/vulkan_core.h"
+        for replacement in ("MIT", "Apache-2.0 OR MIT", ""):
+            with self.subTest(replacement=replacement):
+                path.write_text("/* Copyright Synthetic Test Holder\n"
+                                f"SPDX-License-Identifier: {replacement}\n*/")
+                with self.assertRaisesRegex(ValueError, "Changed Vulkan header license"):
+                    notices.vulkan_notices(self.root)
+
+    def test_missing_vulkan_copyright_comment_fails(self):
+        self.full_inputs()
+        path = self.root / notices.NDK_INCLUDE / "vulkan/vulkan_core.h"
+        path.write_text("/* SPDX-License-Identifier: Apache-2.0 */\n")
+        with self.assertRaisesRegex(ValueError, "Missing copyright comment"):
+            notices.vulkan_notices(self.root)
+
+    def test_extra_video_header_notice_is_preserved(self):
+        self.full_inputs()
+        path = self.root / notices.NDK_INCLUDE / "vk_video/additional_codec.h"
+        path.write_text("/* Copyright Additional Synthetic Holder\n"
+                        "SPDX-License-Identifier: Apache-2.0\n*/\n")
+        self.assertIn("Copyright Additional Synthetic Holder", notices.vulkan_notices(self.root))
 
 
 if __name__ == "__main__":

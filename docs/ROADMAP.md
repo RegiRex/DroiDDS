@@ -9,10 +9,15 @@ Exact dependencies, an original test host, strict comparisons and four synthetic
 native/fallback cases are implemented. See [build evidence](builds/0.0.1-foundation.md).
 M0/M1 are partially demonstrated; full runtime builds, broader CPU/module tests,
 graphics and game-performance gates below remain open.
-<!-- CodexAstraUlt: The owner continued directly to Android after the automated
-Linux gate; cross-compilation does not close A0's execution/graphics criteria. -->
-The 0.0.2 [Android CPU probe](ANDROID_PROBE.md) implements the first A0 package and
-loader-test slice. Actual Thor execution and the Vulkan draw remain open.
+<!-- CodexAstraUlt: Replace the pending CPU device status with the owner's
+validated report; keep the reported fixture pass distinct from full A0 and GPU
+qualification or an independently hash-bound ADB run. -->
+The owner-supplied 0.0.2 [Thor CPU report](device-tests/0.0.2-thor-cpu.md) passes
+all four fixture cases and both corruption controls on reported Android ARM64
+with 4 KiB host pages. This demonstrates the reported CPU loader-test slice;
+Vulkan drawing, broader Android qualification and 16 KiB-page execution remain
+open. The next planned 0.0.3 probe adds offscreen Vulkan output checks and a
+**Save report** action; no result is claimed before those tests execute.
 
 | Milestone | Deliverable | Exit evidence | Dependencies |
 | --- | --- | --- | --- |
@@ -61,8 +66,9 @@ their prerequisites pass. Device measurements always serialize.
    this batch into a frontend, complete emulator or private APK project.
 
 The CPU subset of this initial batch is now implemented and locally verified.
-The owner need not repeat Linux tests manually. Expand DDS-004/005 and execute the
-small A0 Android probe where device access is available. DDS-006 source/test
+The owner need not repeat Linux tests manually. The owner-supplied 0.0.2 CPU probe
+now passes its report checks. Expand DDS-004/005 and the A0 Vulkan slice, recording
+actual device execution separately from cross-build success. DDS-006 source/test
 work can proceed separately. Do not treat the first four fixtures as complete M1.
 
 Read-only reviews of Android constraints and existing GPU tests can run alongside

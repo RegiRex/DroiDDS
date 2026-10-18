@@ -52,6 +52,32 @@ def report():
     }
 
 
+def graphics_report():
+    """CodexAstraUlt: Synthetic protocol values test validation, not GPU execution."""
+    return {"schema": 1, "kind": "droidds-vulkan-probe", "status": "passed",
+            "width": 16, "height": 16, "required_cycles": 3, "cycles_completed": 3,
+            "pipeline_creation_count": 3, "draw_count": 12, "error": None,
+            "device": {"name": "Protocol fixture device", "type": 1,
+                       "api_version": 1 << 22, "driver_version": 1,
+                       "vendor_id": 0x1234, "device_id": 0x5678},
+            "cases": [{"name": name, "status": "passed", "cycles_completed": 3,
+                       "pixels_checked": 768, "mismatched_pixels": 0}
+                      for name in ("solid_red", "solid_green", "split_red_green")],
+            "negative_controls": {"pixel_mutation_rejected": True,
+                                  "checks_completed": 9, "required_checks": 9}}
+
+
+def combined_report():
+    """CodexAstraUlt: Version 0.0.3 must satisfy both existing CPU and new GPU gates."""
+    value = report()
+    value.update(version="0.0.3", cpu_status="passed", graphics_probe=graphics_report())
+    value["android_shell"].update(app_version_name="0.0.3", app_version_code=3,
+                                  manufacturer="Protocol fixture", model="Model fixture",
+                                  android_api=29, android_release="10", elapsed_realtime_ms=0)
+    manifest = dict(MANIFEST, version_name="0.0.3", version_code=3)
+    return value, manifest
+
+
 class ReportTests(unittest.TestCase):
     """CodexAstraUlt: Mutate proof independently so permissive acceptance is visible."""
 
@@ -138,6 +164,151 @@ class ReportTests(unittest.TestCase):
         changed = report()
         changed["negative_controls"][0]["rejection"] = ""
         self.reject(changed, "prove rejection")
+
+
+class GraphicsReportTests(unittest.TestCase):
+    """CodexAstraUlt: No skipped GPU, zero-work draw or broken oracle can qualify."""
+
+    def test_complete_hardware_and_software_protocol_examples_are_accepted(self):
+        for device_type in range(5):
+            value = graphics_report()
+            value["device"]["type"] = device_type
+            RUNNER.validate_graphics_report(value)
+
+    def test_missing_report_unavailable_failed_and_wrong_identity_are_rejected(self):
+        for value in (None, [], {}):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                RUNNER.validate_graphics_report(value)
+        for key, value in (("schema", True), ("schema", 2), ("kind", "mock"),
+                           ("status", "unavailable"), ("status", "failed")):
+            changed = graphics_report()
+            changed[key] = value
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, "Vulkan proof"):
+                RUNNER.validate_graphics_report(changed)
+
+    def test_every_work_counter_is_exact_and_cannot_be_a_boolean(self):
+        for key in ("width", "height", "required_cycles", "cycles_completed",
+                    "pipeline_creation_count", "draw_count"):
+            for invalid in (None, True, 0, 10000):
+                changed = graphics_report()
+                changed[key] = invalid
+                with self.subTest(key=key, invalid=invalid), self.assertRaisesRegex(ValueError, "Vulkan proof"):
+                    RUNNER.validate_graphics_report(changed)
+            changed = graphics_report()
+            del changed[key]
+            with self.subTest(missing=key), self.assertRaises(ValueError):
+                RUNNER.validate_graphics_report(changed)
+
+    def test_pass_cannot_coexist_with_missing_or_present_execution_error(self):
+        changed = graphics_report()
+        del changed["error"]
+        with self.assertRaisesRegex(ValueError, "execution error"):
+            RUNNER.validate_graphics_report(changed)
+        for error in ({"step": "vkQueueSubmit", "vk_result": -4}, {}, False):
+            changed = graphics_report()
+            changed["error"] = error
+            with self.subTest(error=error), self.assertRaisesRegex(ValueError, "execution error"):
+                RUNNER.validate_graphics_report(changed)
+
+    def test_actual_device_fields_are_required_and_bounded(self):
+        changed = graphics_report()
+        changed["device"] = None
+        with self.assertRaisesRegex(ValueError, "physical device"):
+            RUNNER.validate_graphics_report(changed)
+        for name in (None, "", "   ", "x" * 256, "é" * 128):
+            changed = graphics_report()
+            changed["device"]["name"] = name
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "device name"):
+                RUNNER.validate_graphics_report(changed)
+        for key in ("type", "api_version", "driver_version", "vendor_id", "device_id"):
+            for invalid in (None, True, -1, 0x100000000, "1"):
+                changed = graphics_report()
+                changed["device"][key] = invalid
+                with self.subTest(key=key, invalid=invalid), self.assertRaisesRegex(ValueError, "device field"):
+                    RUNNER.validate_graphics_report(changed)
+        for key, value in (("type", 5), ("api_version", 0), ("api_version", (1 << 22) - 1),
+                           ("api_version", (1 << 29) | (1 << 22)), ("api_version", 2 << 22)):
+            changed = graphics_report()
+            changed["device"][key] = value
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, "type or API"):
+                RUNNER.validate_graphics_report(changed)
+
+    def test_missing_unknown_and_duplicate_output_cases_are_rejected(self):
+        variants = [[], [None] * 3, graphics_report()["cases"][:-1]]
+        duplicate = graphics_report()["cases"]
+        duplicate[2] = copy.deepcopy(duplicate[0])
+        variants.append(duplicate)
+        unknown = graphics_report()["cases"]
+        unknown[0]["name"] = "unmeasured_texture_case"
+        variants.append(unknown)
+        for cases in variants:
+            changed = graphics_report()
+            changed["cases"] = cases
+            with self.subTest(cases=cases), self.assertRaisesRegex(ValueError, "output cases"):
+                RUNNER.validate_graphics_report(changed)
+
+    def test_each_pattern_requires_all_pixels_and_cycles_and_zero_mismatches(self):
+        for case_index in range(3):
+            for key, value in (("cycles_completed", 0), ("cycles_completed", True),
+                               ("pixels_checked", 0), ("pixels_checked", 767),
+                               ("mismatched_pixels", False), ("mismatched_pixels", 1)):
+                changed = graphics_report()
+                changed["cases"][case_index][key] = value
+                with self.subTest(case=case_index, key=key, value=value), \
+                        self.assertRaisesRegex(ValueError, "Vulkan output proof"):
+                    RUNNER.validate_graphics_report(changed)
+            for key in ("status", "cycles_completed", "pixels_checked", "mismatched_pixels"):
+                changed = graphics_report()
+                del changed["cases"][case_index][key]
+                with self.subTest(case=case_index, missing=key), self.assertRaises(ValueError):
+                    RUNNER.validate_graphics_report(changed)
+            for status in ("failed", "incomplete"):
+                changed = graphics_report()
+                changed["cases"][case_index]["status"] = status
+                with self.subTest(case=case_index, status=status), self.assertRaises(ValueError):
+                    RUNNER.validate_graphics_report(changed)
+
+    def test_comparator_must_reject_real_pixel_mutations_in_every_pattern_and_cycle(self):
+        for controls in (None, [], {}, {"pixel_mutation_rejected": True}):
+            changed = graphics_report()
+            changed["negative_controls"] = controls
+            with self.subTest(controls=controls), self.assertRaises(ValueError):
+                RUNNER.validate_graphics_report(changed)
+        for key, value in (("pixel_mutation_rejected", False), ("pixel_mutation_rejected", 1),
+                           ("checks_completed", 8), ("checks_completed", True),
+                           ("required_checks", 0), ("required_checks", "9")):
+            changed = graphics_report()
+            changed["negative_controls"][key] = value
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, "comparator"):
+                RUNNER.validate_graphics_report(changed)
+
+    def test_combined_version_requires_both_cpu_and_vulkan_and_identified_android(self):
+        value, manifest = combined_report()
+        RUNNER.validate_report(value, REQUEST, manifest)
+        for key in ("cpu_status", "graphics_probe"):
+            changed, manifest = combined_report()
+            del changed[key]
+            with self.subTest(missing=key), self.assertRaises(ValueError):
+                RUNNER.validate_report(changed, REQUEST, manifest)
+        for key, invalid in (("manufacturer", ""), ("model", None), ("android_release", " "),
+                             ("android_api", 28), ("android_api", True),
+                             ("elapsed_realtime_ms", -1), ("elapsed_realtime_ms", True)):
+            changed, manifest = combined_report()
+            changed["android_shell"][key] = invalid
+            with self.subTest(key=key, invalid=invalid), self.assertRaises(ValueError):
+                RUNNER.validate_report(changed, REQUEST, manifest)
+        changed, manifest = combined_report()
+        changed["cases"][0]["strict_expected_match"] = False
+        with self.assertRaisesRegex(ValueError, "strict CPU proof"):
+            RUNNER.validate_report(changed, REQUEST, manifest)
+
+    def test_unknown_version_does_not_silently_reuse_historical_cpu_only_contract(self):
+        changed = report()
+        changed["version"] = "0.0.4"
+        changed["android_shell"].update(app_version_name="0.0.4", app_version_code=4)
+        manifest = dict(MANIFEST, version_name="0.0.4", version_code=4)
+        with self.assertRaisesRegex(ValueError, "Unsupported Android probe report version"):
+            RUNNER.validate_report(changed, REQUEST, manifest)
 
 
 def binary_manifest(package="org.droidds.probe", debuggable=True, test_only=True, utf8=True):
@@ -323,28 +494,60 @@ class DeviceContractTests(unittest.TestCase):
 
     def test_timeout_stops_actual_local_client_and_its_descendant(self):
         # CodexAstraUlt: This is a real process-tree regression, not an Android
-        # execution claim. The fixture sleeps and never contacts ADB or USB.
+        # execution claim. Wait for the child to exist before starting the short
+        # command deadline; slow CI process startup is not a cleanup failure.
+        # The parent only reaps its child, so group termination must stop both.
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
             script = directory / "fake-adb"
             pid_file = directory / "child.pid"
-            script.write_text(f"#!{sys.executable}\nimport subprocess,time\n"
+            script.write_text(f"#!{sys.executable}\nimport signal,subprocess,sys,time\n"
                               "child=subprocess.Popen(['sleep','30'])\n"
-                              f"open({str(pid_file)!r},'w').write(str(child.pid))\n"
+                              "def reap_child(*_):\n"
+                              "    child.wait(timeout=5)\n"
+                              "    sys.exit(0)\n"
+                              "signal.signal(signal.SIGTERM,reap_child)\n"
+                              f"with open({str(pid_file)!r},'w') as output:\n"
+                              "    output.write(str(child.pid))\n"
                               "time.sleep(30)\n")
             script.chmod(0o700)
             adb = RUNNER.Adb(str(script), "synthetic", directory, [])
-            with self.assertRaisesRegex(RuntimeError, "timed out"):
-                adb.run("timeout", ["get-state"], timeout=0.2)
-            pid = int(pid_file.read_text())
-            for _ in range(30):
-                status = Path(f"/proc/{pid}/stat")
-                if not status.exists() or status.read_text().split()[2] == "Z":
-                    break
-                time.sleep(0.01)
-            else:
-                os.kill(pid, signal.SIGKILL)
-                self.fail("ADB client's descendant survived timeout")
+            popen = RUNNER.subprocess.Popen
+            processes = []
+
+            def started_process(*args, **kwargs):
+                process = popen(*args, **kwargs)
+                processes.append(process)
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    try:
+                        child_pid = int(pid_file.read_text())
+                    except (FileNotFoundError, ValueError):
+                        self.assertIsNone(process.poll(), "Fixture exited before its startup handshake")
+                        time.sleep(0.01)
+                        continue
+                    self.assertEqual(os.getpgid(child_pid), process.pid)
+                    return process
+                self.fail("Fixture did not create its child within the startup deadline")
+
+            try:
+                with mock.patch.object(RUNNER.subprocess, "Popen", side_effect=started_process), \
+                        self.assertRaisesRegex(RuntimeError, "timed out"):
+                    adb.run("timeout", ["get-state"], timeout=0.2)
+                pid = int(pid_file.read_text())
+                self.assertIsNotNone(processes[0].returncode, "Local client was not reaped")
+                # CodexAstraUlt: A descendant zombie is not accepted as cleanup:
+                # the fixture's parent must reap it before communicate returns.
+                self.assertFalse(Path(f"/proc/{pid}").exists(),
+                                 "ADB client's descendant survived or was not reaped")
+            finally:
+                # CodexAstraUlt: Failed assertions must not leak the test fixture.
+                for process in processes:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.communicate()
 
 
 if __name__ == "__main__":

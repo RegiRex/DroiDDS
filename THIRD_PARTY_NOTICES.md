@@ -5,8 +5,10 @@ artifact notice collector now that the owner authorizes an Android prerelease.
 Preserve attribution without inventing missing upstream copyright notices. -->
 
 DroidDS obtains its upstream components through full-commit Cargo Git dependencies.
-The 0.0.2 Android CPU probe uses the same pinned ABI/interpreter components as the
-Linux foundation. Its original Java/JNI/Rust shell adds no registry dependency.
+The 0.0.3 Android CPU/Vulkan probe uses the same pinned ABI/interpreter components
+as the Linux foundation. Its original Java/JNI/Rust shell and GLSL fixtures add no
+registry dependency. Vulkan API declarations and the offline shader tools come
+from the same pinned Android NDK; their supplied notices remain in the bundle.
 The owner has authorized a downloadable Android probe prerelease.
 
 `tools/collect_android_notices.py` assembles `THIRD_PARTY_NOTICES.txt` from the
@@ -152,9 +154,21 @@ The collector additionally preserves:
 
 Android's framework and shared system libraries are supplied by the device. The
 APK's ELF audit permits only the packaged probe/fixture libraries and Android
-`libc`, `libm`, `libdl`, and `liblog`; it does not package a C++ standard library.
+`libc`, `libm`, `libdl`, `liblog` and `libvulkan`; it does not package a C++ standard library.
 The probe does not copy Java library implementations or bundle the JDK/Android
 SDK. Its Java shell is original DroidDS code.
+
+<!-- CodexAstraUlt: Separate host-only validation tools from the Android payload;
+original shaders are compiled offline and require no bundled compiler or driver. -->
+Mesa/lavapipe and the Khronos validation layer are host test tools, not APK inputs.
+The Android device supplies its Vulkan loader/driver. Both GLSL shaders and the
+offscreen test are original DroidDS code; no renderer implementation is imported
+for this probe. The Android build does not enable or require validation layers.
+The notice collector also preserves the actual copyright/SPDX comment blocks
+from the three included Vulkan core/platform headers and seven transitive video
+declaration headers, with full-header hashes. Those declarations add no video
+feature; their bodies are not copied into the notice bundle. Full Apache-2.0 terms
+are already retained from the supplied registry license files.
 
 The collector fails before packaging if a required supplied file is missing or
 empty, the reviewed package inventory/license expressions change, upstream Git

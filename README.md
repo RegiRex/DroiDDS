@@ -14,30 +14,36 @@ interpreter and known expected outputs, including native interworking and delibe
 missing-entry fallback. Validation passed 151 Rust tests and 15 Python gate tests,
 plus the executable's four cases and four negative controls.
 
-<!-- CodexAstraUlt: Android development follows the automated Linux gate without
-requiring the owner to duplicate it manually. Device evidence remains separate. -->
-**Android development has begun with the 0.0.2 CPU loader probe.** It cross-compiles
-and packages those fixtures for ARM64/Bionic in a small test app. See
-[Android build/device instructions](docs/ANDROID_PROBE.md). Actual Thor execution,
-graphics and game compatibility remain unverified.
+<!-- CodexAstraUlt: Advance from the owner's actual CPU result while keeping the
+new Vulkan host evidence separate from handheld graphics qualification. -->
+**The owner-supplied 0.0.2 Thor CPU report passes all four fixtures and both error
+controls.** It reports Android ARM64 with 4 KiB pages. Read
+[the device result and its scope](docs/device-tests/0.0.2-thor-cpu.md).
+Version **0.0.3** adds an original Vulkan offscreen draw/readback test and a
+**Save report** button. Its three patterns pass across three fresh device/resource
+cycles on host software Vulkan with validation enabled. Android graphics and the
+document picker remain pending device validation.
 
-<!-- CodexAstraUlt: Direct the owner to the installable diagnostic prerelease;
-the APK executes CPU fixtures and is not yet a game player. -->
-The **[0.0.2 Android probe prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.2-probe.2)**
-provides an installable ARM64 APK. Launch **DroidDS Probe** to run its four CPU
-checks automatically; no game file or manual Linux test is needed. See the release
-notes for the diagnostic signing identity and installation requirements.
+<!-- CodexAstraUlt: Link the new diagnostic release without claiming it runs a
+game or qualifies PICA rendering from a small platform Vulkan fixture. -->
+The **[0.0.3 Android probe prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.3-probe.1)**
+provides an installable ARM64 APK. Launch **DroidDS Probe** to run the CPU and
+Vulkan checks automatically, then use **Save report** to choose a JSON destination.
+See [Android instructions](docs/ANDROID_PROBE.md) and the release notes for its
+diagnostic signing identity and installation requirements.
 
 This is an original DroidDS integration workspace using pinned 3dsrecomp compiler/
 ABI and Zakuro CPU components. HLE services, graphics and game performance are
-not included in these CPU probes. Continue the CPU lifecycle/semantic gates,
+not included in these diagnostic probes. The original Vulkan fixture establishes
+an API path, not a PICA renderer. Continue the CPU lifecycle/semantic gates,
 Android device probe and graphics foundation from the roadmap.
 
 | Read | Purpose |
 | --- | --- |
 | [Build and run](docs/BUILDING.md) | Reproduce the first Linux CPU foundation |
-| [Android CPU probe](docs/ANDROID_PROBE.md) | Build the ARM64 test app and run it on the Thor |
-| [Android build evidence](docs/builds/0.0.2-android-probe.md) | Executed package/regression checks and device gates still open |
+| [Android CPU/Vulkan probe](docs/ANDROID_PROBE.md) | Build the ARM64 test app and run it on the Thor |
+| [Thor CPU result](docs/device-tests/0.0.2-thor-cpu.md) | Owner-supplied 0.0.2 execution and its qualification boundary |
+| [CPU/Vulkan build evidence](docs/builds/0.0.3-android-vulkan.md) | Executed rendering/package checks and device gates still open |
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |
 | [Additional reuse candidates](docs/REUSE_CANDIDATES.md) | AnyPS5, Azahar, Citra MMJ and Uberhar source review |
 | [Architecture](docs/ARCHITECTURE.md) | Components, design decisions, boundaries and risks |

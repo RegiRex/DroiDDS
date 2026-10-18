@@ -2,9 +2,12 @@ package org.droidds.probe;
 
 import android.content.Context;
 import android.content.pm.PackageInfo;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
+import android.os.SystemClock;
 import android.util.AtomicFile;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -14,6 +17,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -24,30 +28,42 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** CodexAstraUlt: One process-scoped worker serializes native runs. It owns only
- * application context and a weak UI observer, so backgrounding/recreation does
- * not leak Activities or duplicate a run. A device-side watchdog handles native
- * hangs by stopping this process; Java never tries to terminate a native thread. */
+/** CodexAstraUlt: One process-scoped worker serializes native runs and report IO.
+ * It owns only application context and a weak UI observer, so backgrounding or
+ * recreation cannot leak Activities or duplicate a run. Native hangs still need
+ * the device runner's deadline; Java cannot safely terminate a native thread. */
 final class ProbeController {
     interface Observer {
         void onProbeChanged(Snapshot snapshot);
     }
 
-    // CodexAstraUlt: Immutable snapshots cross from worker to UI; raw JSON shown
-    // onscreen is capped independently of the one bounded persisted report.
+    // CodexAstraUlt: Immutable UI snapshots never expose the private report bytes.
+    // The display is capped separately from the bounded, verified persisted JSON.
     static final class Snapshot {
         final boolean running;
         final String status;
         final String details;
+        final boolean canExport;
+        final String exportStatus;
 
         Snapshot(boolean running, String status, String details) {
+            this(running, status, details, false, "");
+        }
+
+        Snapshot(boolean running, String status, String details,
+                 boolean canExport, String exportStatus) {
             this.running = running;
             this.status = status;
             this.details = details.length() <= 32768
                     ? details : details.substring(0, 32768) + "\n[Display truncated]";
+            this.canExport = canExport;
+            this.exportStatus = exportStatus;
         }
     }
 
+    private static final int CPU_REPORT_LIMIT = 1024 * 1024;
+    private static final int GRAPHICS_REPORT_LIMIT = 64 * 1024;
+    private static final int REPORT_LIMIT = CPU_REPORT_LIMIT + GRAPHICS_REPORT_LIMIT + 16384;
     private static ProbeController instance;
     private final Context application;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -60,6 +76,15 @@ final class ProbeController {
     private Snapshot snapshot = new Snapshot(false, "Ready", "");
     private boolean started;
     private boolean active;
+
+    // CodexAstraUlt: These immutable byte arrays are the exact successfully
+    // persisted content, not freshly serialized UI text. A picker pins one run;
+    // a subsequent run cannot change what that selection would write.
+    private byte[] latestReport;
+    private byte[] selectedReport;
+    private String exportToken;
+    private boolean exportWriting;
+    private String exportMessage = "";
 
     private ProbeController(Context application) {
         this.application = application;
@@ -84,6 +109,12 @@ final class ProbeController {
 
     void runAgain() {
         requireMainThread();
+        // CodexAstraUlt: A lost/cancelled picker must not trap the core probe.
+        // Invalidate its token before rerunning, so a late result cannot silently
+        // export another run. A write already queued retains its selected bytes.
+        if (!active && exportToken != null && !exportWriting) {
+            cancelExport(exportToken, "Previous save cancelled by the new run.");
+        }
         start(null);
     }
 
@@ -100,19 +131,99 @@ final class ProbeController {
         }
     }
 
+    // CodexAstraUlt: Preparing the document picker performs no IO and copies no
+    // large buffer on the UI thread. Ownership stays in this process controller.
+    String beginExport() {
+        requireMainThread();
+        if (active || latestReport == null || exportToken != null) {
+            return null;
+        }
+        selectedReport = latestReport;
+        exportToken = UUID.randomUUID().toString();
+        exportMessage = "Choose where to save this completed report.";
+        publish(snapshot);
+        return exportToken;
+    }
+
+    void cancelExport(String token, String message) {
+        requireMainThread();
+        if (token != null && token.equals(exportToken) && !exportWriting) {
+            selectedReport = null;
+            exportToken = null;
+            exportMessage = message;
+            publish(snapshot);
+        }
+    }
+
+    void finishExport(String token, Uri destination) {
+        requireMainThread();
+        if (token == null || !token.equals(exportToken) || selectedReport == null) {
+            exportMessage = "That report selection expired. Use Save report again.";
+            publish(snapshot);
+            return;
+        }
+        if (exportWriting) {
+            return;
+        }
+        if (destination == null) {
+            cancelExport(token, "Save cancelled.");
+            return;
+        }
+        final byte[] bytes = selectedReport;
+        exportWriting = true;
+        exportMessage = "Saving report…";
+        publish(snapshot);
+        worker.execute(() -> {
+            String outcome;
+            // CodexAstraUlt: Android grants access only to the document the user
+            // selected. No broad storage access, persistent URI grant, Activity
+            // reference or secondary executor is needed for this bounded write.
+            try (OutputStream output = application.getContentResolver()
+                    .openOutputStream(destination, "wt")) {
+                if (output == null) {
+                    throw new IOException("The document provider returned no output stream");
+                }
+                if (bytes.length == 0 || bytes.length > REPORT_LIMIT) {
+                    throw new IOException("The selected report exceeds its size bound");
+                }
+                output.write(bytes);
+                output.flush();
+                outcome = "Report saved to the selected document.";
+            } catch (Exception failure) {
+                outcome = "Could not save the report: " + failure.getClass().getSimpleName()
+                        + ". You can retry Save report; probe results are retained.";
+            }
+            final String result = outcome;
+            main.post(() -> {
+                if (token.equals(exportToken)) {
+                    selectedReport = null;
+                    exportToken = null;
+                    exportWriting = false;
+                    exportMessage = result;
+                    publish(snapshot);
+                }
+            });
+        });
+    }
+
     private void start(String requestedId) {
         if (active) {
             return;
         }
         active = true;
+        latestReport = null;
+        if (exportToken == null) {
+            exportMessage = "";
+        }
         String runId = UUID.randomUUID().toString();
         String requestId = requestedId == null || requestedId.isEmpty() ? runId : requestedId;
         long startedAt = System.currentTimeMillis();
-        publish(new Snapshot(true, "Running", "Run: " + runId));
-        worker.execute(() -> execute(runId, requestId, startedAt));
+        long startedElapsed = SystemClock.elapsedRealtime();
+        publish(new Snapshot(true, "Running CPU and Vulkan probes", "Run: " + runId));
+        worker.execute(() -> execute(runId, requestId, startedAt, startedElapsed));
     }
 
-    private void execute(String runId, String requestId, long startedAt) {
+    private void execute(String runId, String requestId, long startedAt, long startedElapsed) {
         AtomicFile reportFile = new AtomicFile(new File(application.getFilesDir(), "latest-probe.json"));
         JSONObject shell = new JSONObject();
         try {
@@ -125,6 +236,13 @@ final class ProbeController {
                     .getPackageInfo(application.getPackageName(), 0);
             shell.put("app_version_name", packageInfo.versionName);
             shell.put("app_version_code", packageInfo.getLongVersionCode());
+            // CodexAstraUlt: Record model/OS context, never a hardware serial or
+            // advertising identifier. Monotonic duration covers the whole probe;
+            // it is not a CPU benchmark or an estimate of game performance.
+            shell.put("manufacturer", bounded(Build.MANUFACTURER, 256));
+            shell.put("model", bounded(Build.MODEL, 256));
+            shell.put("android_api", Build.VERSION.SDK_INT);
+            shell.put("android_release", bounded(Build.VERSION.RELEASE, 256));
 
             // CodexAstraUlt: Replace any old passing report BEFORE entering
             // native code. An abort/hang leaves a running marker, never success.
@@ -140,50 +258,84 @@ final class ProbeController {
 
             System.loadLibrary("droidds_probe_jni");
             byte[] result = nativeRun(application.getApplicationInfo().nativeLibraryDir);
-            JSONObject report = parseReport(result);
-            Object status = report.opt("status");
-            if (!(status instanceof String)
-                    || !("passed".equals(status) || "failed".equals(status))) {
-                throw new IOException("Native report has no valid terminal status");
+            JSONObject report = parseReport(result, CPU_REPORT_LIMIT);
+            Object cpuStatus = report.opt("status");
+            if (!(cpuStatus instanceof String)
+                    || !("passed".equals(cpuStatus) || "failed".equals(cpuStatus))) {
+                throw new IOException("CPU report has no valid terminal status");
             }
-            shell.put("finished_at_epoch_ms", System.currentTimeMillis());
+            // CodexAstraUlt: Preserve the existing CPU evidence and explicitly
+            // qualify graphics separately. Missing Vulkan cannot become a pass;
+            // this synthetic draw is not a PICA renderer or a game execution.
+            report.put("cpu_status", cpuStatus);
+            JSONObject graphics;
+            try {
+                graphics = parseReport(nativeVulkan(), GRAPHICS_REPORT_LIMIT);
+                Object graphicsStatus = graphics.opt("status");
+                if (!(graphicsStatus instanceof String)
+                        || !("passed".equals(graphicsStatus) || "failed".equals(graphicsStatus)
+                        || "unavailable".equals(graphicsStatus))) {
+                    throw new IOException("Vulkan report has no valid terminal status");
+                }
+            } catch (Exception | LinkageError failure) {
+                graphics = new JSONObject();
+                graphics.put("status", "failed");
+                graphics.put("error", errorDetails(failure));
+            }
+            report.put("graphics_probe", graphics);
+            boolean passed = "passed".equals(cpuStatus)
+                    && "passed".equals(graphics.optString("status"));
+            report.put("status", passed ? "passed" : "failed");
+            finishShell(shell, startedElapsed);
             report.put("android_shell", shell);
-            persist(reportFile, report);
-            complete(new Snapshot(false, "passed".equals(status) ? "Passed" : "Failed",
-                    report.toString(2)));
+            byte[] persisted = persist(reportFile, report);
+            String summary = "CPU: " + cpuStatus + " · Vulkan: " + graphics.optString("status");
+            complete(new Snapshot(false, passed ? "Passed — " + summary : "Failed — " + summary,
+                    report.toString(2)), persisted);
         } catch (Exception | LinkageError failure) {
             // CodexAstraUlt: Loader, UTF-8, JSON and file failures are structured
             // failures. Native process death cannot be caught here; the running
             // marker plus the device runner's deadline make it incomplete.
             try {
-                shell.put("finished_at_epoch_ms", System.currentTimeMillis());
-                JSONObject error = new JSONObject();
-                error.put("type", failure.getClass().getName());
-                String message = failure.getMessage();
-                error.put("message", message == null ? "No error detail" : bounded(message, 8192));
+                finishShell(shell, startedElapsed);
                 JSONObject failed = new JSONObject();
                 failed.put("status", "failed");
-                failed.put("error", error);
+                failed.put("error", errorDetails(failure));
                 failed.put("android_shell", shell);
-                persist(reportFile, failed);
-                complete(new Snapshot(false, "Failed", failed.toString(2)));
+                byte[] persisted = persist(reportFile, failed);
+                complete(new Snapshot(false, "Failed", failed.toString(2)), persisted);
             } catch (Exception persistenceFailure) {
                 // CodexAstraUlt: A report that cannot be safely replaced must
                 // not be treated as a prior pass; clear it and expose failure.
                 reportFile.delete();
                 complete(new Snapshot(false, "Failed: report could not be saved",
                         failure.getClass().getName() + ": " + bounded(String.valueOf(failure.getMessage()), 8192)
-                                + "\nReport error: " + persistenceFailure.getClass().getName()));
+                                + "\nReport error: " + persistenceFailure.getClass().getName()), null);
             }
         }
     }
 
-    private static JSONObject parseReport(byte[] bytes)
+    // CodexAstraUlt: Share bounded structured error handling without letting
+    // driver/load failures erase already completed CPU evidence.
+    private static JSONObject errorDetails(Throwable failure) throws JSONException {
+        JSONObject error = new JSONObject();
+        error.put("type", failure.getClass().getName());
+        String message = failure.getMessage();
+        error.put("message", message == null ? "No error detail" : bounded(message, 8192));
+        return error;
+    }
+
+    private static void finishShell(JSONObject shell, long startedElapsed) throws JSONException {
+        shell.put("finished_at_epoch_ms", System.currentTimeMillis());
+        shell.put("elapsed_realtime_ms", SystemClock.elapsedRealtime() - startedElapsed);
+    }
+
+    private static JSONObject parseReport(byte[] bytes, int limit)
             throws IOException, JSONException {
         // CodexAstraUlt: Reject malformed UTF-8 rather than replacing bytes and
         // silently changing the native evidence returned through JNI.
-        if (bytes == null || bytes.length == 0 || bytes.length > 1024 * 1024) {
-            throw new IOException("Native report is empty or exceeds 1 MiB");
+        if (bytes == null || bytes.length == 0 || bytes.length > limit) {
+            throw new IOException("Native report is empty or exceeds its size bound");
         }
         try {
             String text = StandardCharsets.UTF_8.newDecoder()
@@ -196,11 +348,11 @@ final class ProbeController {
         }
     }
 
-    private static void persist(AtomicFile destination, JSONObject report) throws IOException {
+    private static byte[] persist(AtomicFile destination, JSONObject report) throws IOException {
         // CodexAstraUlt: AtomicFile retains at most one current report and its
         // transient write/recovery files; it avoids per-run bundles or timers.
         byte[] bytes = report.toString().getBytes(StandardCharsets.UTF_8);
-        if (bytes.length > 1024 * 1024 + 16384) {
+        if (bytes.length > REPORT_LIMIT) {
             throw new IOException("Combined probe report exceeds its size bound");
         }
         FileOutputStream stream = null;
@@ -232,21 +384,24 @@ final class ProbeController {
             }
             throw failure;
         }
+        return bytes;
     }
 
-    private void complete(Snapshot result) {
+    private void complete(Snapshot result, byte[] persisted) {
         main.post(() -> {
             active = false;
+            latestReport = persisted;
             publish(result);
         });
     }
 
     private void publish(Snapshot value) {
         requireMainThread();
-        snapshot = value;
+        snapshot = new Snapshot(value.running, value.status, value.details,
+                !active && latestReport != null && exportToken == null, exportMessage);
         Observer target = observer.get();
         if (target != null) {
-            target.onProbeChanged(value);
+            target.onProbeChanged(snapshot);
         }
     }
 
@@ -260,7 +415,8 @@ final class ProbeController {
         }
     }
 
-    // CodexAstraUlt: This synchronous call runs only inside the single worker.
-    // Rust returns UTF-8 bytes via a narrow C ABI; JNI copies and releases them.
+    // CodexAstraUlt: Both synchronous calls run only inside the single worker.
+    // Native code returns bounded UTF-8 bytes; JNI copies and releases buffers.
     private static native byte[] nativeRun(String libraryDirectory);
+    private static native byte[] nativeVulkan();
 }

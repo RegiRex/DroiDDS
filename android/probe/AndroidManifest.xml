@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- CodexAstraUlt: This original diagnostic shell exercises packaged CPU fixture
-     libraries only. It has no network, external storage or vendor-service permission. -->
+<!-- CodexAstraUlt: Version 0.0.3 retains CPU fixtures and adds an original Vulkan
+     draw/readback probe. Saving a report uses a user-selected document URI;
+     no network, broad storage or vendor-service permission is required. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.droidds.probe"
-    android:versionCode="2"
-    android:versionName="0.0.2">
+    android:versionCode="3"
+    android:versionName="0.0.3">
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
     <!-- CodexAstraUlt: Extraction makes installer-owned nativeLibraryDir the
          explicit loader input. Debuggable permits adb run-as to read one private report. -->

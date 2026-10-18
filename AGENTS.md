@@ -8,9 +8,16 @@ planning-only state. -->
   and real-title claims separate. The owner has continued into Android; manual
   owner testing of the Linux build is not a prerequisite. Read
   docs/ANDROID_PROBE.md for the bounded CPU loader probe and actual device gate.
-- The owner authorizes a downloadable DroidDS CPU probe prerelease. Use the
+- The owner authorizes downloadable DroidDS diagnostic prereleases. Use the
   reviewed tag workflow and four-file release bundle; never publish private
   signing keys or retail-derived data. A prerelease is not device/game evidence.
+<!-- CodexAstraUlt: Preserve the measured CPU milestone and the next platform
+test without treating a host Vulkan draw as a qualified PICA renderer. -->
+- The owner's 0.0.2 Thor report passes the four CPU fixtures and two corruption
+  controls on Android ARM64 with 4 KiB pages; read docs/device-tests/0.0.2-thor-cpu.md.
+  Version 0.0.3 adds the original Vulkan offscreen fixture and user-selected JSON
+  export. Host software Vulkan evidence is separate from Thor GPU, Android picker,
+  PICA/game, sustained-memory and performance qualification.
 - Reuse candidates include 3dsrecomp, Zakuro, AnyPS5, Azahar, Citra MMJ and Uberhar.
   Read docs/REUSE_CANDIDATES.md and THIRD_PARTY_NOTICES.md before importing new code.
   DroidDS is an independent integration project; licenses are evaluated per actual

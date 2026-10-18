@@ -1,7 +1,10 @@
-/* CodexAstraUlt: Keep Android JNI limited to marshaling the installed library
- * directory and copying a bounded UTF-8 report. The Rust runtime owns execution. */
+/* CodexAstraUlt: JNI marshals the installed library directory and bounded UTF-8
+ * reports. Rust owns CPU execution; the separate C Vulkan helper owns its draw. */
 #include <jni.h>
 #include <stddef.h>
+#include <stdlib.h>
+
+#include "vulkan_probe.h"
 #include <string.h>
 
 extern char *droidds_probe_run(const char *library_directory);
@@ -54,5 +57,33 @@ Java_org_droidds_probe_ProbeController_nativeRun(JNIEnv *env, jclass controller,
                                   (const jbyte *)report);
     }
     droidds_probe_free(report);
+    return result;
+}
+
+/* CodexAstraUlt: Keep Vulkan discovery/drawing on the same Java worker. Its C
+ * helper writes only into this bounded allocation; JNI owns and frees that
+ * allocation on every exit, including pending Java allocation/copy exceptions. */
+JNIEXPORT jbyteArray JNICALL
+Java_org_droidds_probe_ProbeController_nativeVulkan(JNIEnv *env, jclass controller) {
+    (void)controller;
+    const size_t report_limit = 64U * 1024U;
+    char *report = malloc(report_limit);
+    if (report == NULL) {
+        throw_state(env, "Could not allocate the Vulkan report buffer");
+        return NULL;
+    }
+    const int length = dds_vk_probe_run(report, report_limit);
+    if (length <= 0 || (size_t)length > report_limit) {
+        free(report);
+        throw_state(env, "Vulkan report is empty or exceeds 64 KiB");
+        return NULL;
+    }
+    jbyteArray result = (*env)->NewByteArray(env, (jsize)length);
+    if (result != NULL) {
+        /* CodexAstraUlt: JSON is ordinary UTF-8, never JNI modified UTF-8. */
+        (*env)->SetByteArrayRegion(env, result, 0, (jsize)length,
+                                  (const jbyte *)report);
+    }
+    free(report);
     return result;
 }

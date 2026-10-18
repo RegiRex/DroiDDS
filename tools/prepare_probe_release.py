@@ -136,7 +136,11 @@ def prepare(build: Path, output: Path, sdk: Path, tag: str, commit: str) -> None
         "third_party_notices")}
     public.update(tag=tag, source_commit=commit, version=version, apk=apk_name,
                   apk_manifest=manifest, device_execution="not_run", graphics_execution="not_run",
-                  scope="Original synthetic CPU loader probe; no retail game support")
+                  scope="Original synthetic CPU/Vulkan diagnostic probe; no retail game support")
+    # CodexAstraUlt: Preserve offline shader provenance when the build includes
+    # Vulkan. Android execution remains untested even after host readback passes.
+    if "vulkan_shaders" in report:
+        public["vulkan_shaders"] = report["vulkan_shaders"]
     output.mkdir(parents=True, exist_ok=False)
     (output / apk_name).write_bytes(apk_bytes)
     (output / NOTICE_FILE).write_bytes(notices)

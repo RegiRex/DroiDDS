@@ -2,7 +2,8 @@
 # exact original Linux fixtures without pulling the desktop compiler onto a phone.
 [package]
 name = "droidds-android-probe"
-version = "0.0.2"
+# CodexAstraUlt: Keep the CPU report version aligned with its Vulkan-capable shell.
+version = "0.0.3"
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true

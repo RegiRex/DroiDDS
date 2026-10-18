@@ -1,38 +1,45 @@
-# Android CPU loader probe shell
+# Android CPU and Vulkan probe shell
 
-<!-- CodexAstraUlt: Define the original Java/JNI boundary and evidence protocol
-without treating a packaged APK as device execution or game compatibility. -->
+<!-- CodexAstraUlt: Document the original 0.0.3 Java/JNI/Vulkan and export
+contracts while separating source, host and actual Android execution evidence. -->
 
-This small platform-only Android shell runs DroidDS's original synthetic CPU
-fixtures through packaged native libraries. It contains no renderer, title
-loader, networking, external storage access or Google/vendor service dependency.
-The application is deliberately debuggable and test-only so a local `adb` runner
-can extract its one private result. It is not a consumer emulator release.
+This platform-only shell runs four synthetic CPU fixtures and an original
+offscreen Vulkan output check. It has no title loader, PICA renderer, presentation
+surface, networking or mandatory Google/vendor service. Optional document export
+uses one user-selected URI without broad storage permission.
 
 | Setting | Value |
 | --- | --- |
 | Application ID | `org.droidds.probe` |
 | Launch component | `org.droidds.probe/.ProbeActivity` |
-| Version | `0.0.2` / version code `2` |
+| Version | `0.0.3` / version code `3` |
 | Android minimum / target | API 29 / 35 |
-| Initial packaged ABI | `arm64-v8a` |
-| Result | `files/latest-probe.json`, inside private app storage |
+| Packaged ABI | `arm64-v8a` |
+| Result | `files/latest-probe.json`, in private app storage |
+| Default build | Test-only and debuggable |
+| Prerelease build | Normal-install manifest; still debuggable |
 
-## Native interface
+See [build and device instructions](../../docs/ANDROID_PROBE.md). The
+[owner's 0.0.2 CPU report](../../docs/device-tests/0.0.2-thor-cpu.md) passes.
+The shared graphics helper passed Linux software Vulkan with Khronos and
+synchronization validation; actual 0.0.3 Thor and document-picker execution remain
+pending. Host execution does not measure the device GPU.
 
-<!-- CodexAstraUlt: Standard installed-library extraction keeps native loading
-inside Android's package paths instead of executing downloaded writable files. -->
+## Native interfaces
 
-The manifest explicitly enables native-library extraction. Java loads
-`libdroidds_probe_jni.so` using `System.loadLibrary` and passes the installed
-`ApplicationInfo.nativeLibraryDir` to its synchronous native method:
+<!-- CodexAstraUlt: Retain installer-owned library loading and strict bounded
+UTF-8 transfers, matching each allocation with its owning runtime's release. -->
+
+The manifest enables native-library extraction. Java loads
+`libdroidds_probe_jni.so` through `System.loadLibrary`. The same process worker
+calls:
 
 ```java
 private static native byte[] nativeRun(String libraryDirectory);
+private static native byte[] nativeVulkan();
 ```
 
-The JNI symbol is
-`Java_org_droidds_probe_ProbeController_nativeRun`. Its bridge links
+`nativeRun` receives `ApplicationInfo.nativeLibraryDir`. Its JNI bridge links
 `libdroidds_android_probe.so` and calls:
 
 ```c
@@ -40,68 +47,126 @@ char *droidds_probe_run(const char *library_directory);
 void droidds_probe_free(char *report);
 ```
 
-Rust owns its returned, NUL-terminated UTF-8 JSON allocation. JNI copies at most
-1 MiB into a Java byte array and releases every non-null returned allocation using
-the matching Rust function, including invalid-size and allocation-failure paths.
-JNI does not pass JSON through modified-UTF-8 `NewStringUTF`. Java rejects invalid
-UTF-8 and requires an object with exact terminal `status` of `passed` or `failed`.
-The Rust loader resolves `libdds_fixture_<fixture_name>.so` in the provided
-installer-owned directory. The shell does not scan or accept external libraries.
+Rust owns the returned NUL-terminated UTF-8 JSON. JNI copies at most 1 MiB into a
+Java byte array and releases every non-null allocation with the matching Rust
+function, including error paths. The loader accepts only known packaged
+`libdds_fixture_<fixture_name>.so` libraries in the installer-owned directory.
 
-## Run ownership and report protocol
+`nativeVulkan` allocates a 64 KiB C buffer and calls
+`dds_vk_probe_run(char *json, size_t capacity)`, then releases its allocation after
+copying the report. The helper uses Android's Vulkan loader. Neither interface
+uses JNI's modified-UTF-8 `NewStringUTF` for report JSON. Java requires strict
+UTF-8, an object and an allowed terminal status.
 
-<!-- CodexAstraUlt: Process ownership plus unique request IDs prevents duplicate
-Activity runs and stale evidence without a continuous monitor or per-run bundles. -->
+## Offscreen output contract
 
-One process-scoped worker executes all native calls and file writes off the main
-thread. Activity recreation/backgrounding observes the existing run through a weak
-observer; it does not launch another run. The first launch starts one run, and the
-button permits an explicit sequential rerun. A new process starts a new run.
+<!-- CodexAstraUlt: Make real draws, readbacks and mutation controls observable
+without presenting original test shaders as PICA or game rendering. -->
 
-An automation caller supplies a unique `request_id` String launch extra after
-force-stopping the existing probe process. The shell echoes the exact token under
-`android_shell.request_id`. A normal launcher invocation uses a generated UUID.
-The runner must match its request token, the installed APK identity and all required
-native fixture evidence; a passing status alone is not a complete qualification.
+The Vulkan 1.0 helper uses a graphics queue and 16 × 16 RGBA8 image. Original
+shaders are compiled and SPIR-V-validated with the pinned NDK during the build;
+no shader compiler is in the APK. One pipeline draws solid red, solid green and
+scissored red/green halves. Each of three cycles creates and destroys a logical
+device, resource set and pipeline on one selected physical device. These are
+three lifecycle cycles, not three different GPUs.
 
-The native JSON remains at the report's top level. The shell adds:
+A passing `graphics_probe` requires:
 
-```json
-{
-  "android_shell": {
-    "schema_version": 1,
-    "request_id": "unique-caller-token",
-    "run_id": "generated-uuid",
-    "started_at_epoch_ms": 0,
-    "finished_at_epoch_ms": 0,
-    "process_id": 0,
-    "app_version_name": "0.0.2",
-    "app_version_code": 2
-  }
-}
+- Three cycles, three pipeline creations and twelve draw calls.
+- `solid_red`, `solid_green` and `split_red_green` each passing three cycles,
+  checking 768 pixels with zero mismatches per case.
+- Nine readbacks and nine controls that mutate one pixel, prove comparator
+  rejection and restore the original content.
+- A selected-device record and no execution error.
+
+Enumeration/allocation bounds and teardown are explicit. This finite test does
+not establish leak freedom. Unsupported or failed execution reports
+`unavailable` or `failed`, with native step/result details when available; neither
+can pass. Zakuro's full Vulkan feature set, generic PICA pipeline, swapchain and
+games are outside this fixture.
+
+## Run ownership and combined report
+
+<!-- CodexAstraUlt: Preserve CPU evidence, require both execution paths to pass
+and serialize work around one bounded latest report rather than launch bundles. -->
+
+One process worker serializes native calls and file writes off the UI thread.
+Activity recreation/backgrounding observes the existing run through a weak
+observer. First launch runs once; **Run again** requests a sequential rerun. A
+new process starts a new run.
+
+Automation supplies a unique `request_id` launch extra after force-stopping the
+prior process. The shell echoes it under `android_shell.request_id`; normal
+launches generate a UUID. The external runner matches its request, installed APK
+hash and required evidence. A manually exported JSON cannot prove these external
+bindings by itself.
+
+CPU fields, including `cases`, remain at the top level. The shell copies the CPU
+status to `cpu_status`, adds `graphics_probe`, and sets combined `status` to
+`passed` only if both statuses pass. Vulkan failure retains completed CPU
+results. Java/loading/persistence errors can produce a top-level structured
+failure instead.
+
+`android_shell` retains schema version 1 and records:
+
+| Field | Meaning |
+| --- | --- |
+| `run_id`, `request_id` | Per-run identifiers, not hardware identifiers |
+| `started_at_epoch_ms`, `finished_at_epoch_ms` | Device wall-clock milliseconds; finish exists after completion |
+| `elapsed_realtime_ms` | Whole-run monotonic duration, not a speed benchmark |
+| `process_id` | Process executing this run |
+| `app_version_name`, `app_version_code` | Self-reported package version, `0.0.3` / `3` |
+| `manufacturer`, `model` | Non-unique Android device descriptions |
+| `android_api`, `android_release` | Android API level and release |
+
+`graphics_probe.device` contains Vulkan name, physical-device type, API version,
+driver version, vendor ID and device ID. No hardware serial, Android ID,
+advertising identifier or GPU UUID is collected. Per-run identifiers remain for
+stale-result checks.
+
+Before native loading, the shell atomically replaces the old report with a
+`running` marker. The combined size limit is 1 MiB + 64 KiB + 16 KiB. Saved bytes
+are read back and compared before displaying success. Only one latest report and
+AtomicFile's transient replacement/recovery files are retained. A failed save
+removes obsolete results and displays failure. Native crashes, process death or
+hangs may leave incomplete evidence; the external runner owns the deadline.
+Java does not attempt unsafe termination of a native thread.
+
+## Save report
+
+<!-- CodexAstraUlt: Pin exact completed bytes to a user-selected document and
+keep the provider optional, with no broad permissions or file IO on the UI thread. -->
+
+**Save report** becomes available after successful persistence, including a
+completed failure report. `ACTION_CREATE_DOCUMENT` uses MIME type
+`application/json` and suggests `droidds-latest-probe.json`. Android grants access
+only to the chosen document; no broad storage or persistent URI permission is
+requested.
+
+The controller pins the exact saved report bytes with an opaque export token.
+The same worker writes and closes the document stream. Reruns cannot silently
+redirect an old selection to a new report, and stale picker results are ignored.
+Activity recreation retains only tokens/request codes, not a report-sized
+Bundle. Process death safely expires the selection. Cancellation, a missing
+provider or an export failure preserves the private report and permits retry or
+ADB retrieval. The picker is optional even on stripped-down Android systems.
+
+```bash
+adb -s YOUR_THOR_SERIAL exec-out run-as org.droidds.probe \
+  cat files/latest-probe.json > droidds-latest-probe.json
 ```
 
-Times are integer Unix epoch milliseconds. `finished_at_epoch_ms` appears only in
-terminal reports. Before any native library loading, the shell atomically replaces
-the previous report with `status: "running"` and the current shell metadata.
-Ordinary Java, loader, UTF-8 and JSON failures produce `status: "failed"` with an
-`error` object containing `type` and bounded `message`. A failure to save is shown
-as a failure, and obsolete result files are removed. Atomic writes are read back
-and compared byte-for-byte before the UI can display success. Only one latest
-report is retained, plus Android AtomicFile's transient replacement/recovery files.
+## Validation boundary
 
-A fatal native crash, process kill, allocation failure or hang may leave a running
-marker or no completed report. Those outcomes are incomplete and cannot pass. The
-external device runner owns the wall-clock deadline and can stop this diagnostic
-process; the app does not attempt unsafe termination of a native worker thread.
+<!-- CodexAstraUlt: Keep strict compile and real host checks separate from the
+unexecuted Android lifecycle, picker and GPU acceptance criteria. -->
 
-## Validation scope
+Java compiles against SDK 35 with Java 8 language/API compatibility and strict
+warnings. JNI/Vulkan C uses NDK 27.3.13750724 for AArch64/API 29 with
+`-std=c11 -Wall -Wextra -Werror`. The host helper uses the same C and shaders;
+`tools/build_vulkan_probe.py --require-validation` requires a real host driver
+and Khronos layer. `validate_graphics_report` independently validates output.
 
-<!-- CodexAstraUlt: Static shell compilation is useful evidence but does not
-claim Android lifecycle, Bionic loading or CPU execution passed on hardware. -->
-
-The Java sources compile against SDK 35 using Java 8 language/API compatibility
-and strict warnings. The bridge compiles with NDK 27.3.13750724 for AArch64/API 29
-with `-std=c11 -Wall -Wextra -Werror`. These checks do not exercise Android
-lifecycle, loading or fixture execution on a Thor. The repository's build and
-device runners record those separate outcomes.
+These checks do not execute the Android picker, lifecycle or physical GPU. The
+0.0.3 Thor test remains needed. Passing this fixture does not qualify PICA
+accuracy, Dark Moon, game speed, sustained memory behavior or 16 KiB-page hosts.

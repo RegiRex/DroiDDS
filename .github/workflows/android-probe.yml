@@ -71,6 +71,21 @@ jobs:
         shell: bash
         run: |
           python3 tools/build_android_probe.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --output out/ci-android-probe --jobs 2
+      # CodexAstraUlt: Exercise real Vulkan draws with the software driver on CI;
+      # this qualifies the shared test logic, not Android or Thor performance.
+      - name: Execute host Vulkan readback
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libvulkan1 mesa-vulkan-drivers vulkan-validationlayers
+          drivers=(/usr/share/vulkan/icd.d/lvp_icd*.json)
+          test "${#drivers[@]}" -eq 1
+          test -f "${drivers[0]}"
+          export VK_DRIVER_FILES="${drivers[0]}"
+          export VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/droidds-vulkan"
+          mkdir -m 700 -p "$XDG_RUNTIME_DIR"
+          python3 tools/build_vulkan_probe.py --ndk "$ANDROID_HOME/ndk/27.3.13750724" --output out/ci-vulkan --require-validation
       - name: Record build result
         if: always()
         shell: bash

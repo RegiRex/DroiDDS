@@ -1,27 +1,100 @@
-# Android CPU loader probe
+# Android CPU and Vulkan probe
 
-<!-- CodexAstraUlt: Start Android development from the verified CPU fixtures;
-separate cross-build/package evidence from actual device execution. -->
+<!-- CodexAstraUlt: Advance from the owner's passing CPU report to a bounded
+Android graphics fixture, preserving separate build, host and device evidence. -->
 
-The owner does **not** need to manually test the Linux foundation before Android
-development. Its automated checks remain the CPU regression gate. This first
-Android slice, version **0.0.2**, packages the same four original ARM/Thumb fixtures
-in a small ARM64 app. It is a partial DDS-010/A0 implementation, not a game player.
+Version **0.0.3** retains the four original ARM/Thumb CPU checks and adds an
+original offscreen Vulkan test plus **Save report**. The owner does not need to
+repeat the automated Linux foundation tests manually.
 
-The host uses pinned 3dsrecomp to generate C, then the Android NDK compiles each
-fixture for Bionic. The app loads a small Rust runtime, which opens those packaged
-libraries and checks their output against both Zakuro's interpreter and the known
-expected results. No compiler, full HLE runtime, GPU backend or retail input is
-included in the Android dependency graph. The platform Java shell and narrow C
-JNI bridge are original DroidDS code; Kotlin/frontend dependencies are unnecessary
-for this bounded diagnostic app.
+The [owner-supplied 0.0.2 Thor report](device-tests/0.0.2-thor-cpu.md) passes all
+four CPU cases and both corruption controls on reported Android ARM64 with 4 KiB
+host pages. Its exported JSON does not independently bind the installed APK hash.
+The new Vulkan helper has passed actual Linux software Vulkan execution with the
+Khronos layer and synchronization validation enabled. **0.0.3 execution and
+report export on the Thor remain pending.** Host rendering does not measure the
+Thor GPU.
+
+## Install and save a report
+
+<!-- CodexAstraUlt: Describe the intended release and real signing transition
+without claiming publication or automatically removing an installed package. -->
+
+The intended prerelease is `v0.0.3-probe.1`, with asset
+`DroidDS-0.0.3-android-arm64.apk`. Check the
+[DroidDS releases page](https://github.com/RegiRex/DroidDS/releases) for completed
+publication; this source document alone does not establish download availability.
+The app requires ARM64 Android 10/API 29 or newer.
+
+Public diagnostic builds use one-off CI signing keys. Public 0.0.3 cannot update
+the differently signed public 0.0.2 APK in place. If you choose to switch, save
+any report you still need, explicitly uninstall **DroidDS Probe** in Android
+Settings, and install the new APK. This removes only that app's private probe
+data. The owner's 0.0.2 export has already been received and summarized above.
+Uberhar is a separate package and is unaffected. Automation never uninstalls an
+app to resolve a signing conflict. Stable product signing remains separate work.
+
+1. Open **DroidDS Probe**; CPU and offscreen Vulkan checks start automatically.
+2. Wait for the completed CPU/Vulkan result. **Run again** repeats the checks.
+3. Tap **Save report**, choose a location such as Downloads and save
+   `droidds-latest-probe.json`. Completed failure reports can also be saved.
+4. Attach that JSON when reporting results. No game file or visual judgment is
+   needed: the offscreen patterns are compared through GPU readback.
+
+The save action uses Android's `ACTION_CREATE_DOCUMENT` picker and writes only
+to your chosen document. It requires no broad storage permission, network
+permission or Google service. On systems lacking a document provider, the probe
+and private report remain functional. Cancellation or export failure preserves
+the private report and permits retry or ADB retrieval.
+
+The `files` directory is private app storage, not a normal file-manager folder.
+The USB-connected Linux laptop can still retrieve the report:
+
+```bash
+adb -s YOUR_THOR_SERIAL exec-out run-as org.droidds.probe \
+  cat files/latest-probe.json > "$HOME/Downloads/droidds-latest-probe.json"
+```
+
+## What the tests establish
+
+<!-- CodexAstraUlt: Describe actual route and readback gates without treating an
+original Vulkan smoke fixture as PICA integration or a gameplay benchmark. -->
+
+Pinned 3dsrecomp generates C on the build host; the NDK compiles it for Bionic.
+The packaged Rust runtime compares four native CPU cases against Zakuro's
+interpreter and fixed outputs: ARM, Thumb, native ARM-to-Thumb interworking and
+intentional missing-entry fallback. Two controls prove strict integer/memory
+corruption rejection.
+
+The original C Vulkan helper checks three **16 × 16** RGBA8 patterns: solid red,
+solid green and red/green halves. It creates and destroys a logical device,
+resources and pipeline for each of three cycles on one selected physical device.
+A pass requires **nine readbacks, nine pixel-mutation rejection controls, three
+pipeline creations and twelve draw calls**, with every expected pixel matching.
+Unsupported or failed Vulkan execution cannot become a combined pass. Three
+cycles provide a bounded teardown check, not proof of leak freedom.
+
+Original shaders are compiled and SPIR-V-validated during the build; the APK
+contains no shader compiler. The helper uses Vulkan 1.0 without optional
+extensions. It does not qualify Zakuro's separate Vulkan 1.3/feature requirements,
+generic PICA pipeline, presentation surface or game workload. Full HLE and retail
+inputs are absent.
+
+CPU fields remain at the top level. New `cpu_status` and `graphics_probe` fields
+record each result; combined `status` passes only when both pass. Manufacturer,
+model, Android API/release and non-unique GPU/device properties provide context.
+No hardware serial or advertising identifier is collected; per-run/request UUIDs
+still identify diagnostic runs. `elapsed_realtime_ms` uses a monotonic clock for
+the whole run and is not an emulation-speed benchmark.
 
 ## Build on Linux
 
-Use Rust 1.95.0, Python 3.11+, JDK 17, Android platform 35, build tools 35.0.0 and
-NDK **27.3.13750724**. SDK Manager installs official SDK packages with its normal
-verification. Use an existing licensed Android SDK or install it through Android
-Studio/official command-line tools. Nothing needs to be installed on the Thor yet.
+<!-- CodexAstraUlt: Keep portable SDK/JDK instructions and exact pins, with static
+package audits explicitly separate from Android execution. -->
+
+Use Rust 1.95.0, Python 3.11+, JDK 17, Android platform 35/build tools 35.0.0 and
+NDK **27.3.13750724**. Set `ANDROID_HOME` and `JAVA_HOME` to your installed SDK and
+JDK. Install official SDK packages through Android Studio or command-line tools:
 
 ```bash
 rustup toolchain install 1.95.0 --profile minimal --component rustfmt,clippy
@@ -33,61 +106,58 @@ python3 tools/build_android_probe.py \
   --output out/android-probe-local --jobs 2
 ```
 
-Choose a fresh output directory each time; previous evidence is preserved.
-The builder compiles Java to Java 8 bytecode and uses D8 for Android desugaring.
-All generated-C compilation preserves upstream's strict floating-point options.
-The Rust runtime excludes the host compiler. Every packaged ELF must be AArch64,
-have load alignment of at least 16 KiB, contain no writable-executable segment or
-text relocations, and depend only on packaged libraries or selected Android system
-libraries. APK signature, package/API identity and 16 KiB ZIP alignment are checked.
+Use a fresh output directory. The builder preserves strict generated-C floating
+point options, compiles Java 8 bytecode/D8 and uses pinned shader tools. It audits
+all packaged ELF dependencies, AArch64 identity, at least 16 KiB load alignment,
+absence of text relocations/writable-executable segments, APK signature,
+manifest/API identity and 16 KiB ZIP alignment. The Vulkan loader is supplied by
+Android rather than bundled.
 
-Output is `droidds-android-probe-debug.apk` plus `build-report.json`, command logs,
-generated original fixture code and native libraries. A completed build records
-`status: built` and **`runtime_status: not_run`**. Compilation never marks Android
-execution passed.
+Outputs include `droidds-android-probe-debug.apk`, `build-report.json` and logs.
+A completed cross-build records `status: built`, **`runtime_status: not_run`**.
+Static alignment does not establish execution on a 16 KiB-page host.
 
-The separate local debug key lives at `build/android-probe-debug.keystore`; keep it
-to allow subsequent test updates. Its conventional password is not a production
-secret. The tool never reuses Uberhar's key. The package is test-only/debuggable,
-has no network/storage permissions and retains one private latest-report file.
+Preserve `build/android-probe-debug.keystore` for subsequent local updates; it is
+unrelated to Uberhar's signing identity. The default build is test-only/debuggable.
+`--prerelease` stages `testOnly=false` for browser/file-manager installation and
+retains debugging for bounded ADB retrieval. Every APK includes the complete
+[third-party notices](../THIRD_PARTY_NOTICES.md). The tag workflow publishes only
+the APK, `BUILD_REPORT.json`, `SHA256SUMS` and `THIRD_PARTY_NOTICES.txt`, never the
+private signing key.
 
-<!-- CodexAstraUlt: Replace the former local-only distribution restriction after
-the owner's prerelease authorization and completed artifact notice assembly. -->
-The public prerelease uses a separate build mode: `--prerelease` stages a manifest
-with `testOnly=false`, allowing installation from the browser or file manager.
-It retains `debuggable=true` for bounded ADB report retrieval. Every APK embeds
-the full [third-party notice bundle](../THIRD_PARTY_NOTICES.md). The default local
-build above remains test-only.
+## Validate the shared Vulkan helper on Linux
 
-## Download the prerelease
+<!-- CodexAstraUlt: Require actual driver/layer execution, including a permitted
+software ICD, and preserve the distinction from physical Android GPU results. -->
 
-<!-- CodexAstraUlt: Make the owner-facing test a direct APK installation; distinguish
-the disposable first diagnostic signer from a stable product signing identity. -->
+Install a Vulkan loader, a working driver/ICD and the Khronos validation layer.
+Mesa software Vulkan is suitable for this correctness gate. On Nobara the loader
+commonly lives at `/usr/lib64/libvulkan.so.1`; use its actual installed path:
 
-Open the [DroidDS prereleases](https://github.com/RegiRex/DroidDS/releases) and
-download `DroidDS-0.0.2-android-arm64.apk` from `v0.0.2-probe.2`. It requires ARM64
-Android 10 or newer. Install it, launch **DroidDS Probe**, and let its four CPU
-tests run automatically. No game file or Linux test is needed. The app displays
-the result; **Run again** repeats it.
+```bash
+VULKAN_LOADER=/usr/lib64/libvulkan.so.1
+VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT \
+python3 tools/build_vulkan_probe.py \
+  --ndk "$ANDROID_HOME/ndk/27.3.13750724" \
+  --vulkan-library "$VULKAN_LOADER" \
+  --output out/vulkan-probe-local --require-validation
+```
 
-The first public probe has a one-off CI diagnostic signing key, whose public
-certificate fingerprint is in `BUILD_REPORT.json`. Its private key is not
-published or retained. It cannot update a differently signed local probe, and a
-future probe may require an explicit reinstall. Automation never uninstalls the
-existing app or deletes its data to resolve a signature conflict. Stable product
-signing remains separate work. This package is independent of Uberhar.
+`--require-validation` fails if the layer cannot load. Standard installations
+use normal driver/layer discovery; nonstandard installations may need their own
+`VK_DRIVER_FILES` or `VK_LAYER_PATH`. Review `build-report.json` and diagnostics.
+The development host passed with Mesa software Vulkan, Khronos validation and
+synchronization validation enabled, with no reported validation errors. Android
+execution remains separately recorded as not run.
 
-The tag workflow validates the Linux foundation, builds and audits the APK, and
-publishes only the APK, `BUILD_REPORT.json`, `SHA256SUMS` and
-`THIRD_PARTY_NOTICES.txt`. Existing releases are never overwritten. This remains
-a CPU diagnostic, with Android device execution pending until a real run.
+## Run from the laptop with ADB
 
-## Run the probe from the laptop
+<!-- CodexAstraUlt: Preserve external request and installed-APK binding, stronger
+than a manually exported report, without automatic uninstall or device uploads. -->
 
-Local Codex can build and run this on Nobara with the already USB-connected Thor.
-The cloud session cannot access that USB connection automatically. Install Android
-platform tools locally, use `adb devices -l` to identify the authorized device,
-and supply its exact serial explicitly:
+Local Codex can run this against the USB-connected Thor; the cloud session cannot
+automatically access that connection. Use `adb devices -l` and supply the exact
+authorized serial:
 
 ```bash
 python3 tools/run_android_probe.py \
@@ -96,63 +166,31 @@ python3 tools/run_android_probe.py \
   --output out/thor-probe-local
 ```
 
-<!-- CodexAstraUlt: Require an explicit public-probe selection while preserving the
-default test-only APK guard and the same package/data boundaries. -->
-For the downloaded prerelease, point `--apk` at that file and add
-`--allow-prerelease`. The runner still requires the exact debuggable probe package;
-the flag only permits its normal-install manifest.
+For a downloaded public APK, use its path and add `--allow-prerelease`. The runner
+decodes the manifest, checks the installed APK hash, issues a fresh request ID
+and validates all CPU counters/output. For 0.0.3 it also requires every Vulkan
+case, counter and mutation control. A hang, crash, missing/stale result, wrong
+version or unavailable Vulkan fails the run.
 
-The runner inspects the real APK manifest before installation, verifies the
-installed APK hash, launches with a fresh request ID, and requires the matching
-report from the current run. It checks all four cases, exact route counters,
-strict state comparisons and both deliberate corruption rejections. It records
-the device's actual OS/properties and reported host page size. A hang, crash,
-missing/stale report, wrong installed version or incomplete case fails the run.
+Only `org.droidds.probe` is installed/updated and stopped. Its latest report is
+replaced; no automatic uninstall, app-data clearing, Uberhar changes or uploads
+occur. A manually saved report is useful but lacks the external request/APK
+binding of a full ADB run.
 
-Only `org.droidds.probe` is installed/updated and stopped. Its prior latest report
-is replaced; the runner never uninstalls an app, clears app data or touches Uberhar
-saves/settings. A signing mismatch requires diagnosis rather than an automatic
-uninstall. The local report stays private unless deliberately shared; no capture
-or device report is uploaded by this tool.
+One worker serializes native execution and file IO off the UI thread. Activity
+recreation observes the existing run. The app atomically replaces one private
+report, writes a running marker before native loading and checks saved bytes
+before displaying success. Native crashes/hangs can leave incomplete evidence;
+the ADB runner supplies the external deadline. This is not a native sandbox.
 
-For a normal manual launch, the app also runs once and displays the result. The
-button explicitly reruns it. Activity recreation observes the same process worker
-instead of starting another. Native execution and file writes stay off the UI
-thread. The one result file is replaced atomically, with a running marker written
-before native loading. A Rust panic can become a failure report, but native aborts
-and hangs require the external runner's deadline; this is not a native sandbox.
+## Remaining gates
 
-## What remains after the first device result
+<!-- CodexAstraUlt: Retain full renderer, lifecycle, memory and game acceptance
+criteria beyond the bounded CPU and offscreen output fixture. -->
 
-Actual Android execution, lifecycle behavior and 16 KiB-page device execution
-must be reported separately from static checks. A Thor result only qualifies its
-observed OS/page size. Vulkan capability discovery and a representative pipeline
-draw are still required to complete A0. Wrong-ABI/generation negative loader
-fixtures, broader CPU transitions/VFP semantics, module invalidation and the full
-graphics/runtime integration also remain open. No game compatibility, Dark Moon
-fix or performance improvement follows from this small loader test.
-
-The next useful owner/device task is this short automatic Android probe, not a
-manual Linux test or another game benchmark. Further CPU and renderer development
-can continue independently while a Thor result is pending.
-
-## Prepared cloud workspace
-
-<!-- CodexAstraUlt: Reuse installed SDK tool binaries read-only, without running
-Uberhar activation/build scripts or importing its configuration/signing files. -->
-
-```bash
-export CARGO_HOME=/workspace/droidds-tools/cargo
-export RUSTUP_HOME=/workspace/droidds-tools/rustup
-export PATH=/workspace/droidds-tools/cargo/bin:$PATH
-export CARGO_NET_GIT_FETCH_WITH_CLI=true
-cd /workspace/DroidDS
-python3 tools/build_android_probe.py \
-  --sdk /workspace/uberhar-android/sdk \
-  --java-home /workspace/uberhar-android/jdk \
-  --output out/android-probe-new --jobs 2
-```
-
-These SDK paths are specific to the cloud workspace; use ordinary local SDK/JDK
-paths on Nobara. No service is needed for cross-compilation. There is no attached
-Thor or configured Android emulator in this cloud build environment.
+The next owner test is 0.0.3 on the Thor, including **Save report**. Android picker
+behavior, lifecycle and 16 KiB-page execution remain separate device gates. Even
+a full 0.0.3 pass does not complete A0's representative generic PICA pipeline or
+M2's renderer work. Broader CPU/VFP/module tests, surface presentation, long-run
+memory stability and games remain open. This probe establishes no Dark Moon
+correction or game-performance improvement.

@@ -59,6 +59,22 @@ jobs:
         shell: bash
         run: |
           python3 tools/build_android_probe.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --output out/prerelease-android --jobs 2 --prerelease --debug-keystore "$RUNNER_TEMP/droidds-probe.keystore"
+      # CodexAstraUlt: The release requires actual pixel comparisons on a host
+      # Vulkan driver in addition to cross-compilation; Thor validation is separate.
+      - name: Execute host Vulkan readback
+        id: vulkan
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libvulkan1 mesa-vulkan-drivers vulkan-validationlayers
+          drivers=(/usr/share/vulkan/icd.d/lvp_icd*.json)
+          test "${#drivers[@]}" -eq 1
+          test -f "${drivers[0]}"
+          export VK_DRIVER_FILES="${drivers[0]}"
+          export VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/droidds-vulkan"
+          mkdir -m 700 -p "$XDG_RUNTIME_DIR"
+          python3 tools/build_vulkan_probe.py --ndk "$ANDROID_HOME/ndk/27.3.13750724" --output out/prerelease-vulkan --require-validation 2>&1 | tee out/prerelease-vulkan-console.log
       - name: Prepare verified public assets
         id: bundle
         shell: bash
@@ -72,6 +88,7 @@ jobs:
           PYTHON_OUTCOME: ${{ steps.python.outcome }}
           FOUNDATION_OUTCOME: ${{ steps.foundation.outcome }}
           APK_OUTCOME: ${{ steps.apk.outcome }}
+          VULKAN_OUTCOME: ${{ steps.vulkan.outcome }}
           BUNDLE_OUTCOME: ${{ steps.bundle.outcome }}
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
@@ -98,7 +115,7 @@ jobs:
               escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
               print("::error::" + escaped, file=sys.stderr)
 
-          for name in ("python", "foundation", "apk", "bundle"):
+          for name in ("python", "foundation", "apk", "vulkan", "bundle"):
               outcome = os.environ.get(name.upper() + "_OUTCOME", "unknown")
               print(name + ": " + outcome)
               if outcome not in ("failure", "cancelled"):
@@ -109,10 +126,10 @@ jobs:
               if name == "bundle":
                   annotate(name, tail(Path("out/prerelease-bundle-console.log")) or "Asset preparation stopped before a log was written")
                   continue
-              directory = Path("out/prerelease-foundation" if name == "foundation" else "out/prerelease-android")
+              directory = Path({"foundation": "out/prerelease-foundation", "apk": "out/prerelease-android", "vulkan": "out/prerelease-vulkan"}[name])
               path = directory / "build-report.json"
               if path.is_symlink() or not path.is_file() or path.stat().st_size > 2 * 1024 * 1024:
-                  detail = tail(Path("out/prerelease-foundation-console.log")) if name == "foundation" else "APK build stopped before bounded evidence was written"
+                  detail = tail(Path("out/prerelease-" + name + "-console.log")) if name in ("foundation", "vulkan") else "APK build stopped before bounded evidence was written"
                   annotate(name, detail)
                   continue
               try:
@@ -120,7 +137,7 @@ jobs:
               except (ValueError, OSError):
                   annotate(name, "Build report could not be decoded")
                   continue
-              steps = report.get("steps" if name == "foundation" else "commands", [])
+              steps = report.get("commands" if name == "apk" else "steps", [])
               failed = [step for step in steps if step.get("exit_code", 0) != 0 or step.get("status") == "inconclusive"]
               protected = {"debug-key", "sign", "verify-signature"}
               if name == "apk" and any(step.get("step") in protected for step in failed):
@@ -182,7 +199,7 @@ jobs:
             echo "A release or draft already exists for this tag; refusing replacement." >&2
             exit 1
           fi
-          gh release create "$RELEASE_TAG" release-assets/* --verify-tag --draft --prerelease --latest=false --title "DroidDS ${RELEASE_TAG#v} — Android CPU probe" --notes-file "docs/releases/${RELEASE_TAG#v}.md"
+          gh release create "$RELEASE_TAG" release-assets/* --verify-tag --draft --prerelease --latest=false --title "DroidDS ${RELEASE_TAG#v} — Android CPU and Vulkan probe" --notes-file "docs/releases/${RELEASE_TAG#v}.md"
           gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/release-asset-names.txt"
           python3 - <<'PY'
           import os

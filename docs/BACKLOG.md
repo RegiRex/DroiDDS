@@ -2,17 +2,23 @@
 
 <!-- CodexAstraUlt: Reduce the supplied 119-ticket catalog to bounded work packages with explicit tests and links back to the source requirements. -->
 
-<!-- CodexAstraUlt: Replace the all-planned status with the delivered CPU subset;
-retain unresolved provenance, full-runtime and broader semantic gates explicitly. -->
+<!-- CodexAstraUlt: Record the delivered CPU subset and the resolved current
+probe notice inventory; keep full-runtime and broader semantic gates open. -->
 DDS-001/002 now have a pinned CPU dependency inventory, original workspace, build
-runner and passing local checks; full-runtime/platform qualification and the
-3dsrecomp binary notice inventory remain open. DDS-003's bounded first fixture
+runner and passing local checks. The current Android probe's distribution notice
+inventory is resolved by the reviewed collector and
+[third-party notice record](../THIRD_PARTY_NOTICES.md); full-runtime/platform
+qualification remains open. DDS-003's bounded first fixture
 scope is implemented: four native/interpreter cases, strict expected results and
 negative controls. See [build evidence](builds/0.0.1-foundation.md).
-<!-- CodexAstraUlt: DDS-010 now has an implemented CPU-only Android cross-build
-and device runner; preserve its unexecuted Thor/Vulkan gates. -->
-DDS-010 now has a CPU loader APK/build audit and local ADB runner; see
-[the probe](ANDROID_PROBE.md). Thor execution and Vulkan draw remain open.
+<!-- CodexAstraUlt: Replace the pending Thor CPU status with validated uploaded
+results without treating its self-reported metadata as a fresh ADB/package bind. -->
+DDS-010 now has a CPU loader APK/build audit, local ADB runner and a passing
+[owner-supplied Thor CPU report](device-tests/0.0.2-thor-cpu.md): four cases and
+two negative controls on reported Android ARM64 with 4 KiB pages. Vulkan drawing
+and the remaining platform gates stay open. The next planned 0.0.3 work is a
+bounded offscreen Vulkan probe and **Save report** action; it has no device result
+yet. See [the probe](ANDROID_PROBE.md).
 Other DDS-004 onward items remain planned. The table defines acceptance, not completion of
 every item merely because a related source component exists.
 The original [119-ticket catalog](research/2026-10-17/06_IMPLEMENTATION_BACKLOG.md)
@@ -44,11 +50,14 @@ entry point. Use the exact commits in the [review](RESEARCH_REVIEW.md); preserve
 upstream history/notices. Choose dependency integration after examining the
 existing Cargo graph. Do not recreate upstream's compiler abstraction or ABI.
 
+<!-- CodexAstraUlt: Retain ongoing provenance checks without reopening the
+current probe's resolved notice hold; new components require their own review. -->
 Validation must record the compiler, Rust version, upstream SHA, verifier CPU SHA,
 feature flags, lockfile hashes, command exit status, executed tests and explicit
-skips. A clean build with zero relevant tests is build evidence only. Resolve
-whether missing 3dsrecomp notices affect source import/distribution before either;
-the pack's MIT summary is not a complete notice inventory.
+skips. A clean build with zero relevant tests is build evidence only. Preserve
+the current probe's complete generated distribution notices and review additions
+or dependency changes against actual source declarations and supplied notices;
+the pack's MIT summary does not replace that inventory.
 
 DDS-003 now supplies separate ARM/Thumb cases, actual native ARM-to-Thumb
 interworking, fixed memory output and intentional missing-entry fallback. Continue
