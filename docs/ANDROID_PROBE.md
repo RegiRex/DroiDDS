@@ -17,14 +17,14 @@ Thor GPU.
 
 ## Install and save a report
 
-<!-- CodexAstraUlt: Describe the intended release and real signing transition
-without claiming publication or automatically removing an installed package. -->
+<!-- CodexAstraUlt: Record completed publication and the real signing transition
+without automatically removing an installed package or its private report. -->
 
-The intended prerelease is `v0.0.3-probe.1`, with asset
-`DroidDS-0.0.3-android-arm64.apk`. Check the
-[DroidDS releases page](https://github.com/RegiRex/DroidDS/releases) for completed
-publication; this source document alone does not establish download availability.
-The app requires ARM64 Android 10/API 29 or newer.
+The published [0.0.3 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.3-probe.1)
+provides `DroidDS-0.0.3-android-arm64.apk`. The
+[release workflow](https://github.com/RegiRex/DroidDS/actions/runs/39096219229)
+passed its CPU, APK, host Vulkan and release-bundle gates. The app requires
+ARM64 Android 10/API 29 or newer; Thor graphics execution remains pending.
 
 Public diagnostic builds use one-off CI signing keys. Public 0.0.3 cannot update
 the differently signed public 0.0.2 APK in place. If you choose to switch, save

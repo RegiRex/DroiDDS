@@ -16,8 +16,10 @@ The owner-supplied 0.0.2 [Thor CPU report](device-tests/0.0.2-thor-cpu.md) passe
 all four fixture cases and both corruption controls on reported Android ARM64
 with 4 KiB host pages. This demonstrates the reported CPU loader-test slice;
 Vulkan drawing, broader Android qualification and 16 KiB-page execution remain
-open. The next planned 0.0.3 probe adds offscreen Vulkan output checks and a
-**Save report** action; no result is claimed before those tests execute.
+open. The implemented 0.0.3 probe adds offscreen Vulkan output checks and a
+**Save report** action. Its APK build and host software Vulkan checks pass;
+Thor GPU and Android export execution remain pending. See
+[the separate build evidence](builds/0.0.3-android-vulkan.md).
 
 | Milestone | Deliverable | Exit evidence | Dependencies |
 | --- | --- | --- | --- |
