@@ -40,7 +40,33 @@ jobs:
           rustup target add --toolchain 1.95.0 aarch64-linux-android
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;27.3.13750724"
       - name: Test evidence and device boundaries
-        run: python3 -m unittest discover -s tools/tests -v
+        id: python
+        shell: bash
+        run: |
+          mkdir -p out
+          python3 -m unittest discover -s tools/tests -v 2>&1 | tee out/android-python.log
+      - name: Record bounded Python failure
+        if: failure() && steps.python.outcome == 'failure'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          from pathlib import Path
+          # CodexAstraUlt: Python failures occur before an APK report exists.
+          # Expose only a bounded test tail, with no SDK environment/key logs.
+          path = Path("out/android-python.log")
+          if path.is_file() and not path.is_symlink():
+              with path.open("rb") as stream:
+                  stream.seek(0, 2)
+                  stream.seek(max(0, stream.tell() - 6000))
+                  detail = stream.read(6000).decode("utf-8", errors="replace")
+          else:
+              detail = "Python validation failed before writing its log"
+          detail = re.sub(r"(https?://)[^/\s@]+@", r"\1[redacted]@", detail)
+          detail = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b", "[redacted]", detail)
+          escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print("::error::Python validation: " + escaped, file=sys.stderr)
+          PY
       - name: Build and audit Android probe
         shell: bash
         run: |

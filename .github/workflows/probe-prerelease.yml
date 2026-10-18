@@ -43,20 +43,97 @@ jobs:
           rustup toolchain install 1.95.0 --profile minimal --component rustfmt,clippy
           rustup target add --toolchain 1.95.0 aarch64-linux-android
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;27.3.13750724"
-      - name: Validate release gates and CPU foundation
+      - name: Validate release gates
+        id: python
         shell: bash
         run: |
-          python3 -m unittest discover -s tools/tests -v
-          python3 tools/build_foundation.py --output out/prerelease-foundation --jobs 2
+          mkdir -p out
+          python3 -m unittest discover -s tools/tests -v 2>&1 | tee out/prerelease-python.log
+      - name: Validate CPU foundation
+        id: foundation
+        shell: bash
+        run: |
+          python3 tools/build_foundation.py --output out/prerelease-foundation --jobs 2 2>&1 | tee out/prerelease-foundation-console.log
       - name: Build signed installable diagnostic APK
+        id: apk
         shell: bash
         run: |
           python3 tools/build_android_probe.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --output out/prerelease-android --jobs 2 --prerelease --debug-keystore "$RUNNER_TEMP/droidds-probe.keystore"
       - name: Prepare verified public assets
+        id: bundle
         shell: bash
         run: |
           export JAVA_HOME="$JAVA_HOME_17_X64"
-          python3 tools/prepare_probe_release.py --build out/prerelease-android --output out/prerelease-bundle --sdk "$ANDROID_HOME" --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
+          python3 tools/prepare_probe_release.py --build out/prerelease-android --output out/prerelease-bundle --sdk "$ANDROID_HOME" --tag "$RELEASE_TAG" --commit "$GITHUB_SHA" 2>&1 | tee out/prerelease-bundle-console.log
+      - name: Record bounded public build diagnostics
+        if: always()
+        shell: bash
+        env:
+          PYTHON_OUTCOME: ${{ steps.python.outcome }}
+          FOUNDATION_OUTCOME: ${{ steps.foundation.outcome }}
+          APK_OUTCOME: ${{ steps.apk.outcome }}
+          BUNDLE_OUTCOME: ${{ steps.bundle.outcome }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os, re, sys
+          from pathlib import Path
+
+          # CodexAstraUlt: Public annotations explain failures even when GitHub
+          # hides full logs behind login. Read bounded tails, never credentials,
+          # command arrays, signing logs, keystores or arbitrary report paths.
+          def tail(path, limit=5000):
+              if path.is_symlink() or not path.is_file():
+                  return ""
+              with path.open("rb") as stream:
+                  stream.seek(0, 2)
+                  stream.seek(max(0, stream.tell() - limit))
+                  return stream.read(limit).decode("utf-8", errors="replace")
+
+          def annotate(label, detail):
+              # CodexAstraUlt: Strip URL userinfo and common token forms before
+              # escaping workflow-command metacharacters. No raw logs upload.
+              detail = re.sub(r"(https?://)[^/\s@]+@", r"\1[redacted]@", detail)
+              detail = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b", "[redacted]", detail)
+              detail = (label + ": " + detail)[-6000:]
+              escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print("::error::" + escaped, file=sys.stderr)
+
+          for name in ("python", "foundation", "apk", "bundle"):
+              outcome = os.environ.get(name.upper() + "_OUTCOME", "unknown")
+              print(name + ": " + outcome)
+              if outcome not in ("failure", "cancelled"):
+                  continue
+              if name == "python":
+                  annotate(name, tail(Path("out/prerelease-python.log")) or "Validation stopped before a log was written")
+                  continue
+              if name == "bundle":
+                  annotate(name, tail(Path("out/prerelease-bundle-console.log")) or "Asset preparation stopped before a log was written")
+                  continue
+              directory = Path("out/prerelease-foundation" if name == "foundation" else "out/prerelease-android")
+              path = directory / "build-report.json"
+              if path.is_symlink() or not path.is_file() or path.stat().st_size > 2 * 1024 * 1024:
+                  detail = tail(Path("out/prerelease-foundation-console.log")) if name == "foundation" else "APK build stopped before bounded evidence was written"
+                  annotate(name, detail)
+                  continue
+              try:
+                  report = json.loads(path.read_text())
+              except (ValueError, OSError):
+                  annotate(name, "Build report could not be decoded")
+                  continue
+              steps = report.get("steps" if name == "foundation" else "commands", [])
+              failed = [step for step in steps if step.get("exit_code", 0) != 0 or step.get("status") == "inconclusive"]
+              protected = {"debug-key", "sign", "verify-signature"}
+              if name == "apk" and any(step.get("step") in protected for step in failed):
+                  annotate(name, "Signing or signature verification failed; signing logs are excluded from public annotations")
+                  continue
+              detail = str(report.get("error", "Build failed without a reported error"))[-2000:]
+              for step in failed[-1:]:
+                  log_name = step.get("log", "")
+                  if isinstance(log_name, str) and Path(log_name).name == log_name and log_name.endswith(".log"):
+                      detail += "\n" + tail(directory / log_name)
+              annotate(name, detail)
+          print("Android execution: not_run. No signing keys or raw log artifacts are published.")
+          PY
       - name: Store only release assets
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

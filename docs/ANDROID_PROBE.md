@@ -65,7 +65,7 @@ build above remains test-only.
 the disposable first diagnostic signer from a stable product signing identity. -->
 
 Open the [DroidDS prereleases](https://github.com/RegiRex/DroidDS/releases) and
-download `DroidDS-0.0.2-android-arm64.apk` from `v0.0.2-probe.1`. It requires ARM64
+download `DroidDS-0.0.2-android-arm64.apk` from `v0.0.2-probe.2`. It requires ARM64
 Android 10 or newer. Install it, launch **DroidDS Probe**, and let its four CPU
 tests run automatically. No game file or Linux test is needed. The app displays
 the result; **Run again** repeats it.
