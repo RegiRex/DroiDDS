@@ -21,9 +21,8 @@ nine exact readbacks and nine pixel-mutation controls on Adreno 740/Android 13.
 Those reports do not qualify actual PICA, picker lifecycle, sustained memory or
 the remaining platform gates. Version 0.0.3's APK and host rendering checks also pass. See
 [the build evidence](builds/0.0.3-android-vulkan.md) and [the probe](ANDROID_PROBE.md).
-<!-- CodexAstraUlt: Replace the pending 0.0.4 hardware status with the validated
-owner report, and distinguish the implemented 0.0.5 candidate from publication
-and its still-unperformed Thor runtime gate. -->
+<!-- CodexAstraUlt: Record the validated 0.0.4 owner report and verified 0.0.5
+publication separately from its still-unperformed Thor runtime qualification. -->
 Version 0.0.4 implements bounded subsets of DDS-004/005/010: eight CPU cases,
 code-origin/changed-code/write-protection controls, full-renderer capability
 queries and a representative Vulkan backend pipeline fixture. The owner's
@@ -32,15 +31,20 @@ checks. Optional dynamic blend/logic state is absent, so the actual renderer
 must also pass forced-static host tests. The manual upload does not independently
 bind an installed APK hash or establish gameplay performance.
 
-The [0.0.5 runtime candidate](builds/0.0.5-runtime-integration.md) implements
+The [0.0.5 runtime integration](builds/0.0.5-runtime-integration.md) implements
 bounded portions of DDS-004/005/006/007/008/012: an original guest-driven NCCH
 fixture reaches real loader, kernel, services and PICA code through interpreter,
 native/software and native/Vulkan routes, with an independent asymmetric pixel
 oracle. Compiler budget-boundary and Vulkan validation defects found during
 execution are corrected. Compiler admission and retained-object counts are
 limited; diagnostic evidence rejects unexpected software raster fallback and
-resource-limit events. Final source-bound build/publication gates and the
-owner's 0.0.5 Thor execution remain pending.
+resource-limit events. All required source-bound host and CI gates pass; the
+[0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+is published and its public downloads are verified after
+[run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818).
+The owner's actual 0.0.5 Thor execution remains pending. Obtain that report and
+address any failures before progressing to 0.0.6 visible original homebrew and
+lifecycle work. No retail title is qualified by this public fixture.
 
 The [New 3DS audit](NEW3DS_AUDIT.md) now leads to implemented loader/header,
 physical-region, commitment-limit and configuration/service corrections with
@@ -99,7 +103,7 @@ the pack's MIT summary does not replace that inventory.
 DDS-003 now supplies separate ARM/Thumb cases, actual native ARM-to-Thumb
 interworking, fixed memory output and intentional missing-entry fallback. Continue
 with DDS-004/005 beyond 0.0.4's finite-VFP, reverse interworking, tiny-budget and
-bounded code-safety cases. The 0.0.5 candidate adds actual runtime SVC/service
+bounded code-safety cases. Version 0.0.5 adds actual runtime SVC/service
 execution, missing-entry interpreter resumption and executed ARM/Thumb loop-budget
 regressions; broad VFP, scheduling and CRO coverage remain follow-up work.
 A missing-compiler skip cannot pass DDS-003/M1 or unblock A0. Static 16 KiB
@@ -108,12 +112,13 @@ record that execution as untested unless such a device actually runs the fixture
 
 <!-- CodexAstraUlt: Replace already-implemented New 3DS tasks with qualification
 and remaining coverage, without promoting a public fixture to Xenoblade support. -->
-The **0.0.5 candidate** implements the bounded
+Version **0.0.5** ships the bounded
 [New 3DS integration work](builds/0.0.5-runtime-integration.md): corrected header
 bits, physical regions and title commitment limits resolved before construction,
 matching configuration/model data, allocation-boundary and reserved-mapping
-checks, and restore preflight. Complete the final source-bound gates and actual
-Thor report before promoting this runtime milestone. Scheduling, clocks/audio,
+checks, and restore preflight. Host/CI and publication gates pass; obtain and
+validate the actual Thor report before promoting this Android runtime milestone.
+Scheduling, clocks/audio,
 remaining services and general module lifecycle need their own cases. Xenoblade's
 private header/boot baseline remains necessary; neither the public fixture nor
 the passing Thor 0.0.4 probe establishes title compatibility.

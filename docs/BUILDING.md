@@ -103,7 +103,7 @@ and actual Thor execution are reported separately.
 <!-- CodexAstraUlt: Document the real original guest/service/PICA gate and its
 strict GPU execution requirement without claiming a retail baseline or APK run. -->
 
-The 0.0.5 candidate adds `droidds-runtime-probe`. Its original NCCH/CXI guest is
+Version 0.0.5 adds `droidds-runtime-probe`. Its original NCCH/CXI guest is
 loaded by the real title loader, calls HLE services and submits PICA commands.
 Required comparisons cover interpreter/software, native/software and
 native/Vulkan routes, including deliberate CPU fallback and exact image output.
@@ -148,9 +148,18 @@ not qualify Xenoblade or the wider scheduler/module lifecycle.
 The optional PICA CPU JIT is disabled. Shader job/object/payload limits and safe
 fallbacks are tested, but total GPU/driver bytes, sustained memory recovery and
 zero-stall cold gameplay remain open. Private Dark Moon, Xenoblade and Sonic
-baselines require their exact local inputs, which are absent here. The 0.0.5
-candidate's final build/publication and Thor results must be recorded separately;
-running this host gate alone cannot establish them.
+baselines require their exact local inputs, which are absent here.
+
+<!-- CodexAstraUlt: Link completed publication evidence separately from the
+physical-device qualification that a successful host build cannot establish. -->
+The [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+is published, all required host/CI gates pass in
+[run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
+and public downloads are verified. Exact results are in the
+[build record](builds/0.0.5-runtime-integration.md). The actual Thor 0.0.5 report
+remains pending; running this host gate alone cannot establish it or retail
+qualification. Obtain that report, address any failures, then proceed to the
+0.0.6 visible original-guest and lifecycle milestone.
 
 ## This prepared cloud workspace
 

@@ -7,7 +7,7 @@ selected existing components. It does not rewrite their CPU interpreter,
 recompiler or ABI. This document records source selection and integration
 decisions; exact final execution/publication results belong in build evidence.
 
-## Current 0.0.5 integration candidate
+## Current 0.0.5 integration
 
 <!-- CodexAstraUlt: Replace the no-vendor/no-runtime summary with the maintained
 source boundary, real guest proof and measured reason for the compiler patch. -->
@@ -28,8 +28,8 @@ upstream repositories are not modified.
 
 The integrated guest revealed a real backward-loop/conditional-flow accounting
 defect: the reference executed 598 instructions while native accounting charged
-1,598 before correction. A reviewed compiler block-discovery correction and
-regressions are required; relaxing the report counters would conceal the defect.
+1,598 before correction. The reviewed compiler block-discovery correction and
+executed regressions now pass; relaxing report counters would conceal the defect.
 Vendoring the compiler permits that correction without changing the ABI pin or
 patching a shared cache. These instruction counts are not gameplay-speed results.
 
@@ -65,11 +65,18 @@ source-archive availability. Registry/target/feature identity changes invalidate
 the reviewed inventory rather than silently omitting notices. This review does
 not authorize copying arbitrary GPL components from Azahar, MMJ or Uberhar.
 
-The 0.0.4 Thor report passes its original diagnostic scope. The 0.0.5 candidate's
-final combined build, publication and Thor execution remain pending. The public
-fixture is NCCH; no 3DSX loader, game presentation/input/audio qualification or
-retail baseline is claimed. Exact private Dark Moon, Xenoblade and Sonic inputs
-are absent from this environment, so their M3 baselines remain open.
+<!-- CodexAstraUlt: Record verified publication separately from the still-open
+Thor runtime and private-title gates; retain the fixture's precise scope. -->
+The 0.0.4 Thor report passes its original diagnostic scope. The
+[0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+is published with verified public downloads and passing required host/CI gates
+in [run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818).
+See the [build record](builds/0.0.5-runtime-integration.md). Its Thor runtime report
+remains pending. The public fixture is NCCH; no 3DSX loader, game presentation/
+input/audio qualification or retail baseline is claimed. Exact private Dark Moon,
+Xenoblade and Sonic inputs are absent from this environment, so their M3 baselines
+remain open. Obtain the 0.0.5 Thor report, correct any failures, then proceed to
+0.0.6 visible original homebrew and lifecycle integration.
 
 ## Initial 0.0.1 inventory (historical)
 

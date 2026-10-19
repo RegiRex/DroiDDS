@@ -6,13 +6,13 @@ capability contract without promoting the original fixtures to PICA/game proof. 
 Version **0.0.4 passes the owner's Thor report**, including all eight CPU cases,
 three code-safety controls and Vulkan graphics/compute requirements. Read
 [the device evidence](device-tests/0.0.4-thor-runtime-probe.md). The Thor reports
-no optional dynamic blend/logic-state support, so the next integration explicitly
+no optional dynamic blend/logic-state support, so the runtime integration explicitly
 tests the static pipeline path. The owner need not repeat automated Linux tests.
 
-<!-- CodexAstraUlt: Advance the app contract to real original guest execution;
-keep release and device status provisional until their own gates finish. -->
-**0.0.5 is the runtime-integration candidate; its publication and Thor execution
-are pending.** It retains the 0.0.4 CPU/Vulkan checks and adds an original NCCH
+<!-- CodexAstraUlt: Record verified runtime publication without promoting host
+and CI results to an actual Thor run or retail compatibility. -->
+**0.0.5 is published with verified downloads and passing host/CI gates; its Thor
+execution remains pending.** It retains the 0.0.4 CPU/Vulkan checks and adds an original NCCH
 guest through the actual loader, HLE services and PICA renderer. It still runs
 offscreen and exports one report; no retail game, display/input/audio frontend
 or 3DSX loader is included in this diagnostic.
@@ -32,11 +32,13 @@ renderer. The report does not establish whether the picker or ADB exported it.
 <!-- CodexAstraUlt: Record completed publication while preserving explicit
 signing-conflict handling and the pending physical-device gate. -->
 
-The last published [0.0.4 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.4-probe.1)
-provides `DroidDS-0.0.4-android-arm64.apk` and its verification files. The
-[release workflow](https://github.com/RegiRex/DroidDS/actions/runs/39321226246)
-passed all build and publication gates. The 0.0.5 candidate download remains
-pending until its release gates finish. The app
+The [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+provides `DroidDS-0.0.5-android-arm64.apk` and its verification files. The
+[release workflow](https://github.com/RegiRex/DroidDS/actions/runs/39341905818)
+passed all required host, Android-package and publication gates; public downloads
+were verified against the release evidence. See the
+[build record](builds/0.0.5-runtime-integration.md). Its Thor runtime report remains
+the next device gate. The app
 requires ARM64 Android 10/API 29 or newer. Passing the new graphics checks also
 requires the Vulkan 1.3 features listed below; a reported API version alone is
 insufficient. Unsupported capabilities are recorded as a failed qualification,
@@ -289,4 +291,5 @@ device gates. Broader CPU/VFP/module tests, first-use compilation, long-run memo
 stability, controls/audio and games remain open. No private retail inputs are
 present in this environment, so Dark Moon, Xenoblade and Sonic baselines remain
 explicitly untested. This probe establishes no Dark Moon visual correction or
-game-performance improvement.
+game-performance improvement. After a passing 0.0.5 Thor report, the next target
+is 0.0.6: visible interactive original 3DS homebrew and Android lifecycle work.

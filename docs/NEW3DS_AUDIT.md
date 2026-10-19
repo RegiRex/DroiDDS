@@ -11,12 +11,17 @@ Xenoblade was run or that a particular game crashed. **0.0.4 does not yet includ
 the full loader, HLE kernel or these fixes in its Android APK.**
 
 <!-- CodexAstraUlt: Preserve the original audit as historical evidence while
-pointing to the actual reviewed implementation now present in the .5 candidate. -->
-**Current integration update:** the 0.0.5 candidate implements the parser,
-resolved memory, configuration and commitment corrections below, with real
-loader/kernel regressions. See [0.0.5 integration corrections](#005-integration-corrections).
-Its final combined build/publication and Thor test remain pending; Xenoblade has
-not been run. The original audit still describes the unchanged upstream revision.
+recording verified publication separately from unperformed device/retail tests. -->
+**Current integration update:** the published
+[0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+includes the parser, resolved memory, configuration and commitment corrections
+below, with real loader/kernel regressions. All required host/CI gates pass in
+[run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
+and public downloads are verified; see the
+[build record](builds/0.0.5-runtime-integration.md) and
+[0.0.5 integration corrections](#005-integration-corrections).
+The Thor 0.0.5 report remains pending; Xenoblade has not been run. The original
+audit still describes the unchanged upstream revision.
 
 The existing New 3DS model selection, 256 MiB physical RAM, model-reporting
 services and extra input service provide useful foundations. We should correct
@@ -176,10 +181,17 @@ regressions or a demand to introduce host-thread parallelism immediately:
   initialization. Peak resident-memory cost has not been measured, and this is
   not evidence of a persistent memory leak.
 
-## 0.0.5 integration gates
+## Original 0.0.5 integration gates
 
 <!-- CodexAstraUlt: Define a small dependency-ordered fix set and regressions,
 instead of silently modifying a shared Cargo cache or marking Xenoblade ready. -->
+
+<!-- CodexAstraUlt: Keep the original audit plan while distinguishing the shipped
+parser/layout/loader corrections from still-open scheduling and private-title work. -->
+The list below preserves the audit's original work plan. Steps 1–3 now have the
+implemented corrections and passing host regressions described in the correction
+record; active New modes 3–15 are explicitly rejected. Broader scheduling/time/
+service work and the private Xenoblade baseline in steps 4–5 remain open.
 
 1. **Parser correction:** apply a reviewed patch in DroidDS's selected runtime
    source, leaving the shared Cargo cache untouched. Decode the independent
@@ -221,7 +233,7 @@ from the unchanged historical harness and from unperformed retail/device tests. 
 
 The maintained source is now under `vendor/zakuro`, with the original revision,
 file hashes and MIT notice retained. Cargo's shared upstream checkout remains
-unchanged. The following corrections are implemented in the 0.0.5 candidate:
+unchanged. The following corrections ship in 0.0.5:
 
 | Finding | Actual integration change |
 | --- | --- |
@@ -257,7 +269,7 @@ This is implementation-reference corroboration, not a new hardware measurement;
 no Luma/Citra implementation was copied into the Rust changes.
 
 New legacy requests for Old modes 4/5 are explicitly unsupported: the inspected
-PM reference assigns them zero application commitment, so the candidate does not
+PM reference assigns them zero application commitment, so the implementation does not
 invent a working 72/32 MiB legacy mode. Unknown Old modes and active New modes
 3–15 also fail clearly before allocation. Old hardware can still run the Old
 request of an enhanced, non-exclusive title; a New-only NCCH selects the New
@@ -292,3 +304,5 @@ separate pending gate. These tests establish the corrected bounded contracts,
 not broad state-file hardening, long-run fragmentation/leak freedom, full
 multi-core scheduling, CRO lifecycle or Xenoblade boot. No private retail inputs
 are available in this environment; all primary-title baselines remain open.
+The next step is the actual Thor 0.0.5 runtime report, then 0.0.6 visible original
+guest and lifecycle work after its required checks pass.

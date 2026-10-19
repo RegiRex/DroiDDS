@@ -35,10 +35,11 @@ readbacks and the compute checks. The Thor lacks optional dynamic blend/logic
 state, so integration explicitly tests static pipeline state. Read
 [the device result](docs/device-tests/0.0.4-thor-runtime-probe.md).
 
-<!-- CodexAstraUlt: Describe the actual next integration without promoting a
-candidate build or bounded original guest to a published/game-qualified release. -->
-**0.0.5 runtime integration is implemented and undergoing release validation;
-publication and its Thor test are pending.** It adds an original NCCH program
+<!-- CodexAstraUlt: Record verified public availability while preserving the
+bounded original guest and pending physical-device/game qualification. -->
+**[0.0.5 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1);
+its host/release checks and downloaded APK verification pass. Its Thor test is
+pending.** It adds an original NCCH program
 that calls real HLE services and submits PICA commands. Required checks compare
 CPU interpreter/software rendering, native CPU/software rendering, and native
 CPU/Vulkan rendering against exact expected pixels. Vulkan rasterization and GPU
@@ -54,7 +55,7 @@ resources have admission limits; the optional PICA CPU JIT is disabled. These
 limits do not establish total GPU-memory bounds or eliminate every first-use
 pipeline stall.
 
-This candidate still has no game presentation, controller/audio frontend or
+This diagnostic still has no game presentation, controller/audio frontend or
 retail-title evidence. It uses original NCCH fixtures, not a 3DSX loader. Private
 Dark Moon, Xenoblade and Sonic baselines remain open because their inputs are not
 present in this environment. See [Android instructions](docs/ANDROID_PROBE.md)
@@ -74,6 +75,7 @@ explicit.
 | [Thor CPU result](docs/device-tests/0.0.2-thor-cpu.md) | Owner-supplied 0.0.2 execution and its qualification boundary |
 | [Thor CPU/Vulkan result](docs/device-tests/0.0.3-thor-cpu-vulkan.md) | Passing 0.0.3 hardware readbacks and remaining renderer gates |
 | [Thor expanded probe result](docs/device-tests/0.0.4-thor-runtime-probe.md) | Passing 0.0.4 CPU/safety/capability checks and the static-state requirement |
+| [0.0.5 build and release evidence](docs/builds/0.0.5-runtime-integration.md) | Actual runtime integration, fixes, host tests and verified public APK |
 | [0.0.4 build evidence](docs/builds/0.0.4-runtime-probe.md) | Expanded CPU, renderer operations and packaging checks |
 | [New 3DS audit and corrections](docs/NEW3DS_AUDIT.md) | Reproduced defects, implemented runtime fixes and remaining title gates |
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |

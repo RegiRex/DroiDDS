@@ -22,8 +22,8 @@ Broader Android qualification, picker lifecycle and 16 KiB-page execution remain
 open. The upload does not establish its export method. See
 [the separate build evidence](builds/0.0.3-android-vulkan.md) for host/packaging checks.
 
-<!-- CodexAstraUlt: Record the passing expanded Thor gate and the implemented
-runtime candidate, with publication/device/retail evidence kept separate. -->
+<!-- CodexAstraUlt: Record verified runtime publication separately from the
+passing earlier Thor report and unperformed runtime/device/retail qualification. -->
 Version **0.0.4 passes its owner-supplied Thor report**: eight bounded
 CPU fixtures, source-origin/changed-code/write-protection controls, and a Vulkan
 capability query plus representative backend pipeline fixture. This does not
@@ -31,9 +31,13 @@ complete broad CPU, scheduler, module-lifecycle or PICA qualification. The
 [New 3DS audit](NEW3DS_AUDIT.md) executed the pinned parser/allocator and reproduced
 header-decoding and application-memory gaps. Their actual loader/configuration
 corrections, original NCCH service/PICA execution and bounded shader admission
-are implemented in the **0.0.5 candidate**. Its release validation, publication
-and Thor test are pending. Read [0.0.4 device evidence](device-tests/0.0.4-thor-runtime-probe.md)
-and the audit's [correction record](NEW3DS_AUDIT.md#005-integration-corrections).
+ship in **0.0.5**. All required host and CI gates pass, and the public release
+downloads are verified. The [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1),
+[successful release run](https://github.com/RegiRex/DroidDS/actions/runs/39341905818)
+and [build record](builds/0.0.5-runtime-integration.md) provide the publication
+evidence. **The 0.0.5 Thor report remains pending; no retail title is qualified.**
+Read [0.0.4 device evidence](device-tests/0.0.4-thor-runtime-probe.md) and the audit's
+[correction record](NEW3DS_AUDIT.md#005-integration-corrections).
 
 ## Versioned path to 0.1.0
 
@@ -42,8 +46,8 @@ Separate platform probes, real 3DS homebrew, owned-game boot and playable releas
 gates; version targets are plans, not measured compatibility or delivery dates. -->
 
 This is the intended release sequence as of **2026-10-19**. Versions 0.0.1–0.0.4
-are implemented and 0.0.4's bounded device gate passes; 0.0.5 is the integration
-candidate under validation. Later versions below
+are implemented and 0.0.4's bounded device gate passes; 0.0.5 is published with
+verified artifacts and passing host/CI gates, awaiting its Thor report. Later versions below
 are milestone targets, not promised dates
 or a fixed number of APK installations. A stage can need several prereleases;
 failed acceptance checks hold promotion, and any revised scope must be recorded.
@@ -74,12 +78,13 @@ boot on Android: target 0.0.7. First repeatable playable game segment: target
   pipeline against exact expected output. Its own Thor report passes. The
   accompanying [New 3DS audit](NEW3DS_AUDIT.md) identifies concrete parser/memory
   corrections for runtime integration.
-- **0.0.5 candidate:** adds an original executable NCCH through the actual loader,
+- **0.0.5:** adds an original executable NCCH through the actual loader,
   HLE services and PICA command path. The required routes are CPU interpreter with
   software rendering, native CPU with software rendering, and native CPU with
   Vulkan rendering. Exact pixels, service calls, native/fallback work and renderer
   activation are checked. New/Old memory fixes and resource-admission policies are
-  integrated. Publication and Android execution remain pending.
+  integrated. Host/CI gates and public-download verification pass; the Thor
+  runtime test remains pending.
 
 The offscreen images are test inputs, not 3DS frames. Versions 0.0.3–0.0.4 do not load
 a game, translate PICA graphics, present game screens, implement game controls
@@ -95,7 +100,7 @@ start ownership, memory bounds and mobile compatibility before game workloads. -
 | Target | Work and deliverable | What must be demonstrated before promotion |
 | --- | --- | --- |
 | **0.0.4 — qualify the runtime foundation** | Complete for its bounded diagnostic scope: eight CPU fixtures, code-safety controls, Vulkan capability/backend operations and New 3DS audit. The owner's Thor report passes. | Native/interpreter and safety controls, required Vulkan capabilities and exact graphics/compute output passed on the Thor. Its optional dynamic blend/logic states are absent. This version does not execute PICA, full scheduler/CRO behavior or a game. |
-| **0.0.5 — integrate the runtime** | Candidate implemented: selected Zakuro loader/services/PICA, original NCCH guest in three execution routes, actual New/Old loader/kernel corrections, compiler conditional-flow budget correction, bounded shader work and retained resources. Release validation/publication/Thor run pending. | Require actual PICA output and native/interpreter work, observed Vulkan execution, default and forced static-state host paths, no ignored required GPU tests, safe admission/fallback and New/Old memory regressions. The CPU PICA JIT is disabled; GPU vertex execution is reported independently. Private Linux baselines remain explicitly open because no retail inputs are present; this public probe does not close M3 or the remaining M2 cold-stall/sustained-memory gates. |
+| **0.0.5 — integrate the runtime** | Published and downloads verified: selected Zakuro loader/services/PICA, original NCCH guest in three execution routes, actual New/Old loader/kernel corrections, compiler conditional-flow budget correction, bounded shader work and retained resources. All required host/CI gates pass; Thor run pending. | Host checks pass for actual PICA output and native/interpreter work, observed Vulkan execution, default and forced static-state paths, required GPU tests, safe admission/fallback and New/Old memory regressions. Obtain and validate the actual Thor runtime report before Android promotion. The CPU PICA JIT is disabled; GPU vertex execution is reported independently. Private Linux baselines remain explicitly open because no retail inputs are present; this public probe does not close M3 or the remaining M2 cold-stall/sustained-memory gates. |
 | **0.0.6 — visible Android 3DS application** | Connect the real runtime to Android display surfaces, a stacked two-screen layout, controller/touch input and audio. Run an original 3DS homebrew program with observable interactions. | Guest-generated screens are displayed on the Thor; controls/touch change guest state and guest audio is heard. Pause/resume, surface replacement and normal exit work. A native Android animation or direct Vulkan demo alone cannot pass this stage. This is the first visible 3DS-program target. |
 | **0.0.7 — first owned-game boot on Android** | Finish the local per-title build/package path, exact game/update/module identity checks and private data import. Establish persistent signing/package identity and durable save locations. Package the private control title that passed the host baseline. | A reproducible private APK launches the matching owned title into an interactive menu or identified opening scene on the Thor. Native execution and interpreter fallback are measured. Wrong revisions are rejected safely; replacement builds preserve identity and app data. This is a boot milestone, not sustained playability. Attempt the equivalent Dark Moon checkpoint and record any blockers. |
 | **0.0.8 — first playable game segment** | Make one defined control-title route repeatably playable with controls, touch, audio, saving/loading and lifecycle recovery. Fix reproducible CPU/service/PICA problems. Continue Dark Moon moon/ghost/opening diagnosis and targeted corrections. | The same gameplay route can be played, saved, exited normally and resumed on the Thor at 1× with correct output. Compare native/interpreter and graphics paths where relevant. A title screen or a single cutscene is insufficient. Report Dark Moon's visual, speed and crash status separately. |
@@ -208,14 +213,14 @@ their prerequisites pass. Device measurements always serialize.
 <!-- CodexAstraUlt: Replace completed initial tasks with the actual remaining
 gates; public fixture progress must not silently close the private baseline. -->
 
-1. Finish the 0.0.5 candidate's locked host, Android, notice and publication gates,
-   preserving the passing 0.0.4 regression suite. Require actual GPU tests and
-   static blend/logic-state execution because that is the Thor driver's path.
-2. Validate the owner's 0.0.5 report before promoting the Android runtime. A
-   Vulkan draw may use CPU vertex interpretation; report that fact separately.
-3. Proceed to visible homebrew, input/audio and lifecycle work for 0.0.6. Carry
-   forward scheduler/CRO, first-use pipeline-stall and sustained-memory work.
-4. Keep M3 and each private-title row open until local exact-revision inputs are
+1. Obtain and validate the owner's report from the verified 0.0.5 APK before
+   promoting the Android runtime. A Vulkan draw may use CPU vertex interpretation;
+   report that fact separately. Preserve partial or failed reports for correction.
+2. After that report passes, proceed to visible homebrew, input/audio and lifecycle
+   work for 0.0.6 under the owner's standing authorization. Retain the passing
+   0.0.4 regressions and both normal/static-state host gates. Carry forward
+   scheduler/CRO, first-use pipeline-stall and sustained-memory work.
+3. Keep M3 and each private-title row open until local exact-revision inputs are
    available. Public original NCCH work can continue without retail uploads.
 
 The integrated guest exposed a conditional-control-flow accounting defect in the
@@ -272,8 +277,9 @@ correction. Source inspection found incorrect configuration-page mode reporting.
 These historical findings led to implemented 0.0.5 corrections and actual
 loader/kernel regressions: explicit mode decoding, complete physical regions,
 separate legacy commitment limits, configuration reporting, virtual heap bounds
-and state-load preflight. They do not establish a shipped 0.0.5 or a Xenoblade
-result. The private Xenoblade baseline is still open. Scheduling and
+and state-load preflight. These corrections ship in 0.0.5 with passing host/CI
+gates; they do not establish a Thor runtime or Xenoblade result. The private
+Xenoblade baseline is still open. Scheduling and
 time accounting remain separate gates; changing a global clock constant alone
 is not a validated New 3DS implementation.
 

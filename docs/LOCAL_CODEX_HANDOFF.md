@@ -2,14 +2,17 @@
 
 <!-- CodexAstraUlt: Supply an executable project direction without silently starting implementation or requiring a cloud-to-local session bridge. -->
 
-<!-- CodexAstraUlt: Continue from the validated Thor 0.0.4 report and implemented
-0.0.5 runtime candidate rather than repeating completed foundation work. -->
+<!-- CodexAstraUlt: Continue from verified 0.0.5 publication and the validated
+earlier Thor report; actual 0.0.5 device qualification is the next local task. -->
 As of 2026-10-19, the owner's
 [0.0.4 Thor report](device-tests/0.0.4-thor-runtime-probe.md) passes all required
 CPU/code-safety and Vulkan checks. The
-[0.0.5 runtime integration candidate](builds/0.0.5-runtime-integration.md) is
-implemented; its final source-bound build/publication gates and Thor execution
-are pending. Read [build instructions](BUILDING.md) and
+[0.0.5 runtime integration](builds/0.0.5-runtime-integration.md) is published in
+[prerelease v0.0.5-probe.1](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1).
+All required host/CI gates pass in
+[run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
+and public downloads are verified. **The 0.0.5 Thor report remains pending; no
+retail title is qualified.** Read [build instructions](BUILDING.md) and
 [Android probe instructions](ANDROID_PROBE.md) for the current gate and artifact.
 The existing Nobara laptop and USB-connected Thor can host the private
 development/test loop once their current readiness is checked. This cloud chat
@@ -21,19 +24,19 @@ Work in a separate DroidDS checkout. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`
 `docs/ARCHITECTURE.md` and `docs/BACKLOG.md`. Keep Uberhar files, APK and saves intact.
 Check branch and local changes before fetching; do not reset another session's work.
 
-<!-- CodexAstraUlt: The next local task is qualification of the actual runtime
-candidate; the owner's standing authorization covers subsequent roadmap builds. -->
+<!-- CodexAstraUlt: The next local task is qualification of the published runtime;
+the owner's standing authorization covers subsequent roadmap builds. -->
 Do not repeat 0.0.4 routinely. Its Thor report also shows that optional dynamic
-blend/logic state is absent; retain the forced-static renderer gate. The 0.0.5
-candidate uses selected Zakuro loader/core/GPU sources and the corrected
+blend/logic state is absent; retain the forced-static renderer gate. Version 0.0.5
+uses selected Zakuro loader/core/GPU sources and the corrected
 3dsrecomp compiler to execute an original guest through real SVC/service IPC and
 two PICA draws. Three CPU/rendering routes must match an independently decoded
 asymmetric 8×8 image. This is bounded public-fixture evidence, not retail support
 or complete PICA coverage. GPU rasterization may use CPU vertex shading on
 integrated devices; the report records that mode explicitly.
 
-Complete the final 0.0.5 gates, verify its published diagnostic artifact when
-available, then obtain the owner's actual Thor runtime report. Save failures and
+Use the verified public 0.0.5 diagnostic artifact and obtain the owner's actual
+Thor runtime report, recording the installed APK identity. Save failures and
 partial reports too. After a validated report, proceed directly into fixes and
 the next roadmap build through 0.1.0 under the owner's standing instruction;
 a failed gate requires a corrective build before promotion. The next planned
@@ -65,7 +68,7 @@ loader fixes; public model/memory tests do not replace private boot evidence. --
 Primary private targets are Dark Moon, Xenoblade Chronicles 3D and Sonic &
 All-Stars Racing Transformed. Monster Hunter 4 Ultimate is an optional comparison.
 Confirm available local files and exact revisions; choose the first control
-using actual boot evidence. The 0.0.5 candidate corrects New 3DS header decoding,
+using actual boot evidence. Version 0.0.5 corrects New 3DS header decoding,
 physical regions, title commitment limits and configuration/model reporting,
 with loader/allocation regression cases. Xenoblade's private header, services
 and boot still need separate evidence; scheduling and clocks/audio remain open.
@@ -96,22 +99,23 @@ remains separate work before private-title packages.
 off a functioning bounded fixture, so a successful image cannot close them. -->
 Keep general CRO unload/remap/concurrent-code safety, full scheduling/services,
 private control-title runs, and sustained memory/teardown qualification open.
-The candidate limits compiler admission and some retained objects but still has
+Version 0.0.5 limits compiler admission and some retained objects but still has
 a 256 MiB staging-ring baseline and unqualified surface/texture/driver memory.
 Static generic pipelines can still compile synchronously on first use. Require
 matched cold/warm and long-run evidence before claiming those problems solved.
 
 ## Suggested task to give local Codex when ready
 
-> Continue DroidDS from its implemented 0.0.5 runtime candidate. Read AGENTS.md,
+> Continue DroidDS from its published 0.0.5 runtime integration. Read AGENTS.md,
 > docs/builds/0.0.5-runtime-integration.md,
 > docs/device-tests/0.0.4-thor-runtime-probe.md and docs/ANDROID_PROBE.md.
-> The owner's 0.0.4 required checks pass; 0.0.5 publication and Thor execution
-> remain pending until verified. Finish source-bound gates, verify the published
-> diagnostic artifact when available, and run it on the authorized Thor's explicit
-> ADB serial. Preserve a failed/partial report and record actual execution
-> separately from compilation. After the report passes, continue into the next
-> roadmap build under the standing authorization through 0.1.0; do not bypass
+> The owner's 0.0.4 required checks pass. Version 0.0.5 is published with verified
+> downloads and passing host/CI gates; its Thor report remains pending. Run the
+> published diagnostic on the authorized Thor's explicit ADB serial and record
+> installed artifact identity. Preserve a failed/partial report and record actual execution
+> separately from compilation. After the report passes, continue into 0.0.6
+> visible original homebrew and lifecycle work under the standing authorization
+> through 0.1.0; do not bypass
 > failed gates. Keep private-title, scheduler, CRO and sustained-memory gates open.
 > Use CodexAstraUlt comments, preserve local
 > changes, keep all retail inputs/derived outputs private, and leave Uberhar intact.

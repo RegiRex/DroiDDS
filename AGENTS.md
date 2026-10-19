@@ -37,8 +37,9 @@ upload, while retaining the new runtime's separate Android and retail gates. -->
   docs/device-tests/0.0.4-thor-runtime-probe.md. Dynamic blend/logic state is absent
   on this driver; qualify the real renderer's static pipeline path explicitly.
 - Version 0.0.5 now integrates selected vendored loader/HLE/PICA sources and an
-  original NCCH guest through three CPU/rendering routes. Its release validation,
-  publication and Thor execution are pending until recorded in build evidence.
+  original NCCH guest through three CPU/rendering routes. Its host/release gates
+  and downloaded public APK verification pass; read
+  docs/builds/0.0.5-runtime-integration.md. Thor 0.0.5 execution remains pending.
   Preserve all 0.0.4 checks. Distinguish Vulkan rasterization from GPU vertex
   execution, and never qualify hardware rendering after an unnoticed software
   fallback. No 3DSX loader or retail-title result is established.
