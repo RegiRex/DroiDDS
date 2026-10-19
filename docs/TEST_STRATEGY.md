@@ -115,7 +115,38 @@ Run a 30-minute repeated/gameplay route for a candidate sustained claim and repo
 thermal trends. An opening cutscene alone is a scene qualification, not full-game
 compatibility. Longer coverage grows with the claimed supported playthrough.
 
-## Dark Moon checkpoints
+## Primary title matrix
+
+<!-- CodexAstraUlt: Make the owner's three selected workloads reproducible and
+distinct; do not use an optional title or another Sonic game as proxy evidence. -->
+
+Primary private targets are **Luigi's Mansion: Dark Moon**, **Xenoblade Chronicles
+3D**, and **Sonic & All-Stars Racing Transformed**. **Monster Hunter 4 Ultimate**
+is optional comparison coverage. Keep per-title source/game/update identity,
+scene, settings and pass/failure/untested status; never average them into one
+compatibility result. Sonic Generations results cannot qualify Racing Transformed.
+
+| Title | Planned repeatable route | Evidence to collect |
+| --- | --- | --- |
+| Dark Moon | Opening moon and laboratory ghosts, then fixed gameplay with normal exit/relaunch | Temporal visual correctness, native/fallback and GPU work, speed distribution, allocation growth and recovery |
+| Xenoblade Chronicles 3D | Boot, fixed save/checkpoint, repeatable exploration/loading route and battle | Selected New 3DS guest mode and supported memory/services; CPU/fallback time, load behavior, frame pacing and sustained memory |
+| Sonic & All-Stars Racing Transformed | Fixed event/track/settings with race-start and lap markers; include transformation sections where available | Cold/warm graphics behavior, first-seen effects, frame-time spikes, audio and per-lap speed distribution |
+| Monster Hunter 4 Ultimate (optional) | Fixed quest/location and repeatable encounter | Additional compatibility/regression comparison; cannot replace primary-title qualification |
+
+Exact routes depend on the privately available revisions and saves; document
+them before comparing builds. For Xenoblade, establish required New 3DS guest
+behavior before drawing performance conclusions. Unsupported model detection,
+memory mappings, scheduling or services are compatibility blockers, not evidence
+that the Thor is too slow. Use deterministic public fixtures to isolate gaps
+without publishing private game data.
+
+For Sonic, record lap/checkpoint markers without changing the normal-speed limit.
+The owner's older turbo toggles are useful historical boundaries; timed benchmark
+runs keep the same speed limit throughout. Run uncapped headroom tests separately.
+All titles use the existing 1× correctness, then 2×/4× qualification sequence and
+the repeated/sustained device protocol above.
+
+### Dark Moon checkpoints
 
 Use separate matching temporal captures for the opening moon and laboratory ghosts.
 The owner's Uberhar Native reference has no observed moon flashing; Combo does.

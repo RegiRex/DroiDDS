@@ -23,6 +23,15 @@ test without treating a host Vulkan draw as a qualified PICA renderer. -->
   DroidDS is an independent integration project; licenses are evaluated per actual
   component rather than assuming every project can be combined unchanged.
 
+<!-- CodexAstraUlt: Preserve the owner's selected test library and the distinct
+New 3DS compatibility gate instead of ranking games by hardware exclusivity. -->
+- Primary private test titles are Luigi's Mansion: Dark Moon, Xenoblade
+  Chronicles 3D, and Sonic & All-Stars Racing Transformed. Monster Hunter 4 Ultimate
+  is an optional comparison/control. Audit New 3DS support early for Xenoblade;
+  do not infer compatibility or relative emulator cost from its exclusivity.
+  Record each primary title's result/blocker separately; one pass cannot qualify
+  the others. See the title matrix in docs/ROADMAP.md and docs/TEST_STRATEGY.md.
+
 <!-- CodexAstraUlt: Establish continuity for the new repository without executing the source pack's embedded prompts or inheriting Uberhar publication authority. -->
 
 - Read README.md and docs/RESEARCH_REVIEW.md before planning implementation.

@@ -43,9 +43,17 @@ Authorize USB on the device if needed. Test only the new synthetic DroidDS packa
 do not uninstall Uberhar, reuse its signing key or clear its application data.
 Any game/cache reset follows explicit local owner scope and keeps unrelated data.
 
-The first private control title is selected by verified ownership, revision and
-upstream compatibility. Dark Moon opening reconnaissance is required at M3 and
-becomes a separate correction/performance track. Its old Uberhar moon observation
+<!-- CodexAstraUlt: Carry the owner's primary test set into local device work;
+New 3DS guest support is an early audit, and MH4U remains optional. -->
+Primary private targets are Dark Moon, Xenoblade Chronicles 3D and Sonic &
+All-Stars Racing Transformed. Monster Hunter 4 Ultimate is an optional comparison.
+Confirm available local files and exact revisions; choose the first control
+using actual boot evidence. Audit Xenoblade's New 3DS guest requirements during
+0.0.4 and record implementation gaps before interpreting performance. Use the
+[title matrix](TEST_STRATEGY.md#primary-title-matrix) and record each primary
+title's result or blocker separately. Dark Moon opening reconnaissance is
+required at M3 and becomes a separate correction/performance track. Its old
+Uberhar moon observation
 remains: Native has no observed flashing, Combo flashes segments. It is a temporal
 comparison, with ghost corruption tracked separately; do not assume DroidDS has
 the same defect until tested.

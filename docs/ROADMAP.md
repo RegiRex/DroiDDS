@@ -194,17 +194,64 @@ and corrective task; it is not concealed by moving on to more features.
 
 ## Title and device selection
 
-Use original synthetic fixtures for public CI. Select the first private control
-from titles the owner actually has and that the pinned upstream reports supported,
-then confirm the exact revision locally. Monster Hunter 4 Ultimate is one candidate
-from the known library and upstream list, not a promised easy or fastest control.
+<!-- CodexAstraUlt: Replace the provisional control-title selection with the
+owner's explicit three-game target set; retain MH4U only as an optional baseline. -->
+
+The owner selected this private test set on **2026-10-19**. These roles describe
+planned coverage, not measured DroidDS bottlenecks or compatibility results.
+
+| Priority | Title | Main coverage and initial checkpoints |
+| --- | --- | --- |
+| Primary | **Luigi's Mansion: Dark Moon** | Visual correctness, CPU/PICA path behavior and sustained memory; opening moon, laboratory ghosts, then a repeatable gameplay route. |
+| Primary | **Xenoblade Chronicles 3D** | New 3DS compatibility, CPU/scheduler and memory behavior, traversal/loading and sustained gameplay; a fixed exploration route and battle once boot works. |
+| Primary | **Sonic & All-Stars Racing Transformed** | Frame pacing, cold rendering and changing race scenery/effects; fixed race start and lap checkpoints, including transformation sections where present. |
+| Optional comparison | **Monster Hunter 4 Ultimate** | An additional baseline and regression workload when it helps isolate a problem; not a substitute for any primary title. |
+
+Use original synthetic fixtures for public CI. Confirm exact private game region,
+revision/update and local input availability before running a title. Select the
+first boot/control attempt using actual compatibility evidence from the primary
+set, not an assumed difficulty ranking. MH4U can provide an optional control if
+the primary titles are blocked; its success does not count as their success.
 No new game purchase or upload is needed for planning.
 
-Dark Moon is absent from the inspected upstream compatibility list; absence means
-unverified, not known incompatible. At M3, run its opening privately to inventory
-CPU fallback, missing services, graphics and memory behavior. Keep this early
-diagnosis even if the control title is different. M6 must explicitly address Dark
-Moon; a successful control title cannot substitute for that owner goal.
+The inspected upstream list reports MH4U playable and lists **Sonic Generations**,
+not **Sonic & All-Stars Racing Transformed**. It does not list the three primary
+targets. Absence means unverified, not known incompatible; an upstream entry is
+also not a DroidDS test result.
+
+Xenoblade's New 3DS exclusivity adds an early **compatibility** question as well
+as a useful workload. During 0.0.4, audit guest model detection/configuration,
+memory layout and limits, CPU/core scheduling and required system services.
+Expose missing behavior as a named integration task for 0.0.5 rather than treating
+a boot failure as slow rendering. The Android CPU/Vulkan probe does not establish
+New 3DS guest support. Greater original-hardware requirements do not prove that
+Xenoblade will cost more to emulate than MH4U or Dark Moon: instruction mix,
+graphics states, fallback coverage and driver behavior can change the bottleneck.
+
+<!-- CodexAstraUlt: Preserve a concrete pinned-source finding as an investigation,
+not an executed Xenoblade failure or proof that New 3DS support is absent. -->
+The pinned runtime already has New 3DS model selection and expanded physical RAM.
+However, source inspection found that
+[the loader](https://github.com/fearkov/zakuro/blob/412900a5a020301da15c1cc382585e05a489a535/crates/zakuro-core/src/loader.rs#L75)
+derives application memory from `system_mode`, while
+[the header parser](https://github.com/fearkov/zakuro/blob/412900a5a020301da15c1cc382585e05a489a535/crates/zakuro-fs/src/ncch.rs#L209)
+also parses `n3ds_system_mode`, CPU-speed and L2 fields with no consumers found in
+the scoped crate search. The
+[physical-memory allocator](https://github.com/fearkov/zakuro/blob/412900a5a020301da15c1cc382585e05a489a535/crates/zakuro-core/src/memory/physical.rs#L38)
+uses the supplied application limit even when total RAM increases. Verify those
+regions with synthetic tests and the actual title header before assuming that
+expanded RAM is usable by Xenoblade. This is a source-level concern, not an
+observed game failure. Audit scheduling and time accounting separately; changing
+a global CPU-clock constant alone is not a validated New 3DS implementation.
+
+During 0.0.5/M3, attempt available primary-title host baselines and record each
+boot checkpoint or blocker; retain early Dark Moon opening reconnaissance.
+Carry those records into 0.0.7 Android boot tests, 0.0.8 gameplay, and 0.0.9
+sustained/performance testing. The 0.1.0 compatibility table must name all three
+primary titles and their measured status or explicit untested/blocking reason.
+The existing limited-alpha gate still requires at least one qualified playable
+title; it does not promise all three will pass by that version. M6 must explicitly
+address Dark Moon, and a successful control cannot clear another title's defects.
 
 The historical Uberhar observation is **Native has no moon flashing; Combo flashes
 moon segments**. Ghost corruption is a separate symptom. These observations guide
