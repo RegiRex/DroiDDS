@@ -1,4 +1,4 @@
-# Building the CPU foundation
+# Building DroidDS host validation
 
 <!-- CodexAstraUlt: Document the first real, source-pinned host build without
 conflating it with an Android runtime, retail title builder or graphics proof. -->
@@ -8,7 +8,9 @@ synthetic correctness harness. It generates and compiles original ARM/Thumb
 instruction examples with 3dsrecomp, loads the resulting native library through
 the upstream ABI, and compares it with the selected Zakuro interpreter and
 hand-derived expected state. It does not accept retail inputs or arbitrary native
-libraries. Android, HLE services and GPU rendering are not included yet.
+libraries. This executable remains the CPU foundation; the separate integrated
+runtime gate below now exercises the loader, HLE services and PICA. Android has
+its own cross-build and physical-device gate.
 
 ## Prerequisites and build
 
@@ -59,13 +61,19 @@ are workload bookkeeping, not handheld performance measurements.
 | Thumb integer/memory | Thumb execution and exact state/memory at an SVC checkpoint |
 | Missing native entry | Native branch reaches intentionally undiscovered code; three interpreter steps complete it |
 | ARM to Thumb | Real native entry lookup changes instruction state without interpreter fallback |
+| Flags/shifts and Thumb to ARM | Exact carry/shift results and reverse native interworking |
+| Finite VFP | Exactly representable selected addition, multiplication and conversions |
+| Tiny dispatch budget | Oversized block yields, interpreter makes progress and a native checkpoint follows |
 | Negative controls | NaN-shaped integer/register and memory changes fail comparison; infinite guest loop is incomplete; worker timeout is enforced |
 
+<!-- CodexAstraUlt: Preserve the foundation's limits while recording the expanded
+cases and immutable-code controls that are already implemented and device-tested. -->
 Comparisons include exposed user registers/flags, VFP storage, TLS, exclusive
-monitor and the full 64 KiB synthetic memory image. Preserved VFP storage is not
-VFP arithmetic coverage. This small bus uses checked callbacks, not direct memory
-pages. CRO lifecycle, writable executable invalidation, broad instruction
-semantics, HLE, graphics and Android remain subsequent work.
+monitor and the full 64 KiB synthetic memory image. The finite VFP case does not
+qualify general rounding, NaN or subnormal behavior. This small bus uses checked
+callbacks, not direct memory pages. Stale-origin, changed-code and executable
+write controls implement an immutable-fixture policy. Full CRO lifecycle,
+remapping, concurrent writers and broad instruction semantics remain open.
 
 The harness builds each synthetic library itself and checks generation/origin
 metadata before execution. It is not a sandbox for untrusted native `.so` files.
@@ -80,14 +88,69 @@ logs stay ignored. Public source includes the original fixtures and exact pins.
 Read [upstream integration](UPSTREAM_INTEGRATION.md),
 [third-party notices](../THIRD_PARTY_NOTICES.md) and
 [additional reuse candidates](REUSE_CANDIDATES.md) before importing another
-component. The current build reuses only 3dsrecomp's compiler/ABI and Zakuro's CPU
-interpreter/common code. Android and renderer components are deliberate next steps.
+component. The foundation reuses 3dsrecomp's compiler/ABI and Zakuro's CPU/common
+code; the separate runtime package now adds selected Zakuro core, filesystem and
+GPU sources. The root lockfile and source manifest govern both selections.
 
 <!-- CodexAstraUlt: Android now has its own bounded build target; the Linux suite
 is an automated regression gate, not a manual owner-testing prerequisite. -->
 For the Android CPU loader app, use [Android probe instructions](ANDROID_PROBE.md).
 It shares these fixtures and preserves this Linux suite. Android package checks
 and actual Thor execution are reported separately.
+
+## Integrated runtime host gate
+
+<!-- CodexAstraUlt: Document the real original guest/service/PICA gate and its
+strict GPU execution requirement without claiming a retail baseline or APK run. -->
+
+The 0.0.5 candidate adds `droidds-runtime-probe`. Its original NCCH/CXI guest is
+loaded by the real title loader, calls HLE services and submits PICA commands.
+Required comparisons cover interpreter/software, native/software and
+native/Vulkan routes, including deliberate CPU fallback and exact image output.
+This uses the selected renderer, not just the standalone C Vulkan helper.
+
+Install a working Vulkan loader/driver and `VK_LAYER_KHRONOS_validation`, plus
+`spirv-val` from SPIRV-Tools. Mesa software Vulkan is suitable for correctness
+checks. Use the same pinned Rust and C compiler prerequisites as the foundation:
+
+```bash
+python3 tools/build_runtime_probe.py --output out/runtime-host-local --jobs 2
+```
+
+Choose a fresh output directory. The tool records compiler/source identities and
+runs the filesystem/core tests, actual loader regressions, runtime tests and GPU
+suite. Required GPU tests must execute: missing hardware initialization, filtered
+tests or unexpected ignored cases fail the gate. It runs both normal and forced
+static blend/logic-state modes, requires observed validation-layer activation,
+and rejects API/synchronization errors. Static state matters because the owner's
+Thor report lacks the optional dynamic-state extensions.
+
+The generated original guest library executes through the actual runtime bridge.
+`runtime-report.json` records exact route, service, renderer and memory-layout
+evidence. `build-report.json` binds this to source hashes and toolchains. Vulkan
+rasterization and GPU vertex shading are separate fields; a passing integrated
+device may use the CPU PICA vertex interpreter. No retail input is consumed, and
+the fixture is NCCH, not a 3DSX loader test.
+
+The selected runtime/compiler patches live under `vendor/`, with upstream
+provenance retained. Do not edit Cargo's shared checkouts. The actual runtime
+exposed a conditional-control-flow budget mismatch (598 reference instructions
+versus 1,598 native charges before correction); the local compiler patch must
+pass regression and integrated-route checks. This is an accounting/correctness
+issue, not a performance benchmark. ABI version 4/generation 3 remain pinned.
+
+The New 3DS regression path resolves memory before machine construction,
+separates physical regions from legacy commitment caps, checks configuration
+pages and real kernel/service allocations, and rejects invalid heap mappings or
+incompatible saved layouts before live memory changes. These bounded checks do
+not qualify Xenoblade or the wider scheduler/module lifecycle.
+
+The optional PICA CPU JIT is disabled. Shader job/object/payload limits and safe
+fallbacks are tested, but total GPU/driver bytes, sustained memory recovery and
+zero-stall cold gameplay remain open. Private Dark Moon, Xenoblade and Sonic
+baselines require their exact local inputs, which are absent here. The 0.0.5
+candidate's final build/publication and Thor results must be recorded separately;
+running this host gate alone cannot establish them.
 
 ## This prepared cloud workspace
 

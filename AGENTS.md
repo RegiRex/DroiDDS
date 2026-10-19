@@ -27,18 +27,29 @@ test without treating a host Vulkan draw as a qualified PICA renderer. -->
   The owner's 0.0.3 Thor CPU/Vulkan report also passes: four CPU fixtures, two CPU
   controls, nine exact GPU readbacks and nine pixel-mutation controls on Adreno
   740/Android 13. Read docs/device-tests/0.0.3-thor-cpu-vulkan.md. The GPU reports
-  Vulkan 1.3.128; full renderer features/formats, picker lifecycle, PICA/game,
-  sustained-memory and performance qualification remain open. The manual upload
+  Vulkan 1.3.128; that result alone did not qualify full renderer features/formats,
+  picker lifecycle, PICA/game, sustained memory or performance. The manual upload
   does not independently bind an installed APK or establish its export method.
-<!-- CodexAstraUlt: Continue from the published expanded probe and reproduced
-runtime defects, with its own Thor gate still required before promotion. -->
-- Version 0.0.4 expands to eight CPU cases, three immutable-code safety controls
-  and original Vulkan 1.3 renderer-operation checks. Host, APK and publication
-  gates pass; its Thor execution remains pending. Read
-  docs/builds/0.0.4-runtime-probe.md and docs/NEW3DS_AUDIT.md. The latter reproduces
-  header decoding and application-memory defects in the selected runtime;
-  0.0.5 must fix and test the real loader/configuration path during integration.
-  Do not confuse these backend fixtures with actual PICA or game execution.
+<!-- CodexAstraUlt: Advance from the independently version-validated 0.0.4
+upload, while retaining the new runtime's separate Android and retail gates. -->
+- The owner's 0.0.4 Thor report passes all eight CPU cases, three code-safety
+  controls and the original Vulkan capability/graphics/compute checks. Read
+  docs/device-tests/0.0.4-thor-runtime-probe.md. Dynamic blend/logic state is absent
+  on this driver; qualify the real renderer's static pipeline path explicitly.
+- Version 0.0.5 now integrates selected vendored loader/HLE/PICA sources and an
+  original NCCH guest through three CPU/rendering routes. Its release validation,
+  publication and Thor execution are pending until recorded in build evidence.
+  Preserve all 0.0.4 checks. Distinguish Vulkan rasterization from GPU vertex
+  execution, and never qualify hardware rendering after an unnoticed software
+  fallback. No 3DSX loader or retail-title result is established.
+- Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,
+  commitment/configuration, heap-bound and restore-preflight corrections. The
+  host compiler is also vendored to repair conditional-flow budget accounting;
+  retain exact ABI pins and regression gates rather than accepting counter drift.
+  The optional PICA CPU JIT is disabled; renderer job/object/payload admission
+  limits do not establish whole-renderer byte bounds or zero shader stutter.
+  Private game baselines, full scheduler/CRO behavior and sustained memory
+  qualification remain open. Do not change shared Cargo caches or upstream repos.
 - Reuse candidates include 3dsrecomp, Zakuro, AnyPS5, Azahar, Citra MMJ and Uberhar.
   Read docs/REUSE_CANDIDATES.md and THIRD_PARTY_NOTICES.md before importing new code.
   DroidDS is an independent integration project; licenses are evaluated per actual

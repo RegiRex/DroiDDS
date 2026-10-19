@@ -18,20 +18,38 @@ DDS-010 now has a CPU loader APK/build audit, local ADB runner and a passing
 two negative controls on reported Android ARM64 with 4 KiB pages. The
 [0.0.3 Thor CPU/Vulkan report](device-tests/0.0.3-thor-cpu-vulkan.md) also passes:
 nine exact readbacks and nine pixel-mutation controls on Adreno 740/Android 13.
-Full renderer capabilities/PICA, picker lifecycle, sustained memory and the
-remaining platform gates stay open. The upload does not identify its export
-method. Version 0.0.3's APK and host rendering checks also pass. See
+Those reports do not qualify actual PICA, picker lifecycle, sustained memory or
+the remaining platform gates. Version 0.0.3's APK and host rendering checks also pass. See
 [the build evidence](builds/0.0.3-android-vulkan.md) and [the probe](ANDROID_PROBE.md).
-<!-- CodexAstraUlt: Promote only the implemented 0.0.4 subset and preserve the
-device/full-runtime gates; an original Vulkan fixture is not PICA qualification. -->
+<!-- CodexAstraUlt: Replace the pending 0.0.4 hardware status with the validated
+owner report, and distinguish the implemented 0.0.5 candidate from publication
+and its still-unperformed Thor runtime gate. -->
 Version 0.0.4 implements bounded subsets of DDS-004/005/010: eight CPU cases,
 code-origin/changed-code/write-protection controls, full-renderer capability
-queries and a representative Vulkan backend pipeline fixture. Thor qualification
-is pending. Broader floating-point, full scheduler/CRO behavior and actual PICA
-execution remain open. The [New 3DS audit](NEW3DS_AUDIT.md) reproduced parser and
-application-allocation gaps through 12 original host cases; runtime fixes are
-required during 0.0.5. The table defines acceptance, not completion of every item
-merely because a related source component exists.
+queries and a representative Vulkan backend pipeline fixture. The owner's
+[0.0.4 Thor report](device-tests/0.0.4-thor-runtime-probe.md) passes its required
+checks. Optional dynamic blend/logic state is absent, so the actual renderer
+must also pass forced-static host tests. The manual upload does not independently
+bind an installed APK hash or establish gameplay performance.
+
+The [0.0.5 runtime candidate](builds/0.0.5-runtime-integration.md) implements
+bounded portions of DDS-004/005/006/007/008/012: an original guest-driven NCCH
+fixture reaches real loader, kernel, services and PICA code through interpreter,
+native/software and native/Vulkan routes, with an independent asymmetric pixel
+oracle. Compiler budget-boundary and Vulkan validation defects found during
+execution are corrected. Compiler admission and retained-object counts are
+limited; diagnostic evidence rejects unexpected software raster fallback and
+resource-limit events. Final source-bound build/publication gates and the
+owner's 0.0.5 Thor execution remain pending.
+
+The [New 3DS audit](NEW3DS_AUDIT.md) now leads to implemented loader/header,
+physical-region, commitment-limit and configuration/service corrections with
+original regression cases. Broader floating-point, scheduler, CRO lifecycle,
+private-title and sustained-memory gates remain open. The 256 MiB staging-ring
+baseline, surfaces/textures/driver memory and first-use static generic pipeline
+compilation still require measurement and optimization. Disabling the optional
+CPU PICA JIT avoids its unqualified worker policy; it does not qualify that JIT.
+The table defines acceptance, not completion of every related ticket.
 The original [119-ticket catalog](research/2026-10-17/06_IMPLEMENTATION_BACKLOG.md)
 is reference material, not an instruction to implement everything at once.
 
@@ -81,21 +99,24 @@ the pack's MIT summary does not replace that inventory.
 DDS-003 now supplies separate ARM/Thumb cases, actual native ARM-to-Thumb
 interworking, fixed memory output and intentional missing-entry fallback. Continue
 with DDS-004/005 beyond 0.0.4's finite-VFP, reverse interworking, tiny-budget and
-bounded code-safety cases; broader VFP/CRO/service coverage remains named follow-up work.
+bounded code-safety cases. The 0.0.5 candidate adds actual runtime SVC/service
+execution, missing-entry interpreter resumption and executed ARM/Thumb loop-budget
+regressions; broad VFP, scheduling and CRO coverage remain follow-up work.
 A missing-compiler skip cannot pass DDS-003/M1 or unblock A0. Static 16 KiB
 alignment checks do not establish runtime compatibility on a 16 KiB-page host;
 record that execution as untested unless such a device actually runs the fixture.
 
-<!-- CodexAstraUlt: Carry the completed New 3DS audit into dependency-ordered
-0.0.5 implementation work instead of declaring Xenoblade compatibility. -->
-During **0.0.5**, implement the [New 3DS integration gates](NEW3DS_AUDIT.md#005-integration-gates)
-alongside DDS-004/005/011/012: correct the header offsets/nibble, resolve physical
-regions and title commit limits before construction, and report the resolved
-configuration explicitly. Require actual loader/kernel tests for allocation
-boundaries, Base service allocations, configuration-page values, resource-limit
-queries and Old-mode regressions. Scheduling, clocks/audio and required services
-need their own cases. Xenoblade's private header/boot baseline remains necessary;
-the audit and Thor CPU/Vulkan probe cannot establish title compatibility.
+<!-- CodexAstraUlt: Replace already-implemented New 3DS tasks with qualification
+and remaining coverage, without promoting a public fixture to Xenoblade support. -->
+The **0.0.5 candidate** implements the bounded
+[New 3DS integration work](builds/0.0.5-runtime-integration.md): corrected header
+bits, physical regions and title commitment limits resolved before construction,
+matching configuration/model data, allocation-boundary and reserved-mapping
+checks, and restore preflight. Complete the final source-bound gates and actual
+Thor report before promoting this runtime milestone. Scheduling, clocks/audio,
+remaining services and general module lifecycle need their own cases. Xenoblade's
+private header/boot baseline remains necessary; neither the public fixture nor
+the passing Thor 0.0.4 probe establishes title compatibility.
 
 ## Work to defer until evidence supports it
 

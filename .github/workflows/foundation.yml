@@ -11,6 +11,7 @@ on:
       - "rust-toolchain.toml"
       - "upstream.lock.toml"
       - "crates/**"
+      - "vendor/**"
       - "tools/**"
       - ".github/workflows/foundation.yml"
   pull_request:

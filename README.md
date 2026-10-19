@@ -2,7 +2,7 @@
 
 <!-- CodexAstraUlt: Replace the initial placeholder with the owner's recompilation project plan, its evidence limits, and the next implementation step. -->
 
-An Android ARM64 3DS recompilation project, planned around **3dsrecomp + Zakuro**.
+An Android ARM64 3DS recompilation project built around **3dsrecomp + Zakuro**.
 The desktop builder will translate supported guest CPU code into native libraries;
 a shared runtime will retain 3DS services, graphics, audio and interpreter fallback.
 
@@ -24,30 +24,41 @@ Version **0.0.3** adds an original Vulkan offscreen draw/readback test and a
 cycles on host software Vulkan with validation enabled. The
 [owner's 0.0.3 Thor report](docs/device-tests/0.0.3-thor-cpu-vulkan.md) also passes
 all CPU and offscreen GPU checks on Android 13/Adreno 740, with Vulkan 1.3.128
-reported. Full renderer capability, lifecycle and game qualification remain open;
+reported. That result alone did not establish full renderer, lifecycle or game qualification;
 the JSON does not record which export method was used.
 
 <!-- CodexAstraUlt: Advance to the expanded diagnostic without treating original
 backend operations or reproduced New 3DS defects as game integration. -->
-Version **0.0.4** expands the CPU corpus to eight cases, adds executable-code
-freshness/write protection controls, and tests the pinned renderer's Vulkan 1.3
-requirements with actual texture, depth/stencil and compute operations. The
-[0.0.4 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.4-probe.1)
-is the next ARM64 diagnostic. Launch **DroidDS Probe**, wait for the result, then
-use **Save report**. Device qualification remains pending until its own report
-passes; 0.0.3's pass does not qualify the new checks. See
-[Android instructions](docs/ANDROID_PROBE.md) for installation and signing details.
+Version **0.0.4 passes its owner-supplied Thor report**: eight CPU cases,
+executable-code safety controls, all required Vulkan capabilities, eleven image
+readbacks and the compute checks. The Thor lacks optional dynamic blend/logic
+state, so integration explicitly tests static pipeline state. Read
+[the device result](docs/device-tests/0.0.4-thor-runtime-probe.md).
 
-The [New 3DS audit](docs/NEW3DS_AUDIT.md) executes the pinned parser/allocator with
-original headers and reproduces incorrect header decoding and application-memory
-limits. These are concrete integration tasks for 0.0.5; no Xenoblade execution or
-fix is claimed.
+<!-- CodexAstraUlt: Describe the actual next integration without promoting a
+candidate build or bounded original guest to a published/game-qualified release. -->
+**0.0.5 runtime integration is implemented and undergoing release validation;
+publication and its Thor test are pending.** It adds an original NCCH program
+that calls real HLE services and submits PICA commands. Required checks compare
+CPU interpreter/software rendering, native CPU/software rendering, and native
+CPU/Vulkan rendering against exact expected pixels. Vulkan rasterization and GPU
+vertex execution are reported separately; the Thor may use the CPU PICA vertex
+interpreter with Vulkan rasterization.
 
-This is an original DroidDS integration workspace using pinned 3dsrecomp compiler/
-ABI and Zakuro CPU components. HLE services and game execution are not integrated
-in these diagnostic APKs. The original Vulkan fixtures exercise backend features,
-not PICA translation or game performance. Continue from the roadmap's runtime,
-CPU lifecycle and actual PICA qualification gates.
+The [New 3DS corrections](docs/NEW3DS_AUDIT.md#005-integration-corrections) fix the
+audited parser, memory regions, commitment limits and configuration reporting;
+actual loader/kernel regressions also cover heap bounds and rejected-state
+recovery. The selected runtime and host compiler are now vendored for reviewable
+patches, while their shared ABI remains pinned. Shader work and selected retained
+resources have admission limits; the optional PICA CPU JIT is disabled. These
+limits do not establish total GPU-memory bounds or eliminate every first-use
+pipeline stall.
+
+This candidate still has no game presentation, controller/audio frontend or
+retail-title evidence. It uses original NCCH fixtures, not a 3DSX loader. Private
+Dark Moon, Xenoblade and Sonic baselines remain open because their inputs are not
+present in this environment. See [Android instructions](docs/ANDROID_PROBE.md)
+for the diagnostic workflow and signing details.
 
 <!-- CodexAstraUlt: Persist the owner's report-driven release instruction in the
 public overview without promising background execution or bypassing hardware. -->
@@ -58,12 +69,13 @@ explicit.
 
 | Read | Purpose |
 | --- | --- |
-| [Build and run](docs/BUILDING.md) | Reproduce the first Linux CPU foundation |
-| [Android CPU/Vulkan probe](docs/ANDROID_PROBE.md) | Build the ARM64 test app and run it on the Thor |
+| [Build and run](docs/BUILDING.md) | Reproduce the Linux CPU foundation and actual runtime gate |
+| [Android CPU/Vulkan/runtime probe](docs/ANDROID_PROBE.md) | Build the ARM64 test app and run it on the Thor |
 | [Thor CPU result](docs/device-tests/0.0.2-thor-cpu.md) | Owner-supplied 0.0.2 execution and its qualification boundary |
 | [Thor CPU/Vulkan result](docs/device-tests/0.0.3-thor-cpu-vulkan.md) | Passing 0.0.3 hardware readbacks and remaining renderer gates |
+| [Thor expanded probe result](docs/device-tests/0.0.4-thor-runtime-probe.md) | Passing 0.0.4 CPU/safety/capability checks and the static-state requirement |
 | [0.0.4 build evidence](docs/builds/0.0.4-runtime-probe.md) | Expanded CPU, renderer operations and packaging checks |
-| [New 3DS audit](docs/NEW3DS_AUDIT.md) | Reproduced parser/memory defects and integration fixes required |
+| [New 3DS audit and corrections](docs/NEW3DS_AUDIT.md) | Reproduced defects, implemented runtime fixes and remaining title gates |
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |
 | [Additional reuse candidates](docs/REUSE_CANDIDATES.md) | AnyPS5, Azahar, Citra MMJ and Uberhar source review |
 | [Architecture](docs/ARCHITECTURE.md) | Components, design decisions, boundaries and risks |

@@ -189,7 +189,56 @@ pub unsafe extern "C" fn droidds_probe_run(library_directory: *const c_char) -> 
     }
 }
 
-/// CodexAstraUlt: Release only a result obtained from `droidds_probe_run` once.
+/// CodexAstraUlt: Execute the original full-runtime fixture separately so a
+/// runtime failure does not erase completed CPU/Vulkan platform evidence.
+///
+/// # Safety
+/// Both pointers must be null or readable NUL-terminated UTF-8 strings for the
+/// call. Native libraries must be the matching installer-owned public fixtures;
+/// the scratch path is a dedicated app-private directory, never a title/save path.
+#[no_mangle]
+pub unsafe extern "C" fn droidds_runtime_run(
+    library_directory: *const c_char,
+    scratch_directory: *const c_char,
+) -> *mut c_char {
+    let failed = |error: &str| {
+        json!({"schema": 1, "kind": "droidds-runtime-probe",
+                                    "status": "failed", "error": error})
+    };
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        if library_directory.is_null() || scratch_directory.is_null() {
+            return failed("runtime paths must not be null");
+        }
+        // CodexAstraUlt: SAFETY: JNI supplies live, borrowed installer/private
+        // ASCII paths. Null checks precede dereferencing either borrowed string.
+        let directories = unsafe {
+            (
+                CStr::from_ptr(library_directory).to_str(),
+                CStr::from_ptr(scratch_directory).to_str(),
+            )
+        };
+        let (Ok(libraries), Ok(scratch)) = directories else {
+            return failed("runtime paths must be valid UTF-8");
+        };
+        let Ok(_guard) = RUN_LOCK.lock() else {
+            return failed("runtime execution lock is poisoned");
+        };
+        droidds_runtime_probe::run(Path::new(libraries), Path::new(scratch))
+    }));
+    let mut bytes = result
+        .unwrap_or_else(|_| failed("Rust panic during runtime probe"))
+        .to_string();
+    // CodexAstraUlt: Bound this independent evidence channel before crossing
+    // JNI. The existing Rust free function owns every returned allocation.
+    if bytes.len() > 256 * 1024 {
+        bytes = failed("runtime report exceeds 256 KiB").to_string();
+    }
+    CString::new(bytes)
+        .expect("JSON encoding escapes NUL bytes")
+        .into_raw()
+}
+
+/// CodexAstraUlt: Release a result from either exported probe function once.
 ///
 /// # Safety
 /// `report` must be null or the unmodified, live pointer returned by this library.
@@ -216,6 +265,18 @@ mod tests {
         let value = serde_json::from_str(report).unwrap();
         unsafe { droidds_probe_free(pointer) };
         value
+    }
+
+    // CodexAstraUlt: Null runtime arguments fail before library or scratch access.
+    #[test]
+    fn null_runtime_paths_return_owned_failure() {
+        let pointer = unsafe { droidds_runtime_run(std::ptr::null(), std::ptr::null()) };
+        assert!(!pointer.is_null());
+        let value: Value =
+            serde_json::from_str(unsafe { CStr::from_ptr(pointer) }.to_str().unwrap()).unwrap();
+        unsafe { droidds_probe_free(pointer) };
+        assert_eq!(value["status"], "failed");
+        assert_eq!(value["error"], "runtime paths must not be null");
     }
 
     #[test]

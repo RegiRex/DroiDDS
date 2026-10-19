@@ -145,6 +145,387 @@ def current_report():
     return value, dict(MANIFEST, version_name="0.0.4", version_code=4)
 
 
+def runtime_hardware_report():
+    """CodexAstraUlt: Mutatable protocol input never substitutes for a Vulkan run."""
+    return {"recorded_draws": 2, "submissions": 1, "draw_errors": 0,
+            "software_raster_fallbacks": 0, "compiler_outstanding": 0, "compiler_peak": 16,
+            "compiler_deferred": 3, "compiler_failures": 0, "retained_translations": 1,
+            "retained_modules": 1, "retained_pipelines": 1, "retained_shader_bytes": 64,
+            "max_compiler_outstanding": 16, "max_translations": 256,
+            "max_shader_bytes": 8388608, "max_specialization_requests": 512,
+            "max_pipelines": 512, "specialization_requests": 1, "resource_limit_events": 0,
+            "dynamic_blend": False, "dynamic_logic_op": False,
+            "vertex_shading_on_gpu": False, "last_error": None}
+
+
+def runtime_report():
+    """CodexAstraUlt: Independent protocol examples exercise gates, not emulator behavior."""
+    records = []
+    for name, new3ds, old_mode, new_mode, regions, limit, selector, model in (
+            ("old3ds_64", False, 0, 0, [64, 44, 20], 64, 0, 0),
+            ("old3ds_96", False, 2, 0, [96, 12, 20], 96, 2, 0),
+            ("new3ds_legacy64", True, 0, 0, [124, 100, 32], 64, 6, 3),
+            ("new3ds_124", True, 0, 1, [124, 100, 32], 124, 6, 3),
+            ("new3ds_178", True, 0, 2, [178, 46, 32], 178, 7, 3)):
+        records.append({"name": name, "status": "passed", "new3ds": new3ds,
+                        "old_mode": old_mode, "new_mode": new_mode,
+                        "physical_regions_bytes": [value * 1048576 for value in regions],
+                        "application_limit_bytes": limit * 1048576,
+                        "config_words": [selector, limit * 1048576,
+                                         regions[1] * 1048576, regions[2] * 1048576],
+                        "guest_model": model, "allocation_boundary_rejected": True,
+                        "allocation_free_restored": True, "base_allocation_passed": True,
+                        "guest_exited": True, "steps": 606})
+    return {
+        "schema": 1, "kind": "droidds-runtime-probe", "contract": "zakuro-412900a-runtime-v1",
+        "status": "passed", "error": None, "fixture": "droidds-original-pica-ipc-v1",
+        "native_library": "libdroidds_fixture_runtime.so", "pixel_comparisons": 2,
+        "pixel_mutation_controls": 1, "memory_layouts": records,
+        "cases": [{"name": name, "status": "passed", "guest_exited": True,
+                   "error": None, "first_pixel_mismatches": [],
+                   "checkpoint": 0x44534435, "fallback_checkpoint": 1, "guest_model": 0,
+                   "command_lists": 1,
+                   "draw_calls": 2, "vertices_drawn": 6, "pixels_checked": 64,
+                   "mismatched_pixels": 0,
+                   "interpreted_instructions": 606 if name == "interpreter_software" else 2,
+                   "recompiled_instructions": 0 if name == "interpreter_software" else 604,
+                   "native_fallback_instructions": 0,
+                   "svc_unimplemented": 0, "service_unimplemented": 0, "memory_faults": 0,
+                   "shader_program_words": 3,
+                   "steps": 606 if name == "interpreter_software" else 10, "cycles": 606,
+                   "services_seen": ["cfg:u", "gsp::Gpu"],
+                   "hardware": runtime_hardware_report() if name == "native_vulkan" else None,
+                   "hardware_device": "Protocol device at 1x" if name == "native_vulkan" else None}
+                  for name in ("interpreter_software", "native_software", "native_vulkan")],
+        "code_safety": {"status": "passed", "policy": "immutable_single_thread_fixture",
+                        "controls": [
+                            {"name": "stale_origin_rejected", "status": "passed",
+                             "rejection": "origin mismatch", "native_instructions": 0},
+                            {"name": "changed_code_before_dispatch_rejected", "status": "passed",
+                             "rejection": "text mismatch", "native_instructions": 0,
+                             "interpreted_instructions": 0},
+                            {"name": "executable_guest_store_rejected", "status": "passed",
+                             "native_instructions": 5, "rejected_writes": 1,
+                             "code_unchanged": True}]},
+        "limitations": ["Original bounded homebrew fixture; no retail execution evidence."],
+    }
+
+
+def integrated_report():
+    """CodexAstraUlt: The 0.0.5 protocol retains every historical gate and adds runtime proof."""
+    value, _ = current_report()
+    value.update(version="0.0.5", runtime_probe=runtime_report())
+    value["android_shell"].update(app_version_name="0.0.5", app_version_code=5)
+    return value, dict(MANIFEST, version_name="0.0.5", version_code=5)
+
+
+class RuntimeReportTests(unittest.TestCase):
+    """CodexAstraUlt: Missing integration work cannot hide behind an overall pass label."""
+
+    def test_complete_host_and_android_contracts_require_all_three_execution_routes(self):
+        RUNNER.validate_runtime_report(runtime_report())
+        value, manifest = integrated_report()
+        RUNNER.validate_report(value, REQUEST, manifest)
+        self.assertEqual(RUNNER.cases_for_version("0.0.5"), RUNNER.cases_for_version("0.0.4"))
+
+    def test_android_runtime_gate_is_mandatory_without_weakening_retained_gates(self):
+        for key in ("runtime_probe", "graphics_probe", "code_safety", "cpu_status"):
+            value, manifest = integrated_report()
+            del value[key]
+            with self.subTest(missing=key), self.assertRaises(ValueError):
+                RUNNER.validate_report(value, REQUEST, manifest)
+        value, manifest = integrated_report()
+        value["cases"] = report()["cases"]
+        with self.assertRaisesRegex(ValueError, "CPU cases"):
+            RUNNER.validate_report(value, REQUEST, manifest)
+        value, manifest = integrated_report()
+        value["graphics_probe"] = graphics_report()
+        with self.assertRaisesRegex(ValueError, "schema differs"):
+            RUNNER.validate_report(value, REQUEST, manifest)
+
+    def test_exact_runtime_identity_counts_and_completed_status_are_required(self):
+        for key in ("schema", "kind", "contract", "status", "fixture", "native_library",
+                    "pixel_comparisons", "pixel_mutation_controls"):
+            value = runtime_report()
+            del value[key]
+            with self.subTest(missing=key), self.assertRaisesRegex(ValueError, "runtime proof"):
+                RUNNER.validate_runtime_report(value)
+            value = runtime_report()
+            value[key] = True if type(value[key]) is int else "not_run"
+            with self.subTest(changed=key), self.assertRaisesRegex(ValueError, "runtime proof"):
+                RUNNER.validate_runtime_report(value)
+        for value in (None, {}, []):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                RUNNER.validate_runtime_report(value)
+
+    def test_all_known_cases_must_execute_once_without_unknown_replacements(self):
+        for cases in (None, [], [None] * 3, runtime_report()["cases"][:-1]):
+            value = runtime_report()
+            value["cases"] = cases
+            with self.subTest(cases=cases), self.assertRaisesRegex(ValueError, "execution cases"):
+                RUNNER.validate_runtime_report(value)
+        for replacement in ("native_vulkan", "mock_vulkan"):
+            value = runtime_report()
+            value["cases"][0]["name"] = replacement
+            with self.subTest(name=replacement), self.assertRaisesRegex(ValueError, "execution cases"):
+                RUNNER.validate_runtime_report(value)
+
+    def test_exact_render_hle_fault_and_checkpoint_counters_are_mandatory(self):
+        for index in range(3):
+            for key in ("checkpoint", "fallback_checkpoint", "guest_model", "command_lists", "draw_calls",
+                        "vertices_drawn", "pixels_checked", "mismatched_pixels", "svc_unimplemented",
+                        "service_unimplemented", "memory_faults", "shader_program_words"):
+                for invalid in (None, True, runtime_report()["cases"][index][key] + 1):
+                    value = runtime_report()
+                    value["cases"][index][key] = invalid
+                    with self.subTest(index=index, key=key, invalid=invalid), self.assertRaises(ValueError):
+                        RUNNER.validate_runtime_report(value)
+            for key, invalid in (("status", "not_run"), ("guest_exited", False), ("guest_exited", 1)):
+                value = runtime_report()
+                value["cases"][index][key] = invalid
+                with self.subTest(index=index, key=key), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_report(value)
+
+    def test_native_interpreter_and_missing_entry_fallback_routes_are_observed(self):
+        for index in range(3):
+            for key in ("steps", "cycles", "interpreted_instructions",
+                        "recompiled_instructions", "native_fallback_instructions"):
+                requires_zero = key == "native_fallback_instructions" or (
+                    index == 0 and key == "recompiled_instructions")
+                invalid_values = (None, True, -1, 1) if requires_zero else (None, True, 0, -1, 100001)
+                for invalid in invalid_values:
+                    value = runtime_report()
+                    value["cases"][index][key] = invalid
+                    with self.subTest(index=index, key=key, invalid=invalid), self.assertRaises(ValueError):
+                        RUNNER.validate_runtime_report(value)
+
+    def test_fixed_guest_route_rejects_positive_counter_drift_and_budget_overcharge(self):
+        for index, case in enumerate(runtime_report()["cases"]):
+            for key in ("steps", "cycles", "interpreted_instructions", "recompiled_instructions"):
+                value = runtime_report()
+                value["cases"][index][key] = case[key] + 1
+                with self.subTest(index=index, key=key), self.assertRaisesRegex(ValueError, "route proof"):
+                    RUNNER.validate_runtime_report(value)
+        value = runtime_report()
+        value["cases"][1].update(cycles=1606, recompiled_instructions=1604)
+        with self.assertRaisesRegex(ValueError, "route proof"):
+            RUNNER.validate_runtime_report(value)
+        for index in range(5):
+            value = runtime_report()
+            value["memory_layouts"][index]["steps"] = 605
+            with self.subTest(layout=index), self.assertRaisesRegex(ValueError, "memory proof"):
+                RUNNER.validate_runtime_report(value)
+
+    def test_software_and_hardware_routes_cannot_substitute_for_each_other(self):
+        value = runtime_report()
+        value["cases"][2]["hardware"] = None
+        with self.assertRaisesRegex(ValueError, "hardware diagnostics"):
+            RUNNER.validate_runtime_report(value)
+        for index in (0, 1):
+            value = runtime_report()
+            value["cases"][index]["hardware"] = runtime_hardware_report()
+            with self.subTest(index=index), self.assertRaisesRegex(ValueError, "unexpected hardware"):
+                RUNNER.validate_runtime_report(value)
+
+    def test_required_services_gpu_identity_and_both_gpu_draws_are_observed(self):
+        for services in (None, [], ["cfg:u", "cfg:u"], ["cfg:u", "mock"], ["cfg:u", 1]):
+            for index in range(3):
+                value = runtime_report()
+                value["cases"][index]["services_seen"] = services
+                with self.subTest(index=index, services=services), self.assertRaisesRegex(ValueError, "services"):
+                    RUNNER.validate_runtime_report(value)
+        for device in (None, "", " ", "x" * 1024, True):
+            value = runtime_report()
+            value["cases"][2]["hardware_device"] = device
+            with self.subTest(device=device), self.assertRaisesRegex(ValueError, "device identity"):
+                RUNNER.validate_runtime_report(value)
+        for draws in (1, 3):
+            value = runtime_report()
+            value["cases"][2]["hardware"]["recorded_draws"] = draws
+            with self.subTest(draws=draws), self.assertRaisesRegex(ValueError, "both fixture draws"):
+                RUNNER.validate_runtime_report(value)
+
+    def test_execution_error_and_narrow_proof_limitations_cannot_be_hidden(self):
+        for invalid in ({}, False, "runtime panic"):
+            value = runtime_report()
+            value["error"] = invalid
+            with self.subTest(error=invalid), self.assertRaisesRegex(ValueError, "execution error"):
+                RUNNER.validate_runtime_report(value)
+        value = runtime_report()
+        del value["error"]
+        with self.assertRaisesRegex(ValueError, "execution error"):
+            RUNNER.validate_runtime_report(value)
+        for invalid in (None, [], [""], [True], "complete support"):
+            value = runtime_report()
+            value["limitations"] = invalid
+            with self.subTest(limitations=invalid), self.assertRaisesRegex(ValueError, "limitations"):
+                RUNNER.validate_runtime_report(value)
+
+    def test_each_runtime_case_has_no_error_or_sampled_pixel_differences(self):
+        for index in range(3):
+            for key in ("error", "first_pixel_mismatches"):
+                value = runtime_report()
+                del value["cases"][index][key]
+                with self.subTest(index=index, missing=key), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_report(value)
+            for key, invalid in (("error", False), ("error", "device lost"),
+                                 ("first_pixel_mismatches", None), ("first_pixel_mismatches", {}),
+                                 ("first_pixel_mismatches", [{"index": 0}])):
+                value = runtime_report()
+                value["cases"][index][key] = invalid
+                with self.subTest(index=index, key=key), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_report(value)
+    def test_runtime_guards_need_real_rejection_and_native_store_execution(self):
+        for invalid in (None, {}, [], dict(runtime_report()["code_safety"], policy="all_dynamic_code")):
+            value = runtime_report()
+            value["code_safety"] = invalid
+            with self.subTest(guards=invalid), self.assertRaisesRegex(ValueError, "code safety"):
+                RUNNER.validate_runtime_report(value)
+        for index in range(3):
+            for key, original in runtime_report()["code_safety"]["controls"][index].items():
+                value = runtime_report()
+                del value["code_safety"]["controls"][index][key]
+                with self.subTest(index=index, missing=key), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_report(value)
+                invalid = True if type(original) is int else "" if type(original) is str else 1
+                value = runtime_report()
+                value["code_safety"]["controls"][index][key] = invalid
+                with self.subTest(index=index, key=key), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_report(value)
+        value = runtime_report()
+        value["code_safety"]["controls"][2]["native_instructions"] = 0
+        with self.assertRaisesRegex(ValueError, "did not execute native"):
+            RUNNER.validate_runtime_report(value)
+
+    def test_every_actual_loader_memory_layout_and_its_allocation_controls_are_required(self):
+        for invalid in (None, [], [None] * 5, runtime_report()["memory_layouts"][:-1]):
+            value = runtime_report()
+            value["memory_layouts"] = invalid
+            with self.subTest(layouts=invalid), self.assertRaisesRegex(ValueError, "memory layout"):
+                RUNNER.validate_runtime_report(value)
+        for index, original in enumerate(runtime_report()["memory_layouts"]):
+            for key in original:
+                value = runtime_report()
+                del value["memory_layouts"][index][key]
+                with self.subTest(index=index, missing=key), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_report(value)
+                if isinstance(original[key], list):
+                    invalid = original[key][:-1]
+                elif type(original[key]) is bool:
+                    invalid = int(original[key])
+                elif type(original[key]) is int:
+                    invalid = True
+                else:
+                    invalid = "unexecuted"
+                value = runtime_report()
+                value["memory_layouts"][index][key] = invalid
+                with self.subTest(index=index, key=key), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_report(value)
+        value = runtime_report()
+        value["memory_layouts"][4] = copy.deepcopy(value["memory_layouts"][3])
+        with self.assertRaisesRegex(ValueError, "memory layouts"):
+            RUNNER.validate_runtime_report(value)
+
+    def test_new3ds_legacy_commit_cap_is_distinct_from_the_physical_application_region(self):
+        value = runtime_report()
+        legacy = value["memory_layouts"][2]
+        self.assertEqual(legacy["physical_regions_bytes"], [124 << 20, 100 << 20, 32 << 20])
+        self.assertEqual(legacy["config_words"], [6, 64 << 20, 100 << 20, 32 << 20])
+        RUNNER.validate_runtime_report(value)
+        for key in ("application_limit_bytes", "config_words"):
+            value = runtime_report()
+            if key == "application_limit_bytes":
+                value["memory_layouts"][2][key] = 124 << 20
+            else:
+                value["memory_layouts"][2][key][1] = 124 << 20
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "memory proof"):
+                RUNNER.validate_runtime_report(value)
+
+
+class RuntimeHardwareTests(unittest.TestCase):
+    """CodexAstraUlt: A software result or unlimited cache cannot qualify Vulkan use."""
+
+    def test_measured_static_pipeline_and_deferred_specialization_are_accepted(self):
+        value = runtime_hardware_report()
+        RUNNER.validate_runtime_hardware(value)
+        value.update(retained_translations=0, retained_modules=0, retained_shader_bytes=0)
+        RUNNER.validate_runtime_hardware(value)
+        value.update(dynamic_blend=True, dynamic_logic_op=True, vertex_shading_on_gpu=True)
+        RUNNER.validate_runtime_hardware(value)
+
+    def test_draw_failure_software_fallback_and_resource_pressure_do_not_pass(self):
+        for key in ("draw_errors", "software_raster_fallbacks", "compiler_failures",
+                    "resource_limit_events"):
+            for invalid in (None, False, 1):
+                value = runtime_hardware_report()
+                value[key] = invalid
+                with self.subTest(key=key, invalid=invalid), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_hardware(value)
+
+    def test_admission_limits_are_fixed_instead_of_self_declared_unbounded_limits(self):
+        for key in ("max_compiler_outstanding", "max_translations", "max_shader_bytes",
+                    "max_specialization_requests", "max_pipelines"):
+            for invalid in (None, True, 0, runtime_hardware_report()[key] + 1):
+                value = runtime_hardware_report()
+                value[key] = invalid
+                with self.subTest(key=key, invalid=invalid), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_hardware(value)
+
+    def test_draws_submissions_and_live_pipeline_are_required(self):
+        for key in ("recorded_draws", "submissions", "retained_pipelines"):
+            for invalid in (None, True, 0, -1):
+                value = runtime_hardware_report()
+                value[key] = invalid
+                with self.subTest(key=key, invalid=invalid), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_hardware(value)
+
+    def test_live_and_peak_resources_cannot_exceed_individual_or_related_bounds(self):
+        for key, invalid in (("compiler_outstanding", 17), ("compiler_peak", 17),
+                             ("retained_translations", 257), ("retained_modules", 2),
+                             ("retained_pipelines", 513), ("retained_shader_bytes", 8388609),
+                             ("specialization_requests", 513)):
+            value = runtime_hardware_report()
+            value[key] = invalid
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "exceeds its bound"):
+                RUNNER.validate_runtime_hardware(value)
+        value = runtime_hardware_report()
+        value.update(compiler_peak=0, compiler_outstanding=1)
+        with self.assertRaisesRegex(ValueError, "exceeds its bound"):
+            RUNNER.validate_runtime_hardware(value)
+
+    def test_every_counter_is_present_integer_and_not_negative_or_boolean(self):
+        original = runtime_hardware_report()
+        for key, count in original.items():
+            if type(count) is not int:
+                continue
+            for invalid in (None, True, -1, "0"):
+                value = runtime_hardware_report()
+                value[key] = invalid
+                with self.subTest(key=key, invalid=invalid), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_hardware(value)
+            value = runtime_hardware_report()
+            del value[key]
+            with self.subTest(missing=key), self.assertRaises(ValueError):
+                RUNNER.validate_runtime_hardware(value)
+
+    def test_optional_features_are_measured_booleans_and_error_is_present_and_null(self):
+        for key in ("dynamic_blend", "dynamic_logic_op", "vertex_shading_on_gpu"):
+            for invalid in (None, 0, 1, "false"):
+                value = runtime_hardware_report()
+                value[key] = invalid
+                with self.subTest(key=key, invalid=invalid), self.assertRaises(ValueError):
+                    RUNNER.validate_runtime_hardware(value)
+        for invalid in ({}, "device lost", False):
+            value = runtime_hardware_report()
+            value["last_error"] = invalid
+            with self.subTest(error=invalid), self.assertRaises(ValueError):
+                RUNNER.validate_runtime_hardware(value)
+        value = runtime_hardware_report()
+        del value["last_error"]
+        with self.assertRaisesRegex(ValueError, "execution error"):
+            RUNNER.validate_runtime_hardware(value)
+
+
 class ReportTests(unittest.TestCase):
     """CodexAstraUlt: Mutate proof independently so permissive acceptance is visible."""
 
@@ -371,9 +752,9 @@ class GraphicsReportTests(unittest.TestCase):
 
     def test_unknown_version_does_not_silently_reuse_historical_cpu_only_contract(self):
         changed = report()
-        changed["version"] = "0.0.5"
-        changed["android_shell"].update(app_version_name="0.0.5", app_version_code=5)
-        manifest = dict(MANIFEST, version_name="0.0.5", version_code=5)
+        changed["version"] = "0.0.6"
+        changed["android_shell"].update(app_version_name="0.0.6", app_version_code=6)
+        manifest = dict(MANIFEST, version_name="0.0.6", version_code=6)
         with self.assertRaisesRegex(ValueError, "Unsupported Android probe report version"):
             RUNNER.validate_report(changed, REQUEST, manifest)
 
@@ -590,7 +971,7 @@ class CurrentReportTests(unittest.TestCase):
         current["arm_tiny_budget_progress"]["native_calls"] = 99
         self.assertEqual(RUNNER.cases_for_version("0.0.4")["arm_tiny_budget_progress"]["native_calls"], 2)
         with self.assertRaisesRegex(ValueError, "Unsupported Android probe"):
-            RUNNER.cases_for_version("0.0.5")
+            RUNNER.cases_for_version("0.0.6")
 
     def test_missing_failed_or_unreviewed_code_policy_does_not_pass(self):
         value, _ = current_report()
@@ -815,6 +1196,25 @@ class DeviceContractTests(unittest.TestCase):
                 self.assertEqual(evidence["android_report"], failed)
                 self.assertEqual(json.loads((Path(temp) / "android-probe.json").read_text()), failed)
                 self.assertEqual(adb.commands[-1], ("stop-after-run", ["am", "force-stop", RUNNER.PACKAGE]))
+
+    def test_failed_runtime_preserves_cpu_gpu_and_runtime_evidence_before_rejection(self):
+        # CodexAstraUlt: A failing integrated renderer remains actionable device
+        # evidence; neither its detailed report nor earlier successful gates vanish.
+        with tempfile.TemporaryDirectory() as temp:
+            failed, manifest = integrated_report()
+            failed["status"] = "failed"
+            failed["runtime_probe"].update(status="failed", error="hardware activation failed")
+            adb = FakeAdb(Path(temp), result=failed)
+            evidence = {"request_id": REQUEST, "apk_sha256": "a" * 64}
+            with self.assertRaisesRegex(ValueError, "identity/status"):
+                RUNNER.execute_probe(adb, Path("/tmp/fixture.apk"), manifest, evidence, 5)
+            self.assertEqual(evidence["android_report"], failed)
+            self.assertEqual(json.loads((Path(temp) / "android-probe.json").read_text()), failed)
+            self.assertEqual(adb.commands[-1], ("stop-after-run", ["am", "force-stop", RUNNER.PACKAGE]))
+            read = next(words for name, words in adb.commands if name == "read-report")
+            self.assertEqual(read, ["run-as", RUNNER.PACKAGE, "head", "-c",
+                                    str(1024 * 1024 + 64 * 1024 + 256 * 1024 + 16 * 1024 + 1),
+                                    RUNNER.REPORT_PATH])
 
     def test_apk_hash_mismatch_prevents_launch(self):
         with tempfile.TemporaryDirectory() as temp:

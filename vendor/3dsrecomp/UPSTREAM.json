@@ -1,0 +1,33 @@
+{
+  "repository": "https://github.com/fearkov/3dsrecomp",
+  "revision": "c3f21f94ba50d688025febc8974ff348d471b587",
+  "license": "MIT",
+  "manifest_provenance": {
+    "file": "UPSTREAM-Cargo.toml",
+    "upstream_path": "Cargo.toml",
+    "sha256": "8e52fdce98f2660e7a094623775a0c150d89bf3f4660604f9fa4d1ba6a4012f2",
+    "declaration": "package.license = MIT; upstream provides no separate license file"
+  },
+  "schema": 1,
+  "files": {
+    "src/arm.rs": "b7fd435babe7abed60c8927b442305a12120843ebb1160463e82b8f39bea27fc",
+    "src/build.rs": "37281ce41ca7c605ff01f008675f2b156838d3e55e82b2d0c99f205207f27ec1",
+    "src/codegen/arm.rs": "6defe61f2b693f21632c650d0ac22d2a51de53b29df3bf720b8dbc8da0073961",
+    "src/codegen/locals.rs": "b0743462fd21c96f625bd5ae174070e73728de77410abe18d0cc345d3b7a752c",
+    "src/codegen/mod.rs": "1d888ff2aecbb6156774802b7d2f05f7e4a96583db58e5c65973cd72169914c4",
+    "src/codegen/thumb.rs": "7eae8d7e162d89be8dd0d8d461c1b05e69cab0585ed1272f708783ae07a5b0d7",
+    "src/codegen/vfp.rs": "5adf8ea91c8bafbd6b143ec206e13008bbb2790281260de90f2dbf1fc35685cf",
+    "src/compile.rs": "b6316eb7b827e74bb7dbbd59530ae9d44a525a7f079d6ce4f51acbba3769f8ae",
+    "src/cro.rs": "176ebb7f2eea5622bebca66a56edec8a6603951c2368149d8ee0d7508648f543",
+    "src/discover.rs": "0428c2cc7aafc31e449c6c86f4185e5cd6a69a04fc22070b003a92e55c6b4218",
+    "src/image.rs": "349fb44c7a895d40e64697168d23bf882a292a7e06071b704a2cf60531812eda",
+    "src/lib.rs": "7ea554f857a5c201ac7ac759ce01cdd9a6c2a9cead54df268818d9c6e658101b",
+    "src/main.rs": "161297cb91414b37c07a71b8cb7212e52155588aa13c27580391f36e9b992d04",
+    "src/overrides.rs": "c580010b2dbd0269710a69a91a30bcdd101c52aba68de38051da84af1e5ab331",
+    "src/port.rs": "9d8ca416152b45cd9ba6a5e9eae9fce83b4844160a7c9490d187545bcadbe404",
+    "src/rom.rs": "6d797235949074e1a77c8eab0d1d18928efceb71075dadbce31fbe2b794d0161",
+    "src/thumb.rs": "93f50ed731da93ee6e670320c7f933785a4087889de1917405fc8097094e0cfb",
+    "src/verify.rs": "163a2e6de77fd957ccbaf29d574ce58fd32e154edbc44550c7583158c39b0110",
+    "hints.txt": "95efd4db4bd8168cd39acb413bdd2ea6351c1801e9cc4f8b6d516c81a59fcf4c"
+  }
+}

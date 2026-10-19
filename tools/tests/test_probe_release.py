@@ -1,6 +1,7 @@
 """CodexAstraUlt: Mutated release inputs must never become public APK assets."""
 
 import importlib.util
+import copy
 import json
 from pathlib import Path
 import sys
@@ -115,6 +116,142 @@ class ReleaseTests(unittest.TestCase):
         self.save()
         with self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
             self.prepare(tag="v0.0.4-probe.1")
+
+    # CodexAstraUlt: Full runtime execution adds one original native fixture;
+    # stale ten-library APKs cannot become 0.0.5 prereleases.
+    def runtime_build(self):
+        self.current_build()
+        self.contents["AndroidManifest.xml"] = FIXTURE.binary_manifest(
+            test_only=False, version_name="0.0.5", version_code=5)
+        self.report["manifest"].update(version_name="0.0.5", version_code=5)
+        name = "libdroidds_fixture_runtime.so"
+        data = b"original-runtime-test-library"
+        self.contents["lib/arm64-v8a/" + name] = data
+        self.elf[name] = {"machine": "AArch64", "text_relocations": False,
+                          "sha256": RELEASE.digest(data)}
+        # CodexAstraUlt: Fixture metadata is synthetic, while shader evidence
+        # uses the checked-in public source/binary pairs the release will bind.
+        self.report["runtime_fixture"] = {
+            "manifest": {"schema": 1, "kind": "droidds-runtime-fixture-sources",
+                "fixture": "droidds-original-pica-ipc-v1", "library": name,
+                "abi": 4, "generation": 3, "native_text_bytes": 492,
+                "fallback_entry": 0x100800, "sources": ["code000.c", "entries.c"]},
+            "inputs_sha256": {item: "c" * 64 for item in (
+                "code000.c", "entries.c", "functions.h", "recomp.h", "runtime-fixture.cxi")},
+            "library_sha256": self.elf[name]["sha256"],
+        }
+        runtime = "libdroidds_android_probe.so"
+        self.report["runtime_symbols"] = {
+            "unstripped_sha256": "c" * 64, "unstripped_bytes": 1024,
+            "method": "llvm-strip --strip-debug", "shipped_sha256": self.elf[runtime]["sha256"],
+            "shipped_bytes": len(self.contents["lib/arm64-v8a/" + runtime]),
+        }
+        root = Path(RELEASE.__file__).resolve().parents[1]
+        base = "vendor/zakuro/crates/zakuro-gpu/shaders/"
+        self.report["runtime_shaders"] = {}
+        for item, (source, definitions) in RELEASE.VARIANTS.items():
+            binary = (root / (base + item + ".spv")).read_bytes()
+            self.report["runtime_shaders"][item] = {
+                "source": base + source, "defines": list(definitions),
+                "source_sha256": RELEASE.digest((root / (base + source)).read_bytes()),
+                "shipped_sha256": RELEASE.digest(binary), "shipped_bytes": len(binary),
+                "rebuilt_sha256": "d" * 64, "byte_identical_rebuild": False,
+                "validation_environment": "vulkan1.3", "compiler_target": "vulkan1.0/spv1.0",
+            }
+        self.save()
+
+    def test_runtime_release_requires_exact_eleven_libraries(self):
+        self.runtime_build()
+        self.prepare(tag="v0.0.5-probe.1")
+        RELEASE.verify_bundle(self.out, "v0.0.5-probe.1", COMMIT)
+        public = json.loads((self.out / "BUILD_REPORT.json").read_text())
+        self.assertEqual(len(public["elf"]), 11)
+        self.assertEqual(public["apk_manifest"]["version_code"], 5)
+        for field in ("runtime_fixture", "runtime_shaders", "runtime_symbols"):
+            self.assertEqual(public[field], self.report[field])
+
+    def runtime_metadata_mutations(self):
+        """CodexAstraUlt: Exercise meaningful metadata corruption at both publication stages."""
+        for section in ("runtime_fixture", "runtime_shaders", "runtime_symbols"):
+            yield (section,), None
+        for location in (("runtime_fixture",), ("runtime_fixture", "manifest"),
+                         ("runtime_fixture", "inputs_sha256"), ("runtime_symbols",),
+                         ("runtime_shaders",), ("runtime_shaders", "depth.comp")):
+            yield location + ("private_path",), "/private/must-not-publish"
+        yield ("runtime_fixture", "library_sha256"), "0" * 64
+        yield ("runtime_symbols", "shipped_sha256"), "0" * 64
+        yield ("runtime_fixture", "manifest", "schema"), True
+        yield ("runtime_fixture", "manifest", "sources"), ["../private.c", "entries.c"]
+        yield ("runtime_fixture", "inputs_sha256", "recomp.h"), "A" * 64
+        yield ("runtime_symbols", "unstripped_bytes"), True
+        yield ("runtime_symbols", "shipped_bytes"), 1
+        yield ("runtime_symbols", "unstripped_sha256"), "/private/symbols"
+        yield ("runtime_symbols", "method"), "unreviewed-strip"
+        yield ("runtime_shaders", "depth.comp"), None
+        yield ("runtime_shaders", "depth.comp", "defines"), ["UNREVIEWED"]
+        yield ("runtime_shaders", "depth.comp", "source"), "/private/shader.comp"
+        yield ("runtime_shaders", "depth.comp", "source_sha256"), "0" * 64
+        yield ("runtime_shaders", "depth.comp", "shipped_sha256"), "0" * 64
+        yield ("runtime_shaders", "depth.comp", "rebuilt_sha256"), "not-a-hash"
+        yield ("runtime_shaders", "depth.comp", "byte_identical_rebuild"), True
+        yield ("runtime_shaders", "depth.comp", "byte_identical_rebuild"), 0
+        yield ("runtime_shaders", "depth.comp", "shipped_bytes"), True
+
+    def mutate_runtime_metadata(self, report, path, value):
+        """CodexAstraUlt: Mutations remove fields or change one nested contract fact."""
+        node = report
+        for key in path[:-1]:
+            node = node[key]
+        if value is None:
+            del node[path[-1]]
+        else:
+            node[path[-1]] = value
+
+    def test_runtime_preparation_rejects_missing_forged_and_private_metadata(self):
+        self.runtime_build()
+        original = copy.deepcopy(self.report)
+        for path, value in self.runtime_metadata_mutations():
+            self.report = copy.deepcopy(original)
+            self.mutate_runtime_metadata(self.report, path, value)
+            self.save()
+            with self.subTest(path=path, value=value), self.assertRaises(ValueError):
+                self.prepare(tag="v0.0.5-probe.1")
+            self.assertFalse(self.out.exists())
+
+    def test_downloaded_runtime_bundle_independently_checks_nested_evidence(self):
+        self.runtime_build()
+        tag = "v0.0.5-probe.1"
+        self.prepare(tag=tag)
+        path = self.out / "BUILD_REPORT.json"
+        original = json.loads(path.read_text())
+        for location, value in self.runtime_metadata_mutations():
+            changed = copy.deepcopy(original)
+            self.mutate_runtime_metadata(changed, location, value)
+            path.write_text(json.dumps(changed))
+            # CodexAstraUlt: Recompute the outer checksums so the publishing job
+            # must detect the invalid evidence rather than a superficial mismatch.
+            names = sorted(item.name for item in self.out.iterdir() if item.name != "SHA256SUMS")
+            (self.out / "SHA256SUMS").write_text("".join(
+                RELEASE.digest((self.out / name).read_bytes()) + "  " + name + "\n" for name in names))
+            with self.subTest(path=location, value=value), self.assertRaises(ValueError):
+                RELEASE.verify_bundle(self.out, tag, COMMIT)
+
+    def test_runtime_release_rejects_missing_or_unreviewed_libraries(self):
+        self.runtime_build()
+        name = "libdroidds_fixture_runtime.so"
+        del self.elf[name]
+        del self.contents["lib/arm64-v8a/" + name]
+        self.save()
+        with self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
+            self.prepare(tag="v0.0.5-probe.1")
+        name = "libunreviewed.so"
+        data = b"not-the-runtime-fixture"
+        self.elf[name] = {"machine": "AArch64", "text_relocations": False,
+                          "sha256": RELEASE.digest(data)}
+        self.contents["lib/arm64-v8a/" + name] = data
+        self.save()
+        with self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
+            self.prepare(tag="v0.0.5-probe.1")
 
     def test_historical_version_cannot_contain_new_fixture_libraries(self):
         self.current_build()

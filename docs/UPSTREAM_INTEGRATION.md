@@ -1,13 +1,85 @@
-# Upstream integration for the first DroidDS build
+# Upstream integration and source boundaries
 
 <!-- CodexAstraUlt: Record the actual reuse boundary, pinned interfaces and notice gap so the first implementation can build on upstream work without implying a complete runtime or inventing attribution. -->
 
-Date: 2026-10-17. DroidDS starts with an original Linux correctness harness around
-selected existing components. It is not a rewrite of their CPU interpreters,
-recompiler or C ABI. This document records source inspection and integration
-decisions; execution results belong in the build report.
+Updated **2026-10-19**. DroidDS builds an original Android integration around
+selected existing components. It does not rewrite their CPU interpreter,
+recompiler or ABI. This document records source selection and integration
+decisions; exact final execution/publication results belong in build evidence.
 
-## Selected source map
+## Current 0.0.5 integration candidate
+
+<!-- CodexAstraUlt: Replace the no-vendor/no-runtime summary with the maintained
+source boundary, real guest proof and measured reason for the compiler patch. -->
+
+| Component | Current selection | Boundary |
+| --- | --- | --- |
+| Host compiler | `vendor/3dsrecomp`, based on `c3f21f94ba50d688025febc8974ff348d471b587` | Maintained host-side compiler; generated fixture code enters the APK, the compiler executable does not |
+| Shared ABI | `recomp-abi` at the same exact Git revision | ABI 4 / generation 3 remains shared; no handwritten replacement |
+| CPU interpreter/common | `zakuro-cpu` / `zakuro-common` at `412900a5a020301da15c1cc382585e05a489a535` | Exact Git dependencies retained |
+| Loader, HLE and PICA | `vendor/zakuro/crates/zakuro-core`, `zakuro-fs`, `zakuro-gpu`, based on that same Zakuro revision | Selected maintained sources; no desktop frontend imported |
+| Integration proof | Original `droidds-runtime-probe` | Original NCCH guest, service/PICA command data and independent output expectations |
+
+Each vendor directory's `UPSTREAM.json` records original source hashes and the
+selected revision; upstream notice/manifest evidence is preserved. Adjacent
+`CodexAstraUlt` comments identify local changes. The root workspace, `Cargo.lock`
+and `upstream.lock.toml` govern the actual build graph. Shared Cargo caches and
+upstream repositories are not modified.
+
+The integrated guest revealed a real backward-loop/conditional-flow accounting
+defect: the reference executed 598 instructions while native accounting charged
+1,598 before correction. A reviewed compiler block-discovery correction and
+regressions are required; relaxing the report counters would conceal the defect.
+Vendoring the compiler permits that correction without changing the ABI pin or
+patching a shared cache. These instruction counts are not gameplay-speed results.
+
+The actual runtime proof loads an original NCCH/CXI executable, enters guest
+SVC/IPC services and submits PICA commands through `gsp::Gpu`. It compares CPU
+interpreter/software, native/software and native/Vulkan execution against exact
+pixels and required route/service evidence. A deliberate helper remains in the
+CPU interpreter. Required GPU tests cannot silently pass after initialization
+failure; host qualification runs both normal and forced static blend/logic state.
+Vulkan rasterization is distinguished from GPU vertex execution: the Thor may
+use the accurate CPU PICA vertex interpreter with Vulkan rasterization.
+
+The maintained loader resolves complete Old/New physical layouts and separate
+legacy commitment caps before construction. It corrects header fields and config
+reporting, constrains virtual heap windows, and preflights saved geometry/quota
+before replacing live memory. Original actual-loader/kernel/service regressions
+are recorded in [the New 3DS correction record](NEW3DS_AUDIT.md#005-integration-corrections).
+This does not establish Xenoblade execution or full New-model scheduling.
+
+The optional Cranelift PICA CPU JIT is disabled. Vulkan remains enabled, including
+runtime shader translation. Admission bounds cover queued/running/completed work,
+retained translation keys/pipelines and shader payloads; accepted work is tracked
+until collection. Deferred specialization preserves the generic path, and a
+resource failure remains observable with accurate software fallback. Objects that
+may be referenced by submitted commands are not unsafely evicted. These policies
+do not bound all texture/driver memory or remove every synchronous first-use
+generic-pipeline compilation; cold gameplay and sustained-memory gates remain.
+
+The larger runtime graph receives its own complete
+[notice inventory](../THIRD_PARTY_NOTICES.md), including the selected runtime
+sources, shader provenance and unmodified MPL-2.0 Symphonia components with exact
+source-archive availability. Registry/target/feature identity changes invalidate
+the reviewed inventory rather than silently omitting notices. This review does
+not authorize copying arbitrary GPL components from Azahar, MMJ or Uberhar.
+
+The 0.0.4 Thor report passes its original diagnostic scope. The 0.0.5 candidate's
+final combined build, publication and Thor execution remain pending. The public
+fixture is NCCH; no 3DSX loader, game presentation/input/audio qualification or
+retail baseline is claimed. Exact private Dark Moon, Xenoblade and Sonic inputs
+are absent from this environment, so their M3 baselines remain open.
+
+## Initial 0.0.1 inventory (historical)
+
+<!-- CodexAstraUlt: Retain first-build provenance without letting its smaller
+historical dependency inventory describe the current runtime selection. -->
+
+The sections below retain the **2026-10-17 first-build** source/ABI decisions.
+Their package counts and graph describe that milestone, not the current graph.
+
+### First-build source map
 
 | Source | Exact commit | First-build use | Source license evidence |
 | --- | --- | --- | --- |
@@ -15,8 +87,8 @@ decisions; execution results belong in the build report.
 | Same 3dsrecomp tree | Same commit | `recomp-abi` 0.1.0; shared definitions and loader, with `load` enabled by `host` | Same declaration and missing notice evidence |
 | [fearkov/zakuro](https://github.com/fearkov/zakuro/tree/412900a5a020301da15c1cc382585e05a489a535) | `412900a5a020301da15c1cc382585e05a489a535` | `zakuro-cpu` 0.2.27 as the interpreter, with its `zakuro-common` dependency | Workspace declares `MIT`; root LICENSE supplies the MIT text and `Copyright (c) 2026 fearkov` |
 
-The project manifest fetches those components directly from their upstream Git
-repositories using full `rev` pins. Upstream source is not vendored or copied into
+The first project manifest fetched those components directly from their upstream Git
+repositories using full `rev` pins. It did not vendor upstream source into
 the DroidDS source tree. Cargo's local checkout and generated build output remain
 outside tracked source. The committed lockfile records the resolved registry
 versions and checksums; locked builds must not silently select new dependencies.
@@ -36,7 +108,7 @@ toolchain whose exact observed identity must be recorded by the build.
 Rebuilding the locked graph is not a claim of bit-identical output across different
 C compilers, operating systems or system libraries.
 
-## Dependency and verifier decision
+### First-build dependency and verifier decision
 
 <!-- CodexAstraUlt: Avoid adopting the older upstream verifier graph as the runtime oracle; use the selected interpreter directly and make strict comparison the harness's responsibility. -->
 
@@ -74,13 +146,13 @@ instruction for the new workspace to reuse that graph. DroidDS calls the pinned
 integer/memory comparisons. This addresses which interpreter is being tested; it
 does not claim to repair or validate upstream's verifier.
 
-The first build does not include Zakuro's desktop frontend, core/HLE services,
+The first build did not include Zakuro's desktop frontend, core/HLE services,
 filesystem, audio or GPU renderer. Their transitive dependencies and runtime
 behavior are outside this dependency inventory. No Uberhar/Azahar implementation
 is imported. Future reuse of any of those components requires a fresh source,
 dependency and license review for the actual selection.
 
-## ABI contract and scope
+### Shared ABI contract and initial scope
 
 <!-- CodexAstraUlt: Reuse the real ABI instead of the research pack's illustrative callback interface; keep unsupported runtime work explicit. -->
 
@@ -103,7 +175,7 @@ unloading. Those remain DDS-004/005 work. Native library loading executes host
 code: the harness accepts only the synthetic library it has just generated, not
 an arbitrary downloaded library.
 
-## Reuse and distribution boundary
+### Initial reuse and distribution boundary
 
 <!-- CodexAstraUlt: Replace the initial source-only distribution hold after the
 owner's prerelease request and actual notice assembly; preserve missing-notice

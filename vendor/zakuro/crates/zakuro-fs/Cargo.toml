@@ -1,0 +1,18 @@
+# CodexAstraUlt: Preserve the imported package identity in the shared DroidDS
+# workspace; runtime tests and APK builds resolve through one reviewed lockfile.
+[package]
+name = "zakuro-fs"
+version = "0.2.27"
+edition = "2021"
+license = "MIT"
+
+[features]
+# builders of NCCH and CIA files, for the tests of the crates that read them
+testing = []
+
+[dependencies]
+zakuro-common.workspace = true
+log.workspace = true
+thiserror.workspace = true
+memmap2.workspace = true
+crc32fast = "1"

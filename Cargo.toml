@@ -2,10 +2,17 @@
 # revisions; the first build includes CPU tooling only, not a desktop frontend.
 [workspace]
 resolver = "2"
-members = ["crates/droidds-foundation", "crates/droidds-android-probe"]
+# CodexAstraUlt: One workspace/lockfile also governs runtime regression dev
+# dependencies; imported package identities stay explicit in their manifests.
+members = ["crates/droidds-foundation", "crates/droidds-android-probe",
+           "crates/droidds-runtime-probe", "vendor/zakuro/crates/zakuro-core",
+           "vendor/zakuro/crates/zakuro-fs", "vendor/zakuro/crates/zakuro-gpu"]
 # CodexAstraUlt: Preserve the default host command while Android explicitly
 # selects its runtime-only package and disables the producer/compiler feature.
 default-members = ["crates/droidds-foundation"]
+# CodexAstraUlt: The patched host compiler retains its own upstream package;
+# its dependency resolution still participates in this root lockfile.
+exclude = ["vendor/3dsrecomp"]
 
 [workspace.package]
 version = "0.0.1"
@@ -14,9 +21,23 @@ rust-version = "1.95"
 publish = false
 
 [workspace.dependencies]
-recomp3ds = { git = "https://github.com/fearkov/3dsrecomp", rev = "c3f21f94ba50d688025febc8974ff348d471b587", default-features = false, features = ["host"] }
+# CodexAstraUlt: Local conditional-control-flow correction; ABI stays pinned below.
+recomp3ds = { path = "vendor/3dsrecomp", default-features = false, features = ["host"] }
 recomp-abi = { git = "https://github.com/fearkov/3dsrecomp", rev = "c3f21f94ba50d688025febc8974ff348d471b587", default-features = false, features = ["load"] }
 zakuro-cpu = { git = "https://github.com/fearkov/zakuro", rev = "412900a5a020301da15c1cc382585e05a489a535" }
+# CodexAstraUlt: Actual loader/HLE/PICA integration uses reviewed local patches.
+zakuro-common = { git = "https://github.com/fearkov/zakuro", rev = "412900a5a020301da15c1cc382585e05a489a535" }
+zakuro-core = { path = "vendor/zakuro/crates/zakuro-core" }
+zakuro-fs = { path = "vendor/zakuro/crates/zakuro-fs", features = ["testing"] }
+zakuro-gpu = { path = "vendor/zakuro/crates/zakuro-gpu", default-features = false, features = ["vulkan"] }
+log = "0.4"
+thiserror = "2"
+bitflags = { version = "2", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+rayon = "1"
+memmap2 = "0.9"
+bytemuck = { version = "1", features = ["derive"] }
+parking_lot = "0.12"
 serde_json = "1.0"
 libc = "0.2"
 

@@ -1,0 +1,29 @@
+# CodexAstraUlt: Selected compiler sources are pinned in UPSTREAM.json. Retain
+# upstream package metadata and one shared ABI identity, without a second ABI copy.
+[package]
+name = "recomp3ds"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+description = "Static recompilation toolkit for the Nintendo 3DS"
+
+[[bin]]
+name = "3dsrecomp"
+path = "src/main.rs"
+
+[workspace]
+
+[features]
+host = ["recomp-abi/load"]
+verify = ["host", "dep:zakuro-cpu"]
+
+[dependencies]
+recomp-abi = { git = "https://github.com/fearkov/3dsrecomp", rev = "c3f21f94ba50d688025febc8974ff348d471b587", default-features = false }
+zakuro-cpu = { git = "https://github.com/fearkov/zakuro", rev = "412900a5a020301da15c1cc382585e05a489a535", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[profile.release]
+debug = 1

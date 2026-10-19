@@ -9,6 +9,8 @@
 
 extern char *droidds_probe_run(const char *library_directory);
 extern void droidds_probe_free(char *report);
+/* CodexAstraUlt: The runtime uses the same owning Rust allocator/free contract. */
+extern char *droidds_runtime_run(const char *library_directory, const char *scratch_directory);
 
 /* CodexAstraUlt: Error messages here are ASCII; report text is returned as bytes,
  * never passed through JNI's incompatible modified-UTF-8 NewStringUTF API. */
@@ -18,6 +20,31 @@ static void throw_state(JNIEnv *env, const char *message) {
         (*env)->ThrowNew(env, error_class, message);
         (*env)->DeleteLocalRef(env, error_class);
     }
+}
+
+/* CodexAstraUlt: Centralize bounded UTF-8 copying and matching Rust release for
+ * both CPU and runtime results, including all JNI allocation failures. */
+static jbyteArray copy_owned_report(JNIEnv *env, char *report, size_t report_limit) {
+    if (report == NULL) {
+        throw_state(env, "Native probe returned no report");
+        return NULL;
+    }
+
+    /* CodexAstraUlt: Match every non-null Rust allocation with its Rust release,
+     * including invalid reports or JNI allocation failures. Bound persisted evidence. */
+    const size_t report_length = strnlen(report, report_limit + 1U);
+    if (report_length == 0U || report_length > report_limit) {
+        droidds_probe_free(report);
+        throw_state(env, "Native probe report is empty or exceeds its byte limit");
+        return NULL;
+    }
+    jbyteArray result = (*env)->NewByteArray(env, (jsize)report_length);
+    if (result != NULL) {
+        (*env)->SetByteArrayRegion(env, result, 0, (jsize)report_length,
+                                  (const jbyte *)report);
+    }
+    droidds_probe_free(report);
+    return result;
 }
 
 JNIEXPORT jbyteArray JNICALL
@@ -37,27 +64,7 @@ Java_org_droidds_probe_ProbeController_nativeRun(JNIEnv *env, jclass controller,
     }
     char *report = droidds_probe_run(directory);
     (*env)->ReleaseStringUTFChars(env, library_directory, directory);
-    if (report == NULL) {
-        throw_state(env, "Native probe returned no report");
-        return NULL;
-    }
-
-    /* CodexAstraUlt: Match every non-null Rust allocation with its Rust release,
-     * including invalid reports or JNI allocation failures. Bound persisted evidence. */
-    const size_t report_limit = 1024U * 1024U;
-    const size_t report_length = strnlen(report, report_limit + 1U);
-    if (report_length == 0U || report_length > report_limit) {
-        droidds_probe_free(report);
-        throw_state(env, "Native probe report is empty or exceeds 1 MiB");
-        return NULL;
-    }
-    jbyteArray result = (*env)->NewByteArray(env, (jsize)report_length);
-    if (result != NULL) {
-        (*env)->SetByteArrayRegion(env, result, 0, (jsize)report_length,
-                                  (const jbyte *)report);
-    }
-    droidds_probe_free(report);
-    return result;
+    return copy_owned_report(env, report, 1024U * 1024U);
 }
 
 /* CodexAstraUlt: Keep Vulkan discovery/drawing on the same Java worker. Its C
@@ -86,4 +93,28 @@ Java_org_droidds_probe_ProbeController_nativeVulkan(JNIEnv *env, jclass controll
     }
     free(report);
     return result;
+}
+
+/* CodexAstraUlt: Use a dedicated app-private scratch path for original fixture
+ * files. Both borrowed paths are released before copying the owned JSON result. */
+JNIEXPORT jbyteArray JNICALL
+Java_org_droidds_probe_ProbeController_nativeRuntime(JNIEnv *env, jclass controller,
+                                                    jstring library_directory,
+                                                    jstring scratch_directory) {
+    (void)controller;
+    if (library_directory == NULL || scratch_directory == NULL) {
+        throw_state(env, "Android did not provide runtime paths");
+        return NULL;
+    }
+    const char *libraries = (*env)->GetStringUTFChars(env, library_directory, NULL);
+    if (libraries == NULL) return NULL;
+    const char *scratch = (*env)->GetStringUTFChars(env, scratch_directory, NULL);
+    if (scratch == NULL) {
+        (*env)->ReleaseStringUTFChars(env, library_directory, libraries);
+        return NULL;
+    }
+    char *report = droidds_runtime_run(libraries, scratch);
+    (*env)->ReleaseStringUTFChars(env, scratch_directory, scratch);
+    (*env)->ReleaseStringUTFChars(env, library_directory, libraries);
+    return copy_owned_report(env, report, 256U * 1024U);
 }

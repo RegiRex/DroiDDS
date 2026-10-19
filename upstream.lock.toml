@@ -19,3 +19,17 @@ packages = ["zakuro-cpu", "zakuro-common"]
 # upstream verifier with a different historical CPU pin and permissive oracle.
 upstream_verify_feature = false
 oracle = "strict-synthetic-known-output"
+
+# CodexAstraUlt: Reviewable runtime patches live in DroidDS, never Cargo's cache.
+[vendored_runtime]
+repository = "https://github.com/fearkov/zakuro"
+revision = "412900a5a020301da15c1cc382585e05a489a535"
+directory = "vendor/zakuro"
+packages = ["zakuro-core", "zakuro-fs", "zakuro-gpu"]
+
+# CodexAstraUlt: Correct compiler block boundaries without changing the pinned ABI.
+[vendored_recompiler]
+repository = "https://github.com/fearkov/3dsrecomp"
+revision = "c3f21f94ba50d688025febc8974ff348d471b587"
+directory = "vendor/3dsrecomp"
+packages = ["recomp3ds"]

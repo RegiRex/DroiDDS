@@ -85,12 +85,69 @@ def validate_graph(metadata: dict, pins: dict) -> dict:
             package = matches[0]
             source = package.get("source") or ""
             prefix = "git+" + expected["repository"] + "?rev=" + expected["revision"]
-            if source != prefix + "#" + expected["revision"]:
+            # CodexAstraUlt: Keep the ABI pinned while admitting only our reviewed
+            # compiler copy, required to fix conditional-branch budget accounting.
+            compiler = pins.get("vendored_recompiler") if name == "recomp3ds" else None
+            if compiler:
+                if (compiler.get("repository") != expected["repository"]
+                        or compiler.get("revision") != expected["revision"]
+                        or compiler.get("directory") != "vendor/3dsrecomp"
+                        or compiler.get("packages") != ["recomp3ds"]):
+                    raise ValueError("Unsupported vendored compiler provenance")
+                directory = ROOT / compiler["directory"]
+                provenance = json.loads((directory / "UPSTREAM.json").read_text())
+                if (provenance.get("schema") != 1
+                        or provenance.get("repository") != compiler["repository"]
+                        or provenance.get("revision") != compiler["revision"]
+                        or not isinstance(provenance.get("files"), dict)
+                        or len(provenance["files"]) < 10):
+                    raise ValueError("Vendored compiler original-source inventory changed")
+                if (package.get("source") is not None or package.get("version") != "0.1.0"
+                        or package.get("license") != "MIT"
+                        or Path(package.get("manifest_path", "")).resolve()
+                        != (directory / "Cargo.toml").resolve()):
+                    raise ValueError("Changed vendored compiler identity")
+                source = "vendored:vendor/3dsrecomp/Cargo.toml"
+            elif source != prefix + "#" + expected["revision"]:
                 raise ValueError(f"Source pin mismatch for {name}: {source}")
             if name == "recomp3ds" and "verify" in nodes[package["id"]]["features"]:
                 raise ValueError("The upstream permissive verifier must not be enabled")
             selected[name] = {"source": source, "version": package["version"]}
-    if any(packages[i]["name"] in ("zakuro", "zakuro-gpu", "zakuro-core") for i in active):
+    # CodexAstraUlt: Permit only the named local runtime integration, retaining
+    # its original source identity and explicit no-desktop/no-CPU-shader-JIT policy.
+    vendor = pins.get("vendored_runtime")
+    allowed = set()
+    if vendor:
+        if (vendor.get("repository") != pins["runtime"]["repository"]
+                or vendor.get("revision") != pins["runtime"]["revision"]
+                or vendor.get("directory") != "vendor/zakuro"
+                or vendor.get("packages") != ["zakuro-core", "zakuro-fs", "zakuro-gpu"]):
+            raise ValueError("Unsupported vendored runtime provenance")
+        directory = ROOT / vendor["directory"]
+        provenance = json.loads((directory / "UPSTREAM.json").read_text())
+        if (provenance.get("schema") != 1 or provenance.get("repository") != vendor["repository"]
+                or provenance.get("revision") != vendor["revision"]
+                or not isinstance(provenance.get("files"), dict)
+                or len(provenance["files"]) < 100):
+            raise ValueError("Vendored runtime original-source inventory is missing or changed")
+        for name in vendor["packages"]:
+            matches = [packages[i] for i in active if packages[i]["name"] == name]
+            if len(matches) != 1:
+                raise ValueError(f"Expected one active vendored {name}")
+            package = matches[0]
+            expected = directory / "crates" / name / "Cargo.toml"
+            if (package.get("source") is not None or package.get("version") != "0.2.27"
+                    or Path(package.get("manifest_path", "")).resolve() != expected.resolve()
+                    or package.get("license") != "MIT"):
+                raise ValueError(f"Changed vendored runtime identity: {name}")
+            features = set(nodes[package["id"]]["features"])
+            if name == "zakuro-gpu" and ("vulkan" not in features or features & {"jit", "opengl"}):
+                raise ValueError("Runtime GPU must use Vulkan and the qualified PICA interpreter")
+            selected[name] = {"source": "vendored:" + str(expected.relative_to(ROOT)),
+                              "upstream_revision": vendor["revision"], "version": "0.2.27"}
+            allowed.add(name)
+    if any(packages[i]["name"] in {"zakuro", "zakuro-gpu", "zakuro-core", "zakuro-fs"} - allowed
+           for i in active):
         raise ValueError("The CPU foundation unexpectedly includes frontend/GPU/core crates")
     return selected
 
@@ -160,8 +217,20 @@ def snapshot() -> dict:
     paths = [ROOT / name for name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml",
                                      "upstream.lock.toml")]
     paths.extend(sorted((ROOT / "tools").rglob("*.py")))
+    # CodexAstraUlt: Reviewed notice inventories and supplemental upstream license
+    # texts are artifact inputs even though they are not executable Python.
+    notice_inventory = ROOT / "tools/android_registry_notices.json"
+    if notice_inventory.exists():
+        paths.append(notice_inventory)
+    paths.extend(sorted(p for p in (ROOT / "tools/notices").rglob("*") if p.is_file()))
     paths.extend(sorted((ROOT / "crates").rglob("*.rs")))
     paths.extend(sorted((ROOT / "crates").rglob("Cargo.toml")))
+    # CodexAstraUlt: Imported shader binaries and all patched runtime sources
+    # participate in the build snapshot; an upstream pin alone cannot bind edits.
+    vendor = ROOT / "vendor"
+    if vendor.exists():
+        paths.extend(sorted(p for p in vendor.rglob("*")
+                            if p.is_file() and "target" not in p.relative_to(vendor).parts))
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in paths}
 
@@ -227,8 +296,8 @@ def main() -> int:
                                            "-s", "tools/tests", "-v"], out, evidence["steps"])
         if not re.search(r"Ran [1-9]\d* tests?", proof):
             raise RuntimeError("Runner tests did not execute")
-        run_logged("format", [cargo, "fmt", "--all", "--", "--check"], out, evidence["steps"])
-        run_logged("clippy", [cargo, "clippy", "--locked", "--workspace", "--all-targets",
+        run_logged("format", [cargo, "fmt", "-p", "droidds-foundation", "-p", "droidds-android-probe", "-p", "droidds-runtime-probe", "--", "--check"], out, evidence["steps"])
+        run_logged("clippy", [cargo, "clippy", "--locked", "-p", "droidds-foundation", "-p", "droidds-android-probe", "-p", "droidds-runtime-probe", "--all-targets", "--no-deps",
                              "-j", str(args.jobs), "--", "-D", "warnings"], out, evidence["steps"])
         # CodexAstraUlt: Include the Android bridge's host-executable FFI tests;
         # these validate ownership/error paths, never actual Android execution.

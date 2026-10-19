@@ -3,7 +3,7 @@
 [package]
 name = "droidds-android-probe"
 # CodexAstraUlt: Keep the CPU report version aligned with its Vulkan-capable shell.
-version = "0.0.4"
+version = "0.0.5"
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
@@ -13,6 +13,8 @@ description = "DroidDS packaged synthetic CPU loader probe"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+# CodexAstraUlt: Run the original guest through actual loader/services/PICA.
+droidds-runtime-probe = { path = "../droidds-runtime-probe" }
 droidds-foundation = { path = "../droidds-foundation", default-features = false }
 recomp-abi.workspace = true
 serde_json.workspace = true

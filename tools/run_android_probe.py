@@ -22,9 +22,9 @@ import zipfile
 
 PACKAGE = "org.droidds.probe"
 REPORT_PATH = "files/latest-probe.json"
-# CodexAstraUlt: Bound the original CPU report plus the new native Vulkan report
-# and Android shell metadata without permitting an unbounded device read.
-MAX_REPORT_BYTES = 1024 * 1024 + 64 * 1024 + 16 * 1024
+# CodexAstraUlt: Keep the CPU, Vulkan, integrated runtime and Android shell
+# reports within their separate producer caps when retrieving one combined file.
+MAX_REPORT_BYTES = 1024 * 1024 + 64 * 1024 + 256 * 1024 + 16 * 1024
 CASES = {
     "arm_integer_memory": (11, 0, 0, 11),
     "thumb_integer_memory": (7, 0, 0, 7),
@@ -56,7 +56,9 @@ CASES_004 = {
 
 def cases_for_version(version: str) -> dict[str, dict[str, int]]:
     """CodexAstraUlt: Future APKs cannot silently inherit historical proof requirements."""
-    if version == "0.0.4":
+    # CodexAstraUlt: Runtime integration retains the complete measured CPU suite;
+    # its additional proof is required separately instead of replacing CPU gates.
+    if version in ("0.0.4", "0.0.5"):
         return {name: dict(counters) for name, counters in CASES_004.items()}
     if version in ("0.0.2", "0.0.3"):
         return {name: case_counters(*counts) for name, counts in CASES.items()}
@@ -219,6 +221,186 @@ def validate_code_safety(report: object) -> None:
         raise ValueError("Code safety proof must state its bounded fixture limitations")
 
 
+def validate_runtime_hardware(report: object) -> None:
+    """CodexAstraUlt: A working software fallback cannot impersonate measured GPU work."""
+    if not isinstance(report, dict):
+        raise ValueError("Missing runtime hardware diagnostics")
+    required = {"draw_errors": 0, "software_raster_fallbacks": 0, "compiler_failures": 0,
+                "resource_limit_events": 0, "max_compiler_outstanding": 16,
+                "max_translations": 256, "max_shader_bytes": 8388608,
+                "max_specialization_requests": 512, "max_pipelines": 512}
+    for key, expected in required.items():
+        if type(report.get(key)) is not int or report[key] != expected:
+            raise ValueError(f"Missing or incorrect runtime hardware proof: {key}")
+    for key in ("recorded_draws", "submissions", "retained_pipelines"):
+        if not integer(report.get(key), 1):
+            raise ValueError(f"Runtime hardware was not exercised: {key}")
+    for key in ("compiler_outstanding", "compiler_peak", "compiler_deferred",
+                "retained_translations", "retained_modules", "retained_pipelines",
+                "retained_shader_bytes", "specialization_requests"):
+        if not integer(report.get(key)):
+            raise ValueError(f"Missing or invalid runtime resource accounting: {key}")
+    for key, limit in (("compiler_outstanding", "max_compiler_outstanding"),
+                       ("compiler_peak", "max_compiler_outstanding"),
+                       ("compiler_outstanding", "compiler_peak"),
+                       ("retained_translations", "max_translations"),
+                       ("retained_modules", "retained_translations"),
+                       ("retained_pipelines", "max_pipelines"),
+                       ("retained_shader_bytes", "max_shader_bytes"),
+                       ("specialization_requests", "max_specialization_requests")):
+        if report[key] > report[limit]:
+            raise ValueError(f"Runtime resource accounting exceeds its bound: {key}/{limit}")
+    # CodexAstraUlt: Vulkan rasterization can retain CPU vertex shading on this
+    # runtime. Record that route without pretending it is GPU shader execution.
+    for key in ("dynamic_blend", "dynamic_logic_op", "vertex_shading_on_gpu"):
+        if type(report.get(key)) is not bool:
+            raise ValueError(f"Missing measured runtime optional capability: {key}")
+    if "last_error" not in report or report["last_error"] is not None:
+        raise ValueError("Runtime hardware passed report must have no execution error")
+
+
+def validate_runtime_memory_layouts(records: object) -> None:
+    """CodexAstraUlt: Compare executed loader/allocator results with independent literals."""
+    # CodexAstraUlt: These expected values do not call the production resolver;
+    # otherwise the same mode-selection defect could generate and approve proof.
+    expected_layouts = {
+        "old3ds_64": (False, 0, 0, [64, 44, 20], 64, 0, 0),
+        "old3ds_96": (False, 2, 0, [96, 12, 20], 96, 2, 0),
+        "new3ds_legacy64": (True, 0, 0, [124, 100, 32], 64, 6, 3),
+        "new3ds_124": (True, 0, 1, [124, 100, 32], 124, 6, 3),
+        "new3ds_178": (True, 0, 2, [178, 46, 32], 178, 7, 3),
+    }
+    if not isinstance(records, list) or len(records) != len(expected_layouts):
+        raise ValueError("Missing runtime memory layout results")
+    names = [record.get("name") if isinstance(record, dict) else None for record in records]
+    if any(not isinstance(name, str) for name in names) or set(names) != set(expected_layouts):
+        raise ValueError("Missing, duplicate or unknown runtime memory layouts")
+    for record in records:
+        new3ds, old_mode, new_mode, regions, limit, selector, model = expected_layouts[record["name"]]
+        required = {"status": "passed", "new3ds": new3ds, "old_mode": old_mode,
+                    "new_mode": new_mode, "application_limit_bytes": limit * 1048576,
+                    "guest_model": model, "allocation_boundary_rejected": True,
+                    "allocation_free_restored": True, "base_allocation_passed": True,
+                    "guest_exited": True, "steps": 606}
+        for key, expected in required.items():
+            if type(record.get(key)) is not type(expected) or record[key] != expected:
+                raise ValueError(f"Missing or incorrect runtime memory proof: {record['name']}/{key}")
+        expected_arrays = {
+            "physical_regions_bytes": [value * 1048576 for value in regions],
+            "config_words": [selector, limit * 1048576, regions[1] * 1048576, regions[2] * 1048576],
+        }
+        for key, expected in expected_arrays.items():
+            actual = record.get(key)
+            if (not isinstance(actual, list) or len(actual) != len(expected) or
+                    any(type(value) is not int for value in actual) or actual != expected):
+                raise ValueError(f"Missing or incorrect runtime memory proof: {record['name']}/{key}")
+
+
+def validate_runtime_code_safety(report: object) -> None:
+    """CodexAstraUlt: Require guards in the integrated guest, not only the CPU fixture suite."""
+    if (not isinstance(report, dict) or report.get("status") != "passed" or
+            report.get("policy") != "immutable_single_thread_fixture"):
+        raise ValueError("Missing or incorrect runtime code safety policy")
+    expected_controls = {
+        "stale_origin_rejected": {"native_instructions": 0},
+        "changed_code_before_dispatch_rejected": {
+            "native_instructions": 0, "interpreted_instructions": 0},
+        "executable_guest_store_rejected": {"rejected_writes": 1, "code_unchanged": True},
+    }
+    controls = report.get("controls")
+    if not isinstance(controls, list) or len(controls) != len(expected_controls):
+        raise ValueError("Missing runtime code safety controls")
+    names = [control.get("name") if isinstance(control, dict) else None for control in controls]
+    if any(not isinstance(name, str) for name in names) or set(names) != set(expected_controls):
+        raise ValueError("Missing, duplicate or unknown runtime code safety controls")
+    for control in controls:
+        name = control["name"]
+        if control.get("status") != "passed":
+            raise ValueError(f"Runtime code safety control did not pass: {name}")
+        for key, expected in expected_controls[name].items():
+            if type(control.get(key)) is not type(expected) or control[key] != expected:
+                raise ValueError(f"Missing or incorrect runtime code safety proof: {name}/{key}")
+        if name == "executable_guest_store_rejected":
+            if not integer(control.get("native_instructions"), 1):
+                raise ValueError("Runtime executable-store control did not execute native code")
+        elif not isinstance(control.get("rejection"), str) or not control["rejection"].strip():
+            raise ValueError(f"Runtime code safety control did not prove rejection: {name}")
+
+
+def validate_runtime_report(report: object) -> None:
+    """CodexAstraUlt: Shared host/device gate requires real loader, HLE and PICA execution."""
+    if not isinstance(report, dict):
+        raise ValueError("Missing runtime probe report")
+    required = {"schema": 1, "kind": "droidds-runtime-probe",
+                "contract": "zakuro-412900a-runtime-v1", "status": "passed",
+                "fixture": "droidds-original-pica-ipc-v1",
+                "native_library": "libdroidds_fixture_runtime.so",
+                "pixel_comparisons": 2, "pixel_mutation_controls": 1}
+    for key, expected in required.items():
+        if type(report.get(key)) is not type(expected) or report[key] != expected:
+            raise ValueError(f"Missing or incorrect runtime proof: {key}")
+    if "error" not in report or report["error"] is not None:
+        raise ValueError("Runtime passed report must have no execution error")
+    cases = report.get("cases")
+    expected_names = {"interpreter_software", "native_software", "native_vulkan"}
+    if not isinstance(cases, list) or len(cases) != len(expected_names):
+        raise ValueError("Missing runtime execution cases")
+    names = [case.get("name") if isinstance(case, dict) else None for case in cases]
+    if any(not isinstance(name, str) for name in names) or set(names) != expected_names:
+        raise ValueError("Missing, duplicate or unknown runtime execution cases")
+    for case in cases:
+        required = {"status": "passed", "guest_exited": True, "checkpoint": 0x44534435,
+                    "guest_model": 0,
+                    "fallback_checkpoint": 1, "command_lists": 1, "draw_calls": 2,
+                    "vertices_drawn": 6, "pixels_checked": 64, "mismatched_pixels": 0,
+                    "svc_unimplemented": 0, "service_unimplemented": 0,
+                    "memory_faults": 0, "shader_program_words": 3}
+        for key, expected in required.items():
+            if type(case.get(key)) is not type(expected) or case[key] != expected:
+                raise ValueError(f"Missing or incorrect runtime case proof: {case['name']}/{key}")
+        # CodexAstraUlt: Preserve detailed failing cases for diagnosis, but their
+        # error or sampled pixel differences can never coexist with qualification.
+        if "error" not in case or case["error"] is not None:
+            raise ValueError(f"Runtime case passed with missing or present execution error: {case['name']}")
+        if type(case.get("first_pixel_mismatches")) is not list or case["first_pixel_mismatches"]:
+            raise ValueError(f"Runtime case passed without an empty pixel mismatch list: {case['name']}")
+        # CodexAstraUlt: The independently counted original program executes 606
+        # instructions. Its missing helper takes two outer interpreter steps;
+        # no ABI callback fallback occurs. Exact totals reject budget overcharge.
+        native = case["name"] != "interpreter_software"
+        route = {"steps": 10 if native else 606, "cycles": 606,
+                 "interpreted_instructions": 2 if native else 606,
+                 "recompiled_instructions": 604 if native else 0,
+                 "native_fallback_instructions": 0}
+        for key, expected in route.items():
+            if type(case.get(key)) is not int or case[key] != expected:
+                raise ValueError(f"Missing or incorrect runtime route proof: {case['name']}/{key}")
+        services = case.get("services_seen")
+        if (not isinstance(services, list) or len(services) != 2 or
+                any(not isinstance(service, str) for service in services) or
+                set(services) != {"cfg:u", "gsp::Gpu"}):
+            raise ValueError(f"Runtime guest did not obtain its required services: {case['name']}")
+        if case["name"] == "native_vulkan":
+            validate_runtime_hardware(case.get("hardware"))
+            # CodexAstraUlt: This original fixture has exactly two PICA draws,
+            # with twin rendering disabled; both must reach vkCmdDrawIndexed.
+            if case["hardware"]["recorded_draws"] != 2:
+                raise ValueError("Runtime hardware did not record both fixture draws")
+            device = case.get("hardware_device")
+            if not isinstance(device, str) or not device.strip() or len(device.encode("utf-8")) >= 1024:
+                raise ValueError("Missing or invalid runtime hardware device identity")
+        else:
+            for key in ("hardware", "hardware_device"):
+                if key not in case or case[key] is not None:
+                    raise ValueError(f"Runtime software case has unexpected hardware evidence: {case['name']}")
+    validate_runtime_code_safety(report.get("code_safety"))
+    validate_runtime_memory_layouts(report.get("memory_layouts"))
+    limitations = report.get("limitations")
+    if (not isinstance(limitations, list) or not limitations or
+            any(not isinstance(value, str) or not value.strip() for value in limitations)):
+        raise ValueError("Runtime proof must state its bounded fixture limitations")
+
+
 def validate_report(report: object, request_id: str, manifest: dict) -> None:
     """CodexAstraUlt: Reject host/mock, stale, incomplete and unexercised execution proof."""
     if not isinstance(report, dict):
@@ -255,7 +437,7 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
     # CodexAstraUlt: Preserve historical CPU-only evidence without letting future
     # versions silently inherit an obsolete proof contract or omit the GPU run.
     expected_cases = cases_for_version(report["version"])
-    if report["version"] in ("0.0.3", "0.0.4"):
+    if report["version"] in ("0.0.3", "0.0.4", "0.0.5"):
         if report.get("cpu_status") != "passed":
             raise ValueError("Android CPU status did not pass")
         for key in ("manufacturer", "model", "android_release"):
@@ -266,7 +448,7 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
         if not integer(shell.get("elapsed_realtime_ms")):
             raise ValueError("Missing Android elapsed execution duration")
         graphics = report.get("graphics_probe")
-        graphics_schema = 2 if report["version"] == "0.0.4" else 1
+        graphics_schema = 1 if report["version"] == "0.0.3" else 2
         if (not isinstance(graphics, dict) or type(graphics.get("schema")) is not int or
                 graphics["schema"] != graphics_schema):
             raise ValueError("Vulkan report schema differs from the Android probe version")
@@ -289,8 +471,12 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
         for key in ("strict_expected_match", "strict_interpreter_match", "route_counts_match"):
             if case.get(key) is not True:
                 raise ValueError(f"Missing strict CPU proof: {case['name']}/{key}")
-    if report["version"] == "0.0.4":
+    if report["version"] in ("0.0.4", "0.0.5"):
         validate_code_safety(report.get("code_safety"))
+    # CodexAstraUlt: Earlier CPU/backend probes cannot qualify loader/HLE/PICA
+    # integration; the current build must supply its own completed runtime run.
+    if report["version"] == "0.0.5":
+        validate_runtime_report(report.get("runtime_probe"))
     controls = report.get("negative_controls")
     if not isinstance(controls, list) or len(controls) != len(CONTROLS):
         raise ValueError("Missing negative controls")

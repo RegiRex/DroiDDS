@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CodexAstraUlt: Build a local Android CPU probe and audit its packaged binaries."""
+"""CodexAstraUlt: Build the Android CPU/runtime probe and audit its packaged binaries."""
 
 from __future__ import annotations
 
@@ -20,6 +20,8 @@ import zipfile
 
 from build_foundation import ROOT, interrupted, snapshot, terminate_group, validate_graph
 from build_vulkan_probe import generate_shaders
+from validate_runtime_shaders import validate_runtime_shaders
+from build_runtime_probe import generated_sources
 from run_android_probe import apk_manifest, cases_for_version
 
 NDK_VERSION = "27.3.13750724"
@@ -28,7 +30,60 @@ TARGET = "aarch64-linux-android"
 PACKAGE = "org.droidds.probe"
 # CodexAstraUlt: Build exactly the current report contract's fixture inventory;
 # historical report validation retains its separate four-case requirements.
-CASES = set(cases_for_version("0.0.4"))
+CASES = set(cases_for_version("0.0.5"))
+RUNTIME_LIBRARY = "libdroidds_fixture_runtime.so"
+PACKAGED_LIBRARIES = {"libdroidds_android_probe.so", "libdroidds_probe_jni.so", RUNTIME_LIBRARY} | {
+    "libdds_fixture_" + name + ".so" for name in CASES}
+
+
+def validate_target_dependencies(tree: str) -> dict:
+    """CodexAstraUlt: Require the selected runtime without shipping host tooling/JIT."""
+    records = {}
+    for line in tree.splitlines():
+        match = re.fullmatch(r"([\w-]+) v(\S+)(.*)", line)
+        if match:
+            records.setdefault(match[1], set()).add((match[2], match[3].removesuffix(" (*)")))
+    required = {"droidds-android-probe", "droidds-foundation", "droidds-runtime-probe",
+                "recomp-abi", "zakuro-common", "zakuro-cpu", "zakuro-core", "zakuro-fs",
+                "zakuro-gpu", "ash", "naga"}
+    missing = required - records.keys()
+    forbidden = {name for name in records if name in {
+        "zakuro", "recomp3ds", "glow", "winit", "eframe", "egui", "sdl2", "sdl3"
+    } or name.startswith("cranelift-")}
+    if missing or forbidden:
+        raise ValueError(f"Android runtime graph mismatch: missing={sorted(missing)}, "
+                         f"forbidden={sorted(forbidden)}")
+    for name in ("zakuro-core", "zakuro-fs", "zakuro-gpu"):
+        expected = ("0.2.27", f" ({ROOT / 'vendor/zakuro/crates' / name})")
+        if records[name] != {expected}:
+            raise ValueError(f"Android runtime uses an unreviewed vendored component: {name}")
+    return {"packages": sorted(records), "runtime": "vendored-zakuro-412900a",
+            "desktop_frontend": False, "host_compiler": False, "pica_cpu_jit": False}
+
+
+def runtime_fixture_sources(manifest: dict, directory: Path) -> tuple[list[Path], dict]:
+    """CodexAstraUlt: Reuse the host emission gate and bind all generated inputs."""
+    sources = generated_sources(manifest, directory)
+    if manifest["library"] != RUNTIME_LIBRARY:
+        raise ValueError("Runtime fixture library differs from the Android inventory")
+    artifacts = {}
+    for path in sorted(directory.iterdir()):
+        if (not path.is_file() or path.is_symlink() or path.resolve().parent != directory.resolve()
+                or path.suffix not in {".c", ".h", ".cxi"}):
+            raise ValueError("Runtime producer emitted an unexpected artifact")
+        artifacts[path.name] = sha256(path)
+    emitted_c = {name for name in artifacts if name.endswith(".c")}
+    if emitted_c != {path.name for path in sources}:
+        raise ValueError("Runtime manifest does not identify every generated C source")
+    if not any(name.endswith(".h") for name in artifacts):
+        raise ValueError("Runtime producer did not emit its ABI support header")
+    return sources, {"manifest": manifest, "inputs_sha256": artifacts}
+
+
+def validate_packaged_libraries(packaged: set[str]) -> None:
+    """CodexAstraUlt: A successful build includes exactly all eleven known libraries."""
+    if packaged != PACKAGED_LIBRARIES:
+        raise ValueError("Android package does not contain exactly the CPU/runtime fixture inventory")
 
 
 def stage_manifest(source: Path, destination: Path, prerelease: bool) -> None:
@@ -187,9 +242,7 @@ def main() -> int:
                                          "apk_entry": "assets/THIRD_PARTY_NOTICES.txt"}
         tree = run("android-dependencies", ["cargo", "tree", "--locked", "-p",
                    "droidds-android-probe", "--target", TARGET, "-e", "normal,build", "--prefix", "none"])
-        if any(re.search(rf"^{name}\s", tree, re.M) for name in
-               ("recomp3ds", "zakuro", "zakuro-core", "zakuro-gpu")):
-            raise RuntimeError("Android probe unexpectedly includes host compiler/full runtime")
+        report["android_dependencies"] = validate_target_dependencies(tree)
         run("generator-build", ["cargo", "build", "--locked", "--release", "-p",
                                 "droidds-foundation", "--bin", "droidds-foundation", "-j", args.jobs])
         run("emit-fixtures", [ROOT / "target/release/droidds-foundation", "--emit-sources", out / "generated"])
@@ -217,21 +270,56 @@ def main() -> int:
             run("compile-" + case["name"], [cc, *c_flags, *link_flags,
                 "-Wl,-soname," + expected_name, "-I", folder, *sources,
                 "-o", libs / expected_name, "-lm"])
+        # CodexAstraUlt: The producer is a host-only program. Its original guest
+        # sources are compiled for Android using the same reviewed ABI semantics;
+        # no compiler, executable producer or NCCH input is copied into the APK.
+        run("runtime-generator-build", ["cargo", "build", "--locked", "--release", "-p",
+            "droidds-runtime-probe", "--features", "producer", "--bin", "droidds-runtime-probe",
+            "-j", args.jobs], timeout=1800)
+        runtime_generated = out / "runtime-generated"
+        runtime_manifest = json.loads(run("emit-runtime-fixture", [
+            ROOT / "target/release/droidds-runtime-probe", "emit", "--output", runtime_generated],
+            json_stdout=True))
+        runtime_sources, report["runtime_fixture"] = runtime_fixture_sources(runtime_manifest, runtime_generated)
+        run("compile-runtime-fixture", [cc, *c_flags, *link_flags,
+            "-Wl,-soname," + RUNTIME_LIBRARY, "-I", runtime_generated, *runtime_sources,
+            "-o", libs / RUNTIME_LIBRARY, "-lm"])
+        report["runtime_fixture"]["library_sha256"] = sha256(libs / RUNTIME_LIBRARY)
         cross_env = {"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER": str(cc),
                      "CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS":
                      "-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"}
         run("rust-android", ["cargo", "build", "--locked", "--release", "--target", TARGET,
-                             "-p", "droidds-android-probe", "-j", args.jobs], extra_env=cross_env)
+                             "-p", "droidds-android-probe", "-j", args.jobs],
+            timeout=1800, extra_env=cross_env)
         shutil.copy2(ROOT / "target" / TARGET / "release/libdroidds_android_probe.so", libs)
+        # CodexAstraUlt: Keep full debug information in the local build for crash
+        # analysis, but remove non-runtime DWARF from the installable library.
+        # This preserves code, dynamic exports and unwind data while avoiding a
+        # roughly 43 MiB diagnostic-symbol payload in this runtime APK.
+        symbols = out / "symbols"
+        symbols.mkdir()
+        runtime_library = libs / "libdroidds_android_probe.so"
+        shutil.copy2(runtime_library, symbols)
+        report["runtime_symbols"] = {"unstripped_sha256": sha256(runtime_library),
+                                     "unstripped_bytes": runtime_library.stat().st_size,
+                                     "method": "llvm-strip --strip-debug"}
+        run("strip-runtime-debug", [llvm / "llvm-strip", "--strip-debug", runtime_library])
+        report["runtime_symbols"].update(shipped_sha256=sha256(runtime_library),
+                                          shipped_bytes=runtime_library.stat().st_size)
         # CodexAstraUlt: Compile and validate original shaders offline. The APK
-        # creates real Vulkan pipelines but carries no runtime shader compiler.
+        # creates real Vulkan pipelines. The integrated runtime separately uses
+        # Naga to translate guest vertex shaders; these platform fixtures do not.
         report["vulkan_shaders"] = generate_shaders(ndk, out / "shaders", run)
+        # CodexAstraUlt: Audit every exact shipped runtime SPIR-V asset and compile
+        # its reviewed source variant independently before APK packaging.
+        report["runtime_shaders"] = validate_runtime_shaders(ndk, out / "runtime-shaders", run)
         run("jni-bridge", [cc, *c_flags, *link_flags, "-std=c11", "-Wall", "-Wextra", "-Werror",
             "-Wl,-soname,libdroidds_probe_jni.so", ROOT / "android/probe/jni/probe_jni.c",
             ROOT / "android/probe/jni/vulkan_probe.c", ROOT / "android/probe/jni/vulkan_renderer.c",
             "-I", out / "shaders",
             "-L", libs, "-ldroidds_android_probe", "-lvulkan", "-o", libs / "libdroidds_probe_jni.so"])
         packaged = {path.name for path in libs.glob("*.so")}
+        validate_packaged_libraries(packaged)
         report["elf"] = {}
         for path in sorted(libs.glob("*.so")):
             details = run("elf-" + path.stem, [llvm / "llvm-readelf", "-W", "-h", "-l", "-d", path])

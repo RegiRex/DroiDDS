@@ -63,7 +63,11 @@ final class ProbeController {
 
     private static final int CPU_REPORT_LIMIT = 1024 * 1024;
     private static final int GRAPHICS_REPORT_LIMIT = 64 * 1024;
-    private static final int REPORT_LIMIT = CPU_REPORT_LIMIT + GRAPHICS_REPORT_LIMIT + 16384;
+    // CodexAstraUlt: Bound the independent full-runtime evidence without changing
+    // the one-file report policy or allowing arbitrary native output growth.
+    private static final int RUNTIME_REPORT_LIMIT = 256 * 1024;
+    private static final int REPORT_LIMIT = CPU_REPORT_LIMIT + GRAPHICS_REPORT_LIMIT
+            + RUNTIME_REPORT_LIMIT + 16384;
     private static ProbeController instance;
     private final Context application;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -283,7 +287,35 @@ final class ProbeController {
                 graphics.put("error", errorDetails(failure));
             }
             report.put("graphics_probe", graphics);
-            // CodexAstraUlt: The old baseline alone cannot satisfy 0.0.4. A
+            // CodexAstraUlt: Preserve completed stages in the same atomic report
+            // before the larger runtime call. Native process death leaves useful
+            // partial evidence with a running status, never a stale success.
+            report.put("status", "running");
+            report.put("android_shell", shell);
+            JSONObject runtimeRunning = new JSONObject();
+            runtimeRunning.put("status", "running");
+            report.put("runtime_probe", runtimeRunning);
+            persist(reportFile, report);
+            // CodexAstraUlt: The real loader/service/PICA fixture has its own
+            // result. Preserve prior CPU/GPU evidence even if its Java/native
+            // boundary fails; only the dedicated cache subdirectory is passed.
+            JSONObject runtime;
+            try {
+                File scratch = new File(application.getCacheDir(), "runtime-probe");
+                runtime = parseReport(nativeRuntime(application.getApplicationInfo().nativeLibraryDir,
+                        scratch.getAbsolutePath()), RUNTIME_REPORT_LIMIT);
+                Object runtimeStatus = runtime.opt("status");
+                if (!(runtimeStatus instanceof String)
+                        || !("passed".equals(runtimeStatus) || "failed".equals(runtimeStatus))) {
+                    throw new IOException("Runtime report has no valid terminal status");
+                }
+            } catch (Exception | LinkageError failure) {
+                runtime = new JSONObject();
+                runtime.put("status", "failed");
+                runtime.put("error", errorDetails(failure));
+            }
+            report.put("runtime_probe", runtime);
+            // CodexAstraUlt: The platform baseline alone cannot satisfy 0.0.5. A
             // missing renderer section stays a failed, exportable diagnostic.
             JSONObject renderer = graphics.optJSONObject("renderer_probe");
             String rendererStatus = renderer == null ? "not reported"
@@ -291,7 +323,8 @@ final class ProbeController {
             boolean passed = "passed".equals(cpuStatus)
                     && "passed".equals(graphics.optString("status"))
                     && graphics.optInt("schema", -1) == 2
-                    && "passed".equals(rendererStatus);
+                    && "passed".equals(rendererStatus)
+                    && "passed".equals(runtime.optString("status"));
             report.put("status", passed ? "passed" : "failed");
             finishShell(shell, startedElapsed);
             report.put("android_shell", shell);
@@ -300,7 +333,8 @@ final class ProbeController {
             // evidence. Show it distinctly while retaining the complete report
             // and requiring actual renderer success for an overall pass.
             String summary = "CPU: " + cpuStatus + " · Vulkan: " + graphics.optString("status")
-                    + " · Renderer checks: " + rendererStatus;
+                    + " · Renderer checks: " + rendererStatus
+                    + " · 3DS runtime: " + runtime.optString("status");
             String outcome = passed ? "Passed — " : "Checks did not pass — ";
             complete(new Snapshot(false, outcome + summary,
                     report.toString(2)), persisted);
@@ -427,8 +461,10 @@ final class ProbeController {
         }
     }
 
-    // CodexAstraUlt: Both synchronous calls run only inside the single worker.
+    // CodexAstraUlt: All three synchronous calls run only inside the single worker.
     // Native code returns bounded UTF-8 bytes; JNI copies and releases buffers.
     private static native byte[] nativeRun(String libraryDirectory);
+    // CodexAstraUlt: Run only the packaged original guest in private scratch space.
+    private static native byte[] nativeRuntime(String libraryDirectory, String scratchDirectory);
     private static native byte[] nativeVulkan();
 }

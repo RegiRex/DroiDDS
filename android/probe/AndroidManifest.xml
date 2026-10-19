@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- CodexAstraUlt: Version 0.0.4 expands CPU/code-safety checks and exercises
-     representative renderer capabilities. Reports use a user-selected document URI;
+<!-- CodexAstraUlt: Version 0.0.5 integrates original guest execution through
+     the actual loader, services and PICA renderer. Reports use a user-selected document URI;
      no network, broad storage or vendor-service permission is required. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.droidds.probe"
-    android:versionCode="4"
-    android:versionName="0.0.4">
+    android:versionCode="5"
+    android:versionName="0.0.5">
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
     <!-- CodexAstraUlt: Extraction makes installer-owned nativeLibraryDir the
          explicit loader input. Debuggable permits adb run-as to read one private report. -->

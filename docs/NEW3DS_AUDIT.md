@@ -3,12 +3,20 @@
 <!-- CodexAstraUlt: Turn the preliminary Xenoblade memory concern into pinned,
 reproducible findings without claiming a title or Android runtime was executed. -->
 
-Reviewed **2026-10-19**. **The selected runtime needs fixes before we can qualify
+Reviewed **2026-10-19**. **The unmodified selected runtime needs fixes before we can qualify
 New 3DS titles.** A synthetic host harness reproduced incorrect New 3DS header
 decoding and demonstrated that selecting expanded physical RAM does not expand
 the application allocation. These are integration blockers, not evidence that
 Xenoblade was run or that a particular game crashed. **0.0.4 does not yet include
 the full loader, HLE kernel or these fixes in its Android APK.**
+
+<!-- CodexAstraUlt: Preserve the original audit as historical evidence while
+pointing to the actual reviewed implementation now present in the .5 candidate. -->
+**Current integration update:** the 0.0.5 candidate implements the parser,
+resolved memory, configuration and commitment corrections below, with real
+loader/kernel regressions. See [0.0.5 integration corrections](#005-integration-corrections).
+Its final combined build/publication and Thor test remain pending; Xenoblade has
+not been run. The original audit still describes the unchanged upstream revision.
 
 The existing New 3DS model selection, 256 MiB physical RAM, model-reporting
 services and extra input service provide useful foundations. We should correct
@@ -205,3 +213,82 @@ None of these findings requires copying Citra/Azahar/Uberhar implementation into
 DroidDS. Retain upstream attribution and inspect licenses if that decision
 changes. A source patch must be pinned, tested and reported as such before a
 future build claims the memory issue is fixed.
+
+## 0.0.5 integration corrections
+
+<!-- CodexAstraUlt: Record implemented changes and actual regressions separately
+from the unchanged historical harness and from unperformed retail/device tests. -->
+
+The maintained source is now under `vendor/zakuro`, with the original revision,
+file hashes and MIT notice retained. Cargo's shared upstream checkout remains
+unchanged. The following corrections are implemented in the 0.0.5 candidate:
+
+| Finding | Actual integration change |
+| --- | --- |
+| N3DS-001 | `ExHeader::parse` reads CPU/L2 from `0x20C` bits 1/0 and New mode from `0x20D` bits 0–3. Old modes retain explicit raw values; unknown modes cannot silently become production mode. |
+| N3DS-002/003 | `MemoryLayout::resolve` determines complete physical regions and a separate application commitment limit before `System` construction. Top-down code/heap and bottom-up linear allocations share that cap. |
+| N3DS-004 | The resolved raw mode and effective application commitment feed the actual configuration mapper directly, without reading the not-yet-installed title or casting enum ordinals. |
+| Redundant initialization | The title loader constructs RAM and its page tables once with the resolved layout, rather than allocating defaults and immediately replacing them. This is not a measured game speedup or leak fix. |
+| New-capacity address safety | Private allocations respect the 128 MiB virtual heap, stack and existing mappings. Old-firmware linear allocations stay inside their 128 MiB window even with 178 MiB physical application capacity; newer firmware uses its separate 256 MiB window. |
+| Restore compatibility | Allocator geometry/quota and page-map preflight run before saved RAM replaces live RAM. Same-size incompatible states are rejected without changing the tested RAM sentinel, mapping, CPU value or commitment accounting. |
+
+The implementation's supported application configurations are:
+
+| Selected model / request | Config mode | Physical Application / System / Base (MiB) | Application commitment/report (MiB) |
+| --- | ---: | --- | ---: |
+| Old mode 0 | 0 | 64 / 44 / 20 | 64 |
+| Old mode 2 | 2 | 96 / 12 / 20 | 96 |
+| Old mode 3 | 3 | 80 / 28 / 20 | 80 |
+| Old mode 4 | 4 | 72 / 36 / 20 | 72 |
+| Old mode 5 | 5 | 32 / 76 / 20 | 32 |
+| New legacy, Old mode 0 | 6 | 124 / 100 / 32 | 64 |
+| New legacy, Old mode 2 | 6 | 124 / 100 / 32 | 96 |
+| New legacy, Old mode 3 | 6 | 124 / 100 / 32 | 80 |
+| New mode 1 | 6 | 124 / 100 / 32 | 124 |
+| New mode 2 | 7 | 178 / 46 / 32 | 178 |
+
+The legacy distinction is deliberate. Independent read-only corroboration comes
+from [Luma3DS PM launch code](https://github.com/LumaTeam/Luma3DS/blob/e2778a45/sysmodules/pm/source/launch.c#L230)
+and its [resource-limit setter](https://github.com/LumaTeam/Luma3DS/blob/e2778a45/sysmodules/pm/source/reslimit.c#L293).
+The setter explicitly places the same limit in the high 32 bits for the kernel's
+`APPMEMALLOC` field. Consequently, a New legacy configuration page's reported
+application/system/base values do not sum to all 256 MiB of physical FCRAM.
+This is implementation-reference corroboration, not a new hardware measurement;
+no Luma/Citra implementation was copied into the Rust changes.
+
+New legacy requests for Old modes 4/5 are explicitly unsupported: the inspected
+PM reference assigns them zero application commitment, so the candidate does not
+invent a working 72/32 MiB legacy mode. Unknown Old modes and active New modes
+3–15 also fail clearly before allocation. Old hardware can still run the Old
+request of an enhanced, non-exclusive title; a New-only NCCH selects the New
+model. CPU speed/L2 parsing does not multiply the global tick clock or establish
+expanded scheduling behavior.
+
+### Executed regression boundary
+
+<!-- CodexAstraUlt: Name the actual production-path tests and independent input
+contracts so a parser-only check cannot be mistaken for loader qualification. -->
+
+[`droidds_memory_layout.rs`](../vendor/zakuro/crates/zakuro-core/tests/droidds_memory_layout.rs)
+constructs original NCCH bytes with independent expected values and executes the
+actual loader and guest interpreter. Its host regressions check all supported
+configurations, guest exit, raw config values and selected model, resource-limit SVCs,
+heap/linear placement on both sides of the firmware boundary, and real HID
+service allocation from Base. Allocation exhaustion, recovery, reuse, invalid
+modes, overflow/overlap, linear-alias rejection and incompatible saved-state
+nonmutation are exercised. The parser separately tests CPU/L2 combinations,
+reserved bits, Old raw modes and truncation. These host regressions pass.
+
+Reproduce with the root locked workspace:
+
+```bash
+cargo test --locked -p zakuro-fs -p zakuro-core --lib -- --test-threads=1
+cargo test --locked -p zakuro-core --test droidds_memory_layout -- --test-threads=1
+```
+
+The integrated runtime report also executes original New/Old NCCH variants and
+checks actual memory boundaries and guest completion. Its Android result is a
+separate pending gate. These tests establish the corrected bounded contracts,
+not broad state-file hardening, long-run fragmentation/leak freedom, full
+multi-core scheduling, CRO lifecycle or Xenoblade boot. No private retail inputs
+are available in this environment; all primary-title baselines remain open.

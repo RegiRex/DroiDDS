@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 NDK_VERSION = "27.3.13750724"
@@ -31,24 +32,22 @@ VULKAN_HEADERS = (
 )
 NDK_INCLUDE = Path("toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include")
 
-# CodexAstraUlt: This exact inventory intentionally fails when a new package or
-# license appears; updating Cargo dependencies requires reviewing its notices.
-DUAL = ("MIT OR Apache-2.0", ("LICENSE-APACHE", "LICENSE-MIT"))
-REGISTRY_NOTICES = {
-    name: DUAL for name in (
-        "bitflags", "cfg-if", "itoa", "libc", "log", "proc-macro2", "quote",
-        "serde", "serde_core", "serde_derive", "serde_json", "syn", "thiserror",
-        "thiserror-impl",
-    )
-}
-REGISTRY_NOTICES.update({
-    "libloading": ("ISC", ("LICENSE",)),
-    "memchr": ("Unlicense OR MIT", ("COPYING", "LICENSE-MIT", "UNLICENSE")),
-    "unicode-ident": ("(MIT OR Apache-2.0) AND Unicode-3.0",
-                      ("LICENSE-APACHE", "LICENSE-MIT", "LICENSE-UNICODE")),
-    "windows-link": ("MIT OR Apache-2.0", ("license-apache-2.0", "license-mit")),
-    "zmij": ("MIT", ("LICENSE-MIT",)),
-})
+# CodexAstraUlt: The runtime graph contains multiple versions of several crates.
+# Replace the CPU-only name set with reviewed identities, archive checksums and
+# supplied notice hashes; no newly resolved package is silently accepted.
+INVENTORY = json.loads((ROOT / "tools/android_registry_notices.json").read_text())
+REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
+if INVENTORY["schema"] != 1 or INVENTORY["registry"] != REGISTRY_SOURCE:
+    raise ValueError("Unrecognized registry notice inventory")
+REGISTRY_NOTICES = {(entry["name"], entry["version"]): entry
+                    for entry in INVENTORY["packages"]}
+if len(REGISTRY_NOTICES) != len(INVENTORY["packages"]):
+    raise ValueError("Duplicate registry notice identity")
+VENDORED_PACKAGES = {"zakuro-core", "zakuro-fs", "zakuro-gpu"}
+# CodexAstraUlt: The measured backward-loop discovery fix requires a maintained
+# host compiler, while the loaded ABI remains the exact original Git package.
+LOCAL_UPSTREAM_PACKAGES = VENDORED_PACKAGES | {"recomp3ds"}
+GIT_PACKAGES = {"recomp-abi", "zakuro-cpu", "zakuro-common"}
 
 # CodexAstraUlt: 3dsrecomp explicitly declares SPDX MIT but supplies no license
 # file or copyright notice. Reproduce the standard permission/warranty terms,
@@ -81,11 +80,13 @@ def command(argv: list[str]) -> str:
                           stdout=subprocess.PIPE, timeout=300).stdout.strip()
 
 
-def supplied_file(path: Path, label: str) -> str:
+def supplied_file(path: Path, label: str, expected_sha256: str | None = None) -> str:
     """CodexAstraUlt: Preserve every supplied character and identify its bytes."""
     data = path.read_bytes()
     if not data.strip():
         raise ValueError(f"Empty notice: {label}")
+    if expected_sha256 is not None and hashlib.sha256(data).hexdigest() != expected_sha256:
+        raise ValueError(f"Changed reviewed notice: {label}")
     return (f"\n----- BEGIN {label} -----\n"
             f"Original file SHA-256: {hashlib.sha256(data).hexdigest()}\n\n"
             + data.decode("utf-8") + f"\n----- END {label} -----\n")
@@ -127,25 +128,121 @@ def vulkan_notices(ndk: Path) -> str:
 
 def registry_section(package: dict) -> str:
     """CodexAstraUlt: Retain compound licenses, original files and attribution."""
-    name = package["name"]
-    if name not in REGISTRY_NOTICES:
-        raise ValueError(f"Unreviewed registry dependency: {name}")
-    expected, filenames = REGISTRY_NOTICES[name]
-    if package["license"] != expected:
-        raise ValueError(f"Changed license declaration: {name}")
+    key = package["name"], package["version"]
+    if key not in REGISTRY_NOTICES:
+        raise ValueError(f"Unreviewed registry dependency: {key}")
+    entry = REGISTRY_NOTICES[key]
+    if package["source"] != REGISTRY_SOURCE or package["license"] != entry["license"]:
+        raise ValueError(f"Changed license or source declaration: {key}")
     base = Path(package["manifest_path"]).parent
-    identity = f"{name} {package['version']}"
-    return (f"\nPackage: {identity}\nDeclared license: {expected}\n"
-            f"Source: {package['source']}\n"
-            + "".join(supplied_file(base / filename, f"{identity}/{filename}")
-                      for filename in filenames))
+    identity = " ".join(key)
+    result = (f"\nPackage: {identity}\nDeclared license: {entry['license']}\n"
+              f"Source: {package['source']}\n"
+              f"Source archive: https://static.crates.io/crates/{key[0]}/{key[0]}-{key[1]}.crate\n"
+              f"Source archive SHA-256: {entry['checksum']}\n")
+    if entry["license"] == "MPL-2.0":
+        # CodexAstraUlt: Tell executable recipients exactly how to obtain the
+        # unmodified covered sources under MPL, not just where the project lives.
+        result += ("This component is distributed under Mozilla Public License 2.0.\n"
+                   "Its complete, unmodified Source Code Form is available without charge\n"
+                   "at the source archive URL above, with its license and attribution intact.\n"
+                   "DroidDS makes no changes to this registry component.\n")
+    for filename, digest in entry["files"].items():
+        result += supplied_file(base / filename, f"{identity}/{filename}", digest)
+    for filename, digest in entry["source_comments"].items():
+        result += source_comments(base / filename, f"{identity}/{filename}", digest)
+    if entry.get("declaration_only") == "MIT":
+        result += supplied_file(base / "Cargo.toml", f"{identity}/Cargo.toml")
+        result += ("\nThis registry archive declares MIT but supplies no standalone license\n"
+                   "or copyright notice. These standard MIT terms reproduce that declaration;\n"
+                   "they are not an upstream-supplied notice. No copyright holder is inferred.\n"
+                   + MIT_TERMS)
+    for extra in entry.get("supplemental_files", []):
+        result += f"\nSupplemental notice source: {extra['source']}\n{extra['reason']}\n"
+        result += supplied_file(ROOT / extra["file"], extra["file"], extra["sha256"])
+    return result
+
+
+def source_comments(path: Path, label: str, expected_sha256: str) -> str:
+    """CodexAstraUlt: Retain inline notices, including libm's BSD/Sun/Arm terms."""
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != expected_sha256:
+        raise ValueError(f"Changed attribution source: {label}")
+    comments = re.findall(rb"/\*.*?\*/|(?m:^[ \t]*//[^\n]*(?:\n[ \t]*//[^\n]*)*)", data, re.S)
+    notices = [block for block in comments if re.search(
+        rb"copyright|permission is hereby|redistribution and use", block, re.I)]
+    if not notices:
+        raise ValueError(f"Missing reviewed source attribution: {label}")
+    return (f"\n----- BEGIN {label} supplied attribution comments -----\n"
+            f"Original full source SHA-256: {expected_sha256}\n\n"
+            + "\n\n".join(block.decode("utf-8") for block in notices)
+            + f"\n----- END {label} supplied attribution comments -----\n")
+
+
+def vendor_section(package: dict, emitted: set[str]) -> str:
+    """CodexAstraUlt: Local dependency paths must not hide copied upstream code."""
+    name = package["name"]
+    vendor = ROOT / "vendor/zakuro"
+    manifest = vendor / "crates" / name / "Cargo.toml"
+    if (name not in VENDORED_PACKAGES or package["source"] is not None
+            or package["license"] != "MIT" or package["version"] != "0.2.27"
+            or Path(package["manifest_path"]).resolve() != manifest.resolve()):
+        raise ValueError(f"Changed vendored package identity: {name}")
+    origin = json.loads((vendor / "UPSTREAM.json").read_text())
+    if (origin.get("schema") != 1 or origin.get("revision") != ZAKURO_REV
+            or origin.get("repository") != "https://github.com/fearkov/zakuro"):
+        raise ValueError("Changed vendored Zakuro origin")
+    license_digest = hashlib.sha256((vendor / "LICENSE").read_bytes()).hexdigest()
+    if license_digest != origin["files"]["LICENSE"]:
+        raise ValueError("Changed vendored Zakuro license")
+    result = (f"\nPackage: {name} {package['version']}\nDeclared license: MIT\n"
+              f"Source: https://github.com/fearkov/zakuro/tree/{ZAKURO_REV}\n"
+              f"DroidDS maintained copy: vendor/zakuro/crates/{name}\n"
+              "Integration changes are marked CodexAstraUlt; original attribution is retained.\n"
+              "The DroidDS release source contains the maintained copy and UPSTREAM.json.\n")
+    if "zakuro" not in emitted:
+        result += supplied_file(vendor / "LICENSE", "Zakuro/LICENSE", license_digest)
+        emitted.add("zakuro")
+    return result
+
+
+def compiler_section(package: dict, emitted: set[str]) -> str:
+    """CodexAstraUlt: Preserve compiler/generated-support terms after the local fix."""
+    directory = ROOT / "vendor/3dsrecomp"
+    if (package["name"] != "recomp3ds" or package["source"] is not None
+            or package["version"] != "0.1.0" or package["license"] != "MIT"
+            or Path(package["manifest_path"]).resolve() != (directory / "Cargo.toml").resolve()):
+        raise ValueError("Changed maintained compiler identity")
+    origin = json.loads((directory / "UPSTREAM.json").read_text())
+    manifest = origin.get("manifest_provenance", {})
+    if (origin.get("repository") != "https://github.com/fearkov/3dsrecomp"
+            or origin.get("revision") != RECOMP_REV or origin.get("license") != "MIT"
+            or manifest.get("file") != "UPSTREAM-Cargo.toml" or manifest.get("upstream_path") != "Cargo.toml"
+            or not re.fullmatch(r"[a-f0-9]{64}", manifest.get("sha256", ""))):
+        raise ValueError("Changed maintained compiler origin or manifest provenance")
+    original = directory / "UPSTREAM-Cargo.toml"
+    if tomllib.loads(original.read_text())["package"]["license"] != "MIT":
+        raise ValueError("Original compiler manifest no longer declares MIT")
+    result = ("\nPackage: recomp3ds 0.1.0\nDeclared license: MIT\n"
+              f"Source: https://github.com/fearkov/3dsrecomp/tree/{RECOMP_REV}\n"
+              "DroidDS maintained copy: vendor/3dsrecomp\n"
+              "The host compiler is not packaged; its generated support code is included.\n"
+              "Local discovery fixes are marked CodexAstraUlt; original provenance is retained.\n"
+              + supplied_file(original, "3dsrecomp/original-Cargo.toml", manifest["sha256"]))
+    if "3dsrecomp" not in emitted:
+        result += ("\nThe original manifest explicitly declares SPDX MIT; this revision supplies\n"
+                   "no standalone license or copyright notice. These standard terms reproduce\n"
+                   "that declaration and are not an upstream-supplied notice file.\n"
+                   "No copyright holder or year is inferred.\n" + MIT_TERMS)
+        emitted.add("3dsrecomp")
+    return result
 
 
 def git_section(package: dict, emitted: set[str]) -> str:
     """CodexAstraUlt: Bind exceptional upstream notice handling to exact sources."""
     name, source = package["name"], package["source"]
     manifest = Path(package["manifest_path"])
-    if name in {"recomp3ds", "recomp-abi"}:
+    if name == "recomp-abi":
         expected = f"git+https://github.com/fearkov/3dsrecomp?rev={RECOMP_REV}#{RECOMP_REV}"
     elif name in {"zakuro-cpu", "zakuro-common"}:
         expected = f"git+https://github.com/fearkov/zakuro?rev={ZAKURO_REV}#{ZAKURO_REV}"
@@ -155,7 +252,7 @@ def git_section(package: dict, emitted: set[str]) -> str:
         raise ValueError(f"Changed Git source or license declaration: {name}")
     result = (f"\nPackage: {name} {package['version']}\nDeclared license: MIT\n"
               f"Source: {source}\n")
-    if name in {"recomp3ds", "recomp-abi"}:
+    if name == "recomp-abi":
         result += supplied_file(manifest, f"3dsrecomp/{name}/Cargo.toml")
         if "3dsrecomp" not in emitted:
             result += ("\nThe upstream manifests explicitly declare SPDX MIT. No upstream\n"
@@ -180,20 +277,40 @@ def assemble(metadata: dict, ndk: Path, sysroot: Path, rust_version: str) -> str
     if not any(line.strip() == f"Pkg.Revision = {NDK_VERSION}" for line in properties.splitlines()):
         raise ValueError("Notices must come from pinned NDK " + NDK_VERSION)
     packages = sorted(metadata["packages"], key=lambda item: (item["name"], item["version"]))
-    third_party = [package for package in packages if package["source"]]
-    names = {package["name"] for package in third_party}
-    required = set(REGISTRY_NOTICES) | {"recomp3ds", "recomp-abi", "zakuro-cpu", "zakuro-common"}
-    if names != required or len(names) != len(third_party):
+    third_party = [package for package in packages
+                   if package["source"] or package["name"] in LOCAL_UPSTREAM_PACKAGES]
+    registry = [package for package in third_party
+                if (package["source"] or "").startswith("registry+")]
+    registry_keys = {(package["name"], package["version"]) for package in registry}
+    nonregistry = [package for package in third_party if package not in registry]
+    names = {package["name"] for package in nonregistry}
+    if (registry_keys != set(REGISTRY_NOTICES) or len(registry_keys) != len(registry)
+            or names != GIT_PACKAGES | LOCAL_UPSTREAM_PACKAGES or len(names) != len(nonregistry)):
         raise ValueError("Resolved package inventory changed; review notices before release")
+    # CodexAstraUlt: Check archive identity as well as names/licenses. Cargo's
+    # locked fetch validates archive integrity; these pins force notice review
+    # when a dependency version or checksum changes.
+    locked_registry = {(package["name"], package["version"]): package
+                       for package in tomllib.loads((ROOT / "Cargo.lock").read_text())["package"]
+                       if (package.get("source") or "").startswith("registry+")}
+    # CodexAstraUlt: Cargo.lock also records disabled optional graphs (such as
+    # Cranelift). They are not metadata/build inputs until enabled; activation
+    # still changes registry_keys and fails the exact reviewed graph above.
+    if not registry_keys <= set(locked_registry) or any(
+            locked_registry[key]["source"] != REGISTRY_SOURCE
+            or locked_registry[key]["checksum"] != entry["checksum"]
+            for key, entry in REGISTRY_NOTICES.items()):
+        raise ValueError("Locked registry archive inventory changed; review notices before release")
     emitted: set[str] = set()
-    output = ["DroidDS Android CPU/Vulkan probe - third-party notices\n\n",
+    output = ["DroidDS Android runtime probe - third-party notices\n\n",
               "CodexAstraUlt: Generated from locked fetched sources and the build's toolchain.\n",
               "This preserves all resolved Cargo dependency notices, including host-only,\n",
               "procedural-macro and other-target packages. Inclusion does not assert that\n",
               "every package is linked into the APK. The generated ARM/Thumb fixtures are\n",
               "original DroidDS synthetic code; 3dsrecomp's generated support code is\n",
               "covered by its declared MIT terms. No retail game data is distributed.\n\n",
-              "The APK contains Zakuro CPU/common, recomp-abi and their enabled dependencies,\n",
+              "The APK contains Zakuro CPU/common plus maintained core/filesystem/GPU copies,\n",
+              "recomp-abi and their enabled dependencies,\n",
               "plus Rust runtime support, NDK-linked support and original DroidDS code.\n",
               "It does not bundle the host 3dsrecomp executable, NDK tools, Rust compiler,\n",
               "Android framework implementations, or Azahar/MMJ/Uberhar/AnyPS5 code.\n",
@@ -201,7 +318,10 @@ def assemble(metadata: dict, ndk: Path, sysroot: Path, rust_version: str) -> str
               f"Rust: {rust_version}\nNDK: {NDK_VERSION}\n",
               f"Cargo.lock SHA-256: {hashlib.sha256((ROOT / 'Cargo.lock').read_bytes()).hexdigest()}\n"]
     for package in third_party:
-        if package["source"].startswith("registry+"):
+        if package["source"] is None:
+            output.append(compiler_section(package, emitted) if package["name"] == "recomp3ds"
+                          else vendor_section(package, emitted))
+        elif package["source"].startswith("registry+"):
             output.append(registry_section(package))
         elif package["source"].startswith("git+"):
             output.append(git_section(package, emitted))
@@ -233,7 +353,8 @@ def main() -> int:
         text = assemble(metadata, args.ndk.resolve(), sysroot, command(["rustc", "--version"]))
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(text, encoding="utf-8")
-        count = sum(bool(package["source"]) for package in metadata["packages"])
+        count = sum(bool(package["source"]) or package["name"] in LOCAL_UPSTREAM_PACKAGES
+                    for package in metadata["packages"])
         print(f"Collected {count} third-party package records: {args.output}")
         return 0
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:

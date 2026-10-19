@@ -1,0 +1,22 @@
+# CodexAstraUlt: Original guest fixtures exercise the selected full runtime.
+[package]
+name = "droidds-runtime-probe"
+version = "0.0.5"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+producer = ["dep:recomp3ds"]
+
+[dependencies]
+zakuro-core.workspace = true
+zakuro-fs.workspace = true
+zakuro-gpu.workspace = true
+zakuro-cpu.workspace = true
+zakuro-common.workspace = true
+recomp-abi.workspace = true
+recomp3ds = { workspace = true, optional = true }
+serde_json.workspace = true
+libc.workspace = true

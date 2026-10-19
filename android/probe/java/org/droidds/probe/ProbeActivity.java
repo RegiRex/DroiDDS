@@ -64,9 +64,9 @@ public final class ProbeActivity extends Activity implements ProbeController.Obs
         TextView scope = new TextView(this);
         // CodexAstraUlt: Describe the expanded diagnostic in terms useful to
         // the tester while preserving the separation from actual game support.
-        scope.setText("CPU correctness and code-safety tests, GPU capability checks, "
-                + "and offscreen rendering tests. Save the report even if a check fails. "
-                + "This probe does not run games.");
+        scope.setText("Tests an original 3DS program through the loader, services and graphics runtime, "
+                + "alongside CPU and GPU checks. Save the report even if a check fails. "
+                + "This diagnostic does not load your games yet.");
         scope.setTextSize(16);
         content.addView(scope);
         status = new TextView(this);

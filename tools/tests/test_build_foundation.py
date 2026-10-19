@@ -2,10 +2,12 @@
 
 import copy
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 # CodexAstraUlt: Permit this test file to run alone now that the build gate
 # imports the shared versioned report contract from its sibling tool.
@@ -88,6 +90,127 @@ class SourcePinTests(unittest.TestCase):
         self.metadata["resolve"]["nodes"].append({"id": "gui", "features": [], "deps": []})
         self.metadata["resolve"]["nodes"][0]["deps"].append({"pkg": "gui"})
         with self.assertRaisesRegex(ValueError, "unexpectedly includes"):
+            RUNNER.validate_graph(self.metadata, self.pins)
+
+
+class VendoredRuntimePinTests(SourcePinTests):
+    """CodexAstraUlt: Reject a relocated, substituted or unqualified runtime graph."""
+
+    def setUp(self):
+        super().setUp()
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.addCleanup(mock.patch.stopall)
+        mock.patch.object(RUNNER, "ROOT", self.root).start()
+        self.pins["vendored_runtime"] = {
+            **self.pins["runtime"], "directory": "vendor/zakuro",
+            "packages": ["zakuro-core", "zakuro-fs", "zakuro-gpu"]}
+        vendor = self.root / "vendor/zakuro"
+        vendor.mkdir(parents=True)
+        import json
+        (vendor / "UPSTREAM.json").write_text(json.dumps({
+            "schema": 1, "repository": self.pins["runtime"]["repository"],
+            "revision": self.pins["runtime"]["revision"],
+            "files": {str(index): "0" * 64 for index in range(132)}}))
+        for name in self.pins["vendored_runtime"]["packages"]:
+            self.metadata["packages"].append({
+                "id": name, "name": name, "source": None, "version": "0.2.27",
+                "license": "MIT", "manifest_path": str(vendor / "crates" / name / "Cargo.toml")})
+            self.metadata["resolve"]["nodes"].append({
+                "id": name, "features": ["vulkan"] if name == "zakuro-gpu" else [], "deps": []})
+            self.metadata["resolve"]["nodes"][0]["deps"].append({"pkg": name})
+
+    # CodexAstraUlt: The inherited pin mutations also run with the full runtime;
+    # only these two expected graph-size observations differ from CPU-only tests.
+    def test_selected_exact_pins_pass(self):
+        self.assertEqual(len(RUNNER.validate_graph(self.metadata, self.pins)), 7)
+
+    def test_unrelated_inactive_package_does_not_change_used_graph(self):
+        self.metadata["packages"].append({"id": "unused", "name": "zakuro-gpu", "source": None})
+        self.metadata["resolve"]["nodes"].append({"id": "unused", "features": [], "deps": []})
+        self.assertEqual(len(RUNNER.validate_graph(self.metadata, self.pins)), 7)
+
+    def test_missing_resolved_node_fails(self):
+        self.metadata["resolve"]["nodes"].pop()
+        with self.assertRaisesRegex(ValueError, "Missing resolved"):
+            RUNNER.validate_graph(self.metadata, self.pins)
+
+    def test_substituted_vendor_location_or_license_fails(self):
+        package = self.metadata["packages"][-1]
+        for key, value in (("manifest_path", "/tmp/unreviewed/Cargo.toml"),
+                           ("source", "git+https://example.test/unreviewed"),
+                           ("license", "unknown"), ("version", "0.2.28")):
+            original = package[key]
+            package[key] = value
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "identity"):
+                RUNNER.validate_graph(self.metadata, self.pins)
+            package[key] = original
+
+    def test_unqualified_gpu_features_fail(self):
+        gpu = self.metadata["resolve"]["nodes"][-1]
+        for features in ([], ["vulkan", "jit"], ["vulkan", "opengl"]):
+            gpu["features"] = features
+            with self.subTest(features=features), self.assertRaisesRegex(ValueError, "Vulkan"):
+                RUNNER.validate_graph(self.metadata, self.pins)
+
+    def test_changed_vendor_origin_fails(self):
+        self.pins["vendored_runtime"]["revision"] = "c" * 40
+        with self.assertRaisesRegex(ValueError, "provenance"):
+            RUNNER.validate_graph(self.metadata, self.pins)
+
+
+class VendoredCompilerPinTests(unittest.TestCase):
+    """CodexAstraUlt: A compiler patch must not relax ABI pins or provenance."""
+
+    def setUp(self):
+        SourcePinTests.setUp(self)
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.addCleanup(mock.patch.stopall)
+        mock.patch.object(RUNNER, "ROOT", self.root).start()
+        self.pins["vendored_recompiler"] = {
+            **self.pins["recompiler"], "directory": "vendor/3dsrecomp", "packages": ["recomp3ds"]}
+        self.directory = self.root / "vendor/3dsrecomp"
+        self.directory.mkdir(parents=True)
+        self.origin = {"schema": 1, "repository": self.pins["recompiler"]["repository"],
+                       "revision": self.pins["recompiler"]["revision"],
+                       "files": {str(i): "0" * 64 for i in range(20)}}
+        (self.directory / "UPSTREAM.json").write_text(json.dumps(self.origin))
+        self.compiler = self.metadata["packages"][1]
+        self.compiler.update(source=None, license="MIT",
+                             manifest_path=str(self.directory / "Cargo.toml"))
+
+    def test_exact_local_compiler_preserves_git_abi(self):
+        selected = RUNNER.validate_graph(self.metadata, self.pins)
+        self.assertEqual(selected["recomp3ds"]["source"], "vendored:vendor/3dsrecomp/Cargo.toml")
+        self.assertTrue(selected["recomp-abi"]["source"].startswith("git+"))
+
+    def test_unreviewed_compiler_origin_is_rejected(self):
+        self.origin["revision"] = "c" * 40
+        (self.directory / "UPSTREAM.json").write_text(json.dumps(self.origin))
+        with self.assertRaisesRegex(ValueError, "compiler original-source"):
+            RUNNER.validate_graph(self.metadata, self.pins)
+
+    def test_compiler_cannot_move_or_change_license(self):
+        for key, value in (("manifest_path", "/tmp/other/Cargo.toml"), ("license", "unknown"),
+                           ("version", "0.2.0"), ("source", "git+https://other.test")):
+            before = self.compiler[key]
+            self.compiler[key] = value
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "compiler identity"):
+                RUNNER.validate_graph(self.metadata, self.pins)
+            self.compiler[key] = before
+
+    def test_abi_drift_and_permissive_verifier_remain_rejected(self):
+        abi = self.metadata["packages"][2]
+        original = abi["source"]
+        abi["source"] = original.split("#")[0] + "#" + "c" * 40
+        with self.assertRaisesRegex(ValueError, "pin mismatch"):
+            RUNNER.validate_graph(self.metadata, self.pins)
+        abi["source"] = original
+        self.metadata["resolve"]["nodes"][1]["features"] = ["verify"]
+        with self.assertRaisesRegex(ValueError, "verifier"):
             RUNNER.validate_graph(self.metadata, self.pins)
 
 

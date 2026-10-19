@@ -1,6 +1,6 @@
-# CodexAstraUlt: Cross-build only the original public CPU probe. A successful
-# Ubuntu job is packaging evidence, not Android device/game execution.
-name: Android CPU probe
+# CodexAstraUlt: Cross-build the original CPU and full-runtime diagnostic, then
+# execute its host Vulkan gates. These are not Android device/game measurements.
+name: Android runtime probe
 
 on:
   push:
@@ -11,6 +11,7 @@ on:
       - "rust-toolchain.toml"
       - "upstream.lock.toml"
       - "crates/**"
+      - "vendor/**"
       - "android/probe/**"
       - "tools/**"
       - ".github/workflows/android-probe.yml"
@@ -27,7 +28,7 @@ concurrency:
 jobs:
   android-cross-build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 60
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       RUSTUP_TOOLCHAIN: "1.95.0"
@@ -86,6 +87,50 @@ jobs:
           export XDG_RUNTIME_DIR="$RUNNER_TEMP/droidds-vulkan"
           mkdir -m 700 -p "$XDG_RUNTIME_DIR"
           python3 tools/build_vulkan_probe.py --ndk "$ANDROID_HOME/ndk/27.3.13750724" --output out/ci-vulkan --require-validation
+      # CodexAstraUlt: Run the actual loader/services/PICA path and all required
+      # GPU comparisons with validation, including Thor's static-state route.
+      - name: Execute integrated runtime and strict GPU suites
+        id: runtime
+        shell: bash
+        run: |
+          drivers=(/usr/share/vulkan/icd.d/lvp_icd*.json)
+          test "${#drivers[@]}" -eq 1
+          test -f "${drivers[0]}"
+          export VK_DRIVER_FILES="${drivers[0]}"
+          export VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/droidds-vulkan"
+          export PATH="$ANDROID_HOME/ndk/27.3.13750724/shader-tools/linux-x86_64:$PATH"
+          python3 tools/build_runtime_probe.py --output out/ci-runtime --jobs 2 2>&1 | tee out/ci-runtime-console.log
+      - name: Record bounded runtime failure
+        if: failure() && steps.runtime.outcome == 'failure'
+        shell: bash
+        run: |
+          python3 - <<'PYRUNTIME'
+          import json, re, sys
+          from pathlib import Path
+          # CodexAstraUlt: Preserve useful public diagnostics without credentials
+          # or raw artifacts; only this original runtime gate's bounded tail.
+          base = Path("out/ci-runtime")
+          report_path = base / "build-report.json"
+          detail = "Runtime gate failed before writing its report"
+          if report_path.is_file() and not report_path.is_symlink():
+              report = json.loads(report_path.read_text())
+              detail = str(report.get("error", detail))[-2000:]
+              failed = [item for item in report.get("steps", [])
+                        if item.get("exit_code", 0) != 0 or item.get("status") == "inconclusive"]
+              for item in failed[-1:]:
+                  name = item.get("log", "")
+                  path = base / name
+                  if Path(name).name == name and path.is_file() and not path.is_symlink():
+                      with path.open("rb") as stream:
+                          stream.seek(0, 2)
+                          stream.seek(max(0, stream.tell() - 5000))
+                          detail += "\n" + stream.read(5000).decode("utf-8", errors="replace")
+          detail = re.sub(r"(https?://)[^/\s@]+@", r"\1[redacted]@", detail)
+          detail = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b", "[redacted]", detail)
+          escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print("::error::Runtime validation: " + escaped, file=sys.stderr)
+          PYRUNTIME
       - name: Record build result
         if: always()
         shell: bash
