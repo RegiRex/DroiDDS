@@ -21,11 +21,13 @@ renderer. The report does not establish whether the picker or ADB exported it.
 
 ## Install and save a report
 
-<!-- CodexAstraUlt: Identify the intended release without claiming publication
-before the build gates complete; preserve explicit signing-conflict handling. -->
+<!-- CodexAstraUlt: Record completed publication while preserving explicit
+signing-conflict handling and the pending physical-device gate. -->
 
-When published, the [0.0.4 prerelease entry](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.4-probe.1)
-provides `DroidDS-0.0.4-android-arm64.apk` and its verification files. The app
+The published [0.0.4 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.4-probe.1)
+provides `DroidDS-0.0.4-android-arm64.apk` and its verification files. The
+[release workflow](https://github.com/RegiRex/DroidDS/actions/runs/39321226246)
+passed all build and publication gates. The app
 requires ARM64 Android 10/API 29 or newer. Passing the new graphics checks also
 requires the Vulkan 1.3 features listed below; a reported API version alone is
 insufficient. Unsupported capabilities are recorded as a failed qualification,

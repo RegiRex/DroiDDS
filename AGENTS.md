@@ -30,6 +30,15 @@ test without treating a host Vulkan draw as a qualified PICA renderer. -->
   Vulkan 1.3.128; full renderer features/formats, picker lifecycle, PICA/game,
   sustained-memory and performance qualification remain open. The manual upload
   does not independently bind an installed APK or establish its export method.
+<!-- CodexAstraUlt: Continue from the published expanded probe and reproduced
+runtime defects, with its own Thor gate still required before promotion. -->
+- Version 0.0.4 expands to eight CPU cases, three immutable-code safety controls
+  and original Vulkan 1.3 renderer-operation checks. Host, APK and publication
+  gates pass; its Thor execution remains pending. Read
+  docs/builds/0.0.4-runtime-probe.md and docs/NEW3DS_AUDIT.md. The latter reproduces
+  header decoding and application-memory defects in the selected runtime;
+  0.0.5 must fix and test the real loader/configuration path during integration.
+  Do not confuse these backend fixtures with actual PICA or game execution.
 - Reuse candidates include 3dsrecomp, Zakuro, AnyPS5, Azahar, Citra MMJ and Uberhar.
   Read docs/REUSE_CANDIDATES.md and THIRD_PARTY_NOTICES.md before importing new code.
   DroidDS is an independent integration project; licenses are evaluated per actual
