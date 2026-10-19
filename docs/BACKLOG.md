@@ -15,10 +15,12 @@ negative controls. See [build evidence](builds/0.0.1-foundation.md).
 results without treating its self-reported metadata as a fresh ADB/package bind. -->
 DDS-010 now has a CPU loader APK/build audit, local ADB runner and a passing
 [owner-supplied Thor CPU report](device-tests/0.0.2-thor-cpu.md): four cases and
-two negative controls on reported Android ARM64 with 4 KiB pages. Vulkan drawing
-and the remaining platform gates stay open. Version 0.0.3 implements the bounded
-offscreen Vulkan probe and **Save report** action; its APK and host rendering
-checks pass, while Android graphics/export execution remains pending. See
+two negative controls on reported Android ARM64 with 4 KiB pages. The
+[0.0.3 Thor CPU/Vulkan report](device-tests/0.0.3-thor-cpu-vulkan.md) also passes:
+nine exact readbacks and nine pixel-mutation controls on Adreno 740/Android 13.
+Full renderer capabilities/PICA, picker lifecycle, sustained memory and the
+remaining platform gates stay open. The upload does not identify its export
+method. Version 0.0.3's APK and host rendering checks also pass. See
 [the build evidence](builds/0.0.3-android-vulkan.md) and [the probe](ANDROID_PROBE.md).
 Other DDS-004 onward items remain planned. The table defines acceptance, not completion of
 every item merely because a related source component exists.

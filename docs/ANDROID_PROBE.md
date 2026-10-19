@@ -10,10 +10,12 @@ repeat the automated Linux foundation tests manually.
 The [owner-supplied 0.0.2 Thor report](device-tests/0.0.2-thor-cpu.md) passes all
 four CPU cases and both corruption controls on reported Android ARM64 with 4 KiB
 host pages. Its exported JSON does not independently bind the installed APK hash.
-The new Vulkan helper has passed actual Linux software Vulkan execution with the
-Khronos layer and synchronization validation enabled. **0.0.3 execution and
-report export on the Thor remain pending.** Host rendering does not measure the
-Thor GPU.
+The Vulkan helper also passed Linux software Vulkan execution with the Khronos
+layer and synchronization validation enabled. The
+[owner's 0.0.3 Thor report](device-tests/0.0.3-thor-cpu-vulkan.md) now passes all
+CPU/GPU checks on Android 13/Adreno 740, reporting Vulkan 1.3.128. This separate
+device evidence covers the offscreen fixture; it does not qualify the complete
+renderer. The report does not establish whether the picker or ADB exported it.
 
 ## Install and save a report
 
@@ -24,7 +26,8 @@ The published [0.0.3 prerelease](https://github.com/RegiRex/DroidDS/releases/tag
 provides `DroidDS-0.0.3-android-arm64.apk`. The
 [release workflow](https://github.com/RegiRex/DroidDS/actions/runs/39096219229)
 passed its CPU, APK, host Vulkan and release-bundle gates. The app requires
-ARM64 Android 10/API 29 or newer; Thor graphics execution remains pending.
+ARM64 Android 10/API 29 or newer. The basic Thor offscreen run now passes;
+full-renderer feature and format requirements remain unqualified.
 
 Public diagnostic builds use one-off CI signing keys. Public 0.0.3 cannot update
 the differently signed public 0.0.2 APK in place. If you choose to switch, save
@@ -188,9 +191,10 @@ the ADB runner supplies the external deadline. This is not a native sandbox.
 <!-- CodexAstraUlt: Retain full renderer, lifecycle, memory and game acceptance
 criteria beyond the bounded CPU and offscreen output fixture. -->
 
-The next owner test is 0.0.3 on the Thor, including **Save report**. Android picker
-behavior, lifecycle and 16 KiB-page execution remain separate device gates. Even
-a full 0.0.3 pass does not complete A0's representative generic PICA pipeline or
-M2's renderer work. Broader CPU/VFP/module tests, surface presentation, long-run
-memory stability and games remain open. This probe establishes no Dark Moon
-correction or game-performance improvement.
+The owner's 0.0.3 report passes the basic CPU/offscreen GPU gate. Continue with
+0.0.4's full-renderer capabilities, broader CPU/code safety and New 3DS audit.
+Android picker behavior, lifecycle and 16 KiB-page execution remain separate
+device gates. The 0.0.3 pass does not complete A0's representative generic PICA
+pipeline or M2's renderer work. Broader CPU/VFP/module tests, surface presentation,
+long-run memory stability and games remain open. This probe establishes no
+Dark Moon correction or game-performance improvement.

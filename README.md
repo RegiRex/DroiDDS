@@ -14,15 +14,18 @@ interpreter and known expected outputs, including native interworking and delibe
 missing-entry fallback. Validation passed 151 Rust tests and 15 Python gate tests,
 plus the executable's four cases and four negative controls.
 
-<!-- CodexAstraUlt: Advance from the owner's actual CPU result while keeping the
-new Vulkan host evidence separate from handheld graphics qualification. -->
+<!-- CodexAstraUlt: Record the owner's passing CPU/GPU report while keeping the
+small platform fixture separate from full 3DS rendering and game qualification. -->
 **The owner-supplied 0.0.2 Thor CPU report passes all four fixtures and both error
 controls.** It reports Android ARM64 with 4 KiB pages. Read
 [the device result and its scope](docs/device-tests/0.0.2-thor-cpu.md).
 Version **0.0.3** adds an original Vulkan offscreen draw/readback test and a
 **Save report** button. Its three patterns pass across three fresh device/resource
-cycles on host software Vulkan with validation enabled. Android graphics and the
-document picker remain pending device validation.
+cycles on host software Vulkan with validation enabled. The
+[owner's 0.0.3 Thor report](docs/device-tests/0.0.3-thor-cpu-vulkan.md) also passes
+all CPU and offscreen GPU checks on Android 13/Adreno 740, with Vulkan 1.3.128
+reported. Full renderer capability, lifecycle and game qualification remain open;
+the JSON does not record which export method was used.
 
 <!-- CodexAstraUlt: Link the new diagnostic release without claiming it runs a
 game or qualifies PICA rendering from a small platform Vulkan fixture. -->
@@ -43,6 +46,7 @@ Android device probe and graphics foundation from the roadmap.
 | [Build and run](docs/BUILDING.md) | Reproduce the first Linux CPU foundation |
 | [Android CPU/Vulkan probe](docs/ANDROID_PROBE.md) | Build the ARM64 test app and run it on the Thor |
 | [Thor CPU result](docs/device-tests/0.0.2-thor-cpu.md) | Owner-supplied 0.0.2 execution and its qualification boundary |
+| [Thor CPU/Vulkan result](docs/device-tests/0.0.3-thor-cpu-vulkan.md) | Passing 0.0.3 hardware readbacks and remaining renderer gates |
 | [CPU/Vulkan build evidence](docs/builds/0.0.3-android-vulkan.md) | Executed rendering/package checks and device gates still open |
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |
 | [Additional reuse candidates](docs/REUSE_CANDIDATES.md) | AnyPS5, Azahar, Citra MMJ and Uberhar source review |

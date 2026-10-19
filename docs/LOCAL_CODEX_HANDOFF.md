@@ -16,12 +16,13 @@ Work in a separate DroidDS checkout. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`
 `docs/ARCHITECTURE.md` and `docs/BACKLOG.md`. Keep Uberhar files, APK and saves intact.
 Check branch and local changes before fetching; do not reset another session's work.
 
-<!-- CodexAstraUlt: Continue the owner's Android direction without requiring a
-redundant manual Linux run before the small target-device probe. -->
-The initial CPU dependency/build/fixture batch is implemented. The automated Linux
-gate already passes; manual owner repetition is not a prerequisite. Start the
-[0.0.2 Android CPU probe](ANDROID_PROBE.md) on the connected Thor, then continue
-DDS-004/005 and the remaining A0 gates.
+<!-- CodexAstraUlt: Replace the obsolete repeat-0.0.2 handoff after the owner's
+passing 0.0.3 hardware report; continue broader gates without redoing known tests. -->
+The initial CPU dependency/build/fixture batch is implemented. Automated Linux
+checks and the owner's [0.0.3 Thor CPU/Vulkan report](device-tests/0.0.3-thor-cpu-vulkan.md)
+pass; routine manual repetition is not a prerequisite. Continue 0.0.4's
+DDS-004/005 CPU/code-safety work, full-renderer capability checks and the early
+New 3DS audit. The small Vulkan fixture does not qualify full PICA rendering.
 Do not attempt all prompts in the research archive. No game upload, full Android
 frontend, release signing change or retail APK is needed for this first batch.
 
@@ -73,11 +74,12 @@ application artifact, establish DroidDS's own versioning, signing and release ga
 ## Suggested task to give local Codex when ready
 
 > Continue DroidDS from the published plans. Read AGENTS.md and the research review.
-> Read the verified CPU foundation evidence and docs/ANDROID_PROBE.md. Build the
-> 0.0.2 Android probe using the documented SDK/NDK, select the authorized Thor's
-> explicit ADB serial, and run tools/run_android_probe.py against that local APK.
-> Record its actual result without claiming game or Vulkan compatibility. Continue
-> one bounded DDS-004/005 task or the remaining A0 Vulkan probe after that result.
+> Read docs/device-tests/0.0.3-thor-cpu-vulkan.md and docs/ANDROID_PROBE.md.
+> The owner's basic CPU/Vulkan report passes. Continue one bounded 0.0.4
+> CPU/code-safety, full-renderer capability or New 3DS audit task. For new device
+> tests, select the authorized Thor's explicit ADB serial and record actual
+> execution separately from compilation. Do not infer PICA/game compatibility
+> from the existing tiny Vulkan fixture or repeat the old probe without a reason.
 > Use CodexAstraUlt comments, preserve local
 > changes, keep all retail inputs/derived outputs private, and leave Uberhar intact.
 > Do not execute the archive's entire prompt pack or claim Android/game readiness

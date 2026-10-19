@@ -15,9 +15,12 @@ planning-only state. -->
 test without treating a host Vulkan draw as a qualified PICA renderer. -->
 - The owner's 0.0.2 Thor report passes the four CPU fixtures and two corruption
   controls on Android ARM64 with 4 KiB pages; read docs/device-tests/0.0.2-thor-cpu.md.
-  Version 0.0.3 adds the original Vulkan offscreen fixture and user-selected JSON
-  export. Host software Vulkan evidence is separate from Thor GPU, Android picker,
-  PICA/game, sustained-memory and performance qualification.
+  The owner's 0.0.3 Thor CPU/Vulkan report also passes: four CPU fixtures, two CPU
+  controls, nine exact GPU readbacks and nine pixel-mutation controls on Adreno
+  740/Android 13. Read docs/device-tests/0.0.3-thor-cpu-vulkan.md. The GPU reports
+  Vulkan 1.3.128; full renderer features/formats, picker lifecycle, PICA/game,
+  sustained-memory and performance qualification remain open. The manual upload
+  does not independently bind an installed APK or establish its export method.
 - Reuse candidates include 3dsrecomp, Zakuro, AnyPS5, Azahar, Citra MMJ and Uberhar.
   Read docs/REUSE_CANDIDATES.md and THIRD_PARTY_NOTICES.md before importing new code.
   DroidDS is an independent integration project; licenses are evaluated per actual

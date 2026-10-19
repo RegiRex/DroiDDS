@@ -14,12 +14,13 @@ validated report; keep the reported fixture pass distinct from full A0 and GPU
 qualification or an independently hash-bound ADB run. -->
 The owner-supplied 0.0.2 [Thor CPU report](device-tests/0.0.2-thor-cpu.md) passes
 all four fixture cases and both corruption controls on reported Android ARM64
-with 4 KiB host pages. This demonstrates the reported CPU loader-test slice;
-Vulkan drawing, broader Android qualification and 16 KiB-page execution remain
-open. The implemented 0.0.3 probe adds offscreen Vulkan output checks and a
-**Save report** action. Its APK build and host software Vulkan checks pass;
-Thor GPU and Android export execution remain pending. See
-[the separate build evidence](builds/0.0.3-android-vulkan.md).
+with 4 KiB host pages. The subsequent
+[0.0.3 Thor report](device-tests/0.0.3-thor-cpu-vulkan.md) also passes all CPU and
+offscreen Vulkan checks on Adreno 740/Android 13. Its Vulkan 1.3.128 advertisement
+and simple output checks do not qualify all full-renderer features or PICA paths.
+Broader Android qualification, picker lifecycle and 16 KiB-page execution remain
+open. The upload does not establish its export method. See
+[the separate build evidence](builds/0.0.3-android-vulkan.md) for host/packaging checks.
 
 ## Versioned path to 0.1.0
 
@@ -48,8 +49,9 @@ boot on Android: target 0.0.7. First repeatable playable game segment: target
   red/green 16×16 images into an offscreen image. It reads every pixel back,
   repeats across three fresh device/resource sets, and checks that deliberately
   changed pixels are rejected. It also records device/driver context and adds
-  **Save report**. Host execution and APK publication passed; the Thor's 0.0.3
-  graphics/export report is still pending.
+  **Save report**. Host execution, APK publication and the owner's Thor CPU/GPU
+  report pass. Picker/lifecycle behavior and full renderer compatibility remain
+  separate checks.
 
 The offscreen images are test inputs, not 3DS frames. Version 0.0.3 does not load
 a game, translate PICA graphics, present game screens, implement game controls
@@ -122,7 +124,8 @@ fixture work. Private game inputs and derived artifacts stay in the local test
 environment.
 
 CPU safety, host GPU integration and the local packaging tools can advance in
-parallel. Host work can continue while the Thor probe report is pending. One
+parallel. The 0.0.3 basic Thor probe has passed; 0.0.4 now addresses the broader
+CPU, full-renderer capability and New 3DS audit gates. One
 local device coordinator serializes Thor tests, and actual hardware results are
 required before Android promotion. Use automated host/CI checks for routine
 iterations and device builds for meaningful new checkpoints. We do not need the

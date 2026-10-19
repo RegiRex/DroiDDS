@@ -22,8 +22,10 @@ uses one user-selected URI without broad storage permission.
 See [build and device instructions](../../docs/ANDROID_PROBE.md). The
 [owner's 0.0.2 CPU report](../../docs/device-tests/0.0.2-thor-cpu.md) passes.
 The shared graphics helper passed Linux software Vulkan with Khronos and
-synchronization validation; actual 0.0.3 Thor and document-picker execution remain
-pending. Host execution does not measure the device GPU.
+synchronization validation. The separate
+[0.0.3 Thor report](../../docs/device-tests/0.0.3-thor-cpu-vulkan.md) now passes
+all CPU and offscreen GPU checks on Adreno 740/Android 13. Picker/lifecycle
+behavior remains unqualified; the uploaded JSON does not identify its export route.
 
 ## Native interfaces
 
@@ -158,8 +160,8 @@ adb -s YOUR_THOR_SERIAL exec-out run-as org.droidds.probe \
 
 ## Validation boundary
 
-<!-- CodexAstraUlt: Keep strict compile and real host checks separate from the
-unexecuted Android lifecycle, picker and GPU acceptance criteria. -->
+<!-- CodexAstraUlt: Keep strict compile/host checks and reported device readbacks
+separate from unexecuted lifecycle, picker and full-renderer acceptance criteria. -->
 
 Java compiles against SDK 35 with Java 8 language/API compatibility and strict
 warnings. JNI/Vulkan C uses NDK 27.3.13750724 for AArch64/API 29 with
@@ -167,6 +169,7 @@ warnings. JNI/Vulkan C uses NDK 27.3.13750724 for AArch64/API 29 with
 `tools/build_vulkan_probe.py --require-validation` requires a real host driver
 and Khronos layer. `validate_graphics_report` independently validates output.
 
-These checks do not execute the Android picker, lifecycle or physical GPU. The
-0.0.3 Thor test remains needed. Passing this fixture does not qualify PICA
+The host checks do not execute the Android picker, lifecycle or physical GPU.
+The owner's separate Thor report supplies passing physical-GPU fixture evidence.
+Passing this fixture does not qualify PICA
 accuracy, Dark Moon, game speed, sustained memory behavior or 16 KiB-page hosts.
