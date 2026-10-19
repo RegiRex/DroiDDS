@@ -47,6 +47,7 @@ Android device probe and graphics foundation from the roadmap.
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |
 | [Additional reuse candidates](docs/REUSE_CANDIDATES.md) | AnyPS5, Azahar, Citra MMJ and Uberhar source review |
 | [Architecture](docs/ARCHITECTURE.md) | Components, design decisions, boundaries and risks |
+| [Versions through 0.1.0](docs/ROADMAP.md#versioned-path-to-010) | Planned builds, first Android game boot at 0.0.7 and playable segment at 0.0.8 |
 | [Roadmap](docs/ROADMAP.md) | Ordered milestones with measurable exit gates |
 | [Implementation backlog](docs/BACKLOG.md) | Bounded tasks, dependencies and acceptance checks |
 | [Testing strategy](docs/TEST_STRATEGY.md) | CPU correctness, graphics continuity, memory and device tests |

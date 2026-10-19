@@ -25,6 +25,14 @@ every item merely because a related source component exists.
 The original [119-ticket catalog](research/2026-10-17/06_IMPLEMENTATION_BACKLOG.md)
 is reference material, not an instruction to implement everything at once.
 
+<!-- CodexAstraUlt: Connect task-level work to the requested alpha release plan;
+target versions do not override acceptance checks or claim unfinished work. -->
+The [versioned roadmap through 0.1.0](ROADMAP.md#versioned-path-to-010) maps these
+tickets to user-visible builds: first real 3DS homebrew on Android at target
+0.0.6, first owned-game boot at 0.0.7 and a playable segment at 0.0.8. These are
+planned release gates, not completed results or fixed delivery dates. Resource
+bounds start during runtime integration; 0.0.9 stresses and refines them.
+
 | Ticket | Scope and concrete output | Acceptance | Depends on | Pack mapping |
 | --- | --- | --- | --- | --- |
 | DDS-001 | Source map, exact dependency resolution, ABI/generation inventory, notice inventory, architecture decision records | Verifier/runtime mismatch addressed explicitly; actual ABI documented; proposed vs observed claims separate; missing license notice provenance tracked | This plan | NRR-0002/0005/0101/0301/0401 |
