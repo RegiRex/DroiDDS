@@ -29,24 +29,35 @@ def generate_shaders(ndk: Path, output: Path, run) -> dict:
     header = ["/* CodexAstraUlt: Generated from original DroidDS GLSL; do not edit. */\n",
               "#ifndef DROIDDS_PROBE_SHADERS_H\n#define DROIDDS_PROBE_SHADERS_H\n#include <stdint.h>\n"]
     evidence = {}
-    for stage in ("vert", "frag"):
-        source = ROOT / "android/probe/shaders" / ("probe." + stage)
-        binary = output / ("probe." + stage + ".spv")
-        run("shader-" + stage, [tools / "glslc", "--target-env=vulkan1.0", "-O",
+    # CodexAstraUlt: Keep the baseline Vulkan 1.0 fixture while compiling the
+    # representative renderer operations for their actual Vulkan 1.3 contract.
+    variants = [("probe", stage, "vulkan1.0") for stage in ("vert", "frag")]
+    variants += [("renderer", stage, "vulkan1.3") for stage in ("vert", "frag", "comp")]
+    for family, stage, target in variants:
+        key = stage if family == "probe" else family + "_" + stage
+        source = ROOT / "android/probe/shaders" / (family + "." + stage)
+        binary = output / (family + "." + stage + ".spv")
+        # CodexAstraUlt: Vulkan 1.3's default SPIR-V 1.6 emits LocalSizeId,
+        # which requires maintenance4 that the selected runtime does not enable.
+        # Keep the real API target while using compatible fixed-size workgroups.
+        spirv_target = "spv1.3" if family == "renderer" else "spv1.0"
+        run("shader-" + key, [tools / "glslc", "--target-env=" + target,
+                                "--target-spv=" + spirv_target, "-O",
                                 source, "-o", binary])
-        run("validate-shader-" + stage, [tools / "spirv-val", "--target-env", "vulkan1.0", binary])
+        run("validate-shader-" + key, [tools / "spirv-val", "--target-env", target, binary])
         data = binary.read_bytes()
         if len(data) < 20 or len(data) > 1024 * 1024 or len(data) % 4:
             raise ValueError("Invalid compiled SPIR-V size")
         words = struct.unpack("<" + "I" * (len(data) // 4), data)
         if words[0] != 0x07230203:
             raise ValueError("Compiled shader has no SPIR-V magic")
-        header.append(f"static const uint32_t droidds_probe_{stage}_spv[] = {{\n")
+        header.append(f"static const uint32_t droidds_{family}_{stage}_spv[] = {{\n")
         for offset in range(0, len(words), 8):
             header.append("    " + ", ".join(f"0x{word:08x}U" for word in words[offset:offset + 8]) + ",\n")
         header.append("};\n")
-        evidence[stage] = {"source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
-                           "spirv_sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+        evidence[key] = {"source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                         "spirv_sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data),
+                         "target_environment": target, "spirv_target": spirv_target}
     header.append("#endif\n")
     (output / "droidds_probe_shaders.h").write_text("".join(header))
     return evidence
@@ -86,6 +97,7 @@ def main() -> int:
             (includes / name).symlink_to(ndk_headers / name, target_is_directory=True)
         native = ROOT / "android/probe/jni"
         source_files = [native / "vulkan_probe.c", native / "vulkan_probe.h",
+                        native / "vulkan_renderer.c", native / "vulkan_renderer.h",
                         ROOT / "tools/vulkan_probe_host.c"]
         evidence["source_sha256"] = {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
                                      for path in source_files}
@@ -95,9 +107,14 @@ def main() -> int:
         run("compile", [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
                         *(["-DDROIDDS_VK_VALIDATION=1"] if args.require_validation else []),
                         "-I", includes, "-I", native, "-I", output / "shaders",
-                        native / "vulkan_probe.c", ROOT / "tools/vulkan_probe_host.c",
+                        native / "vulkan_probe.c", native / "vulkan_renderer.c",
+                        ROOT / "tools/vulkan_probe_host.c",
                         args.vulkan_library.resolve(), "-o", executable])
         report = json.loads(run("execute", [executable], machine=True))
+        # CodexAstraUlt: Historical schema 1 remains readable, but cannot pass
+        # the current build gate without its required renderer operations.
+        if type(report.get("schema")) is not int or report["schema"] != 2:
+            raise ValueError("Current Vulkan build requires renderer probe schema 2")
         validate_graphics_report(report)
         # CodexAstraUlt: A missing validation layer or reported API violation
         # cannot pass the explicit validation run merely because pixels matched.

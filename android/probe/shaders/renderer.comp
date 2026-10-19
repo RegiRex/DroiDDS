@@ -1,0 +1,13 @@
+#version 450
+
+// CodexAstraUlt: Original compute fixture reads the uploaded RGBA8 storage image
+// and writes sixteen independently checkable words through a pushed buffer.
+layout(local_size_x=16, local_size_y=1, local_size_z=1) in;
+layout(set=0, binding=0, std430) buffer Output { uint words[]; } result;
+layout(set=0, binding=1, rgba8) uniform readonly image2D source_image;
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    uvec4 pixel = uvec4(imageLoad(source_image, ivec2(int(i & 1u), 0)) * 255.0);
+    uint encoded = (pixel.r << 24) | (pixel.g << 16) | (pixel.b << 8) | pixel.a;
+    result.words[i] = (i * 3u + 7u) ^ encoded;
+}

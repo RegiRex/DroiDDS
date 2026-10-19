@@ -78,6 +78,73 @@ def combined_report():
     return value, manifest
 
 
+def renderer_report():
+    """CodexAstraUlt: Explicit protocol fixtures cannot substitute for driver evidence."""
+    return {"schema": 1, "kind": "droidds-renderer-probe", "contract": "zakuro-412900a",
+            "status": "passed", "width": 16, "height": 16,
+            "pipeline_creation_count": 2, "draw_count": 5, "dispatch_count": 1,
+            "readbacks_completed": 2, "pixels_checked": 512, "mismatched_pixels": 0,
+            "compute_words_checked": 16, "compute_word_mismatches": 0,
+            "negative_checks_completed": 3, "negative_controls_passed": True, "error": None,
+            "required": {"vulkan_1_3": True, "graphics_compute_queue": True,
+                         "push_descriptor": True, "depth_clamp": True,
+                         "d24s8_attachment": True, "rgba8_color_sample_transfer": True,
+                         "dynamic_rendering": True, "synchronization2": True,
+                         "pipeline_creation_cache_control": True, "push_descriptor_limit": True},
+            "missing_required": [],
+            "optional": {"logic_op": False, "pipeline_statistics_query": False,
+                         "dynamic_blend": False, "dynamic_logic_op": False},
+            "queue_family": 0, "max_push_descriptors": 8,
+            "instance_api_version": 1 << 22 | 3 << 12,
+            "physical_api_version": 1 << 22 | 3 << 12,
+            "cases": [{"name": name, "status": "passed", "pixels_checked": 256,
+                       "mismatched_pixels": 0, "draw_count": draws}
+                      for name, draws in (("textured_depth_stencil", 4), ("depth_clamp", 1))]}
+
+
+def renderer_graphics_report():
+    """CodexAstraUlt: Schema 2 retains the old draws and adds independently checked work."""
+    value = graphics_report()
+    value.update(schema=2, renderer_probe=renderer_report())
+    value["device"]["api_version"] = 1 << 22 | 3 << 12
+    return value
+
+
+def code_safety_report():
+    """CodexAstraUlt: These synthetic proof values test rejection, never guest execution."""
+    return {"status": "passed", "policy": "immutable_fixture_text", "controls": [
+        {"name": "stale_origin_rejected", "status": "passed", "rejection": "origin mismatch"},
+        {"name": "changed_code_before_dispatch_rejected", "status": "passed", "native_calls": 0,
+         "fallback_steps": 0, "guest_memory_unchanged": True},
+        {"name": "guest_executable_write_rejected", "status": "passed", "native_calls": 1,
+         "rejected_writes": 2, "guest_memory_unchanged": True}],
+        "limitations": ["Immutable synthetic fixture policy; dynamic code is not supported."]}
+
+
+def current_report():
+    """CodexAstraUlt: Independently state all 0.0.4 routes so counter drift fails tests."""
+    value, _ = combined_report()
+    value.update(version="0.0.4", graphics_probe=renderer_graphics_report(),
+                 code_safety=code_safety_report())
+    value["android_shell"].update(app_version_name="0.0.4", app_version_code=4)
+    for case in value["cases"]:
+        case["budget_exits"] = 0
+    for name, calls, lookup, work, fallback, interpreted, budget_exits in (
+            ("arm_flags_shifts", 1, 0, 8, 0, 8, 0),
+            ("thumb_to_arm_native", 1, 1, 5, 0, 5, 0),
+            ("arm_vfp_finite", 1, 0, 7, 0, 7, 0),
+            ("arm_tiny_budget_progress", 2, 0, 1, 2, 3, 1)):
+        value["cases"].append({"name": name, "library": f"libdds_fixture_{name}.so",
+                               "status": "passed", "checkpoint_svc": 42,
+                               "native_calls": calls, "native_lookup_hits": lookup,
+                               "native_budget_charged": work, "fallback_steps": fallback,
+                               "instruction_callbacks": 0, "interpreter_steps": interpreted,
+                               "memory_bytes_compared": 65536, "budget_exits": budget_exits,
+                               "strict_expected_match": True, "strict_interpreter_match": True,
+                               "route_counts_match": True})
+    return value, dict(MANIFEST, version_name="0.0.4", version_code=4)
+
+
 class ReportTests(unittest.TestCase):
     """CodexAstraUlt: Mutate proof independently so permissive acceptance is visible."""
 
@@ -179,7 +246,7 @@ class GraphicsReportTests(unittest.TestCase):
         for value in (None, [], {}):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 RUNNER.validate_graphics_report(value)
-        for key, value in (("schema", True), ("schema", 2), ("kind", "mock"),
+        for key, value in (("schema", True), ("schema", 3), ("kind", "mock"),
                            ("status", "unavailable"), ("status", "failed")):
             changed = graphics_report()
             changed[key] = value
@@ -304,18 +371,290 @@ class GraphicsReportTests(unittest.TestCase):
 
     def test_unknown_version_does_not_silently_reuse_historical_cpu_only_contract(self):
         changed = report()
-        changed["version"] = "0.0.4"
-        changed["android_shell"].update(app_version_name="0.0.4", app_version_code=4)
-        manifest = dict(MANIFEST, version_name="0.0.4", version_code=4)
+        changed["version"] = "0.0.5"
+        changed["android_shell"].update(app_version_name="0.0.5", app_version_code=5)
+        manifest = dict(MANIFEST, version_name="0.0.5", version_code=5)
         with self.assertRaisesRegex(ValueError, "Unsupported Android probe report version"):
             RUNNER.validate_report(changed, REQUEST, manifest)
 
 
-def binary_manifest(package="org.droidds.probe", debuggable=True, test_only=True, utf8=True):
+class RendererReportTests(unittest.TestCase):
+    """CodexAstraUlt: Reject advertised support without exact representative execution."""
+
+    def reject(self, value, message="renderer|Renderer"):
+        with self.assertRaisesRegex(ValueError, message):
+            RUNNER.validate_graphics_report(value)
+
+    def test_complete_renderer_contract_accepts_missing_optional_capabilities(self):
+        for optional_support in (False, True):
+            value = renderer_graphics_report()
+            value["renderer_probe"]["optional"] = dict.fromkeys(
+                value["renderer_probe"]["optional"], optional_support)
+            RUNNER.validate_graphics_report(value)
+
+    def test_new_graphics_schema_requires_actual_renderer_report(self):
+        value = renderer_graphics_report()
+        del value["renderer_probe"]
+        self.reject(value)
+        for missing in (None, {}, []):
+            value = renderer_graphics_report()
+            value["renderer_probe"] = missing
+            self.reject(value)
+
+    def test_identity_and_passing_status_are_exact(self):
+        for key, invalid in (("schema", True), ("schema", 2), ("kind", "mock"),
+                             ("contract", "unreviewed"), ("status", "unsupported"),
+                             ("status", "failed"), ("status", "not_run")):
+            value = renderer_graphics_report()
+            value["renderer_probe"][key] = invalid
+            with self.subTest(key=key, invalid=invalid):
+                self.reject(value, "renderer proof")
+
+    def test_required_capabilities_cannot_be_omitted_false_or_truthy(self):
+        for key in renderer_report()["required"]:
+            value = renderer_graphics_report()
+            del value["renderer_probe"]["required"][key]
+            with self.subTest(missing=key):
+                self.reject(value, "required renderer capability")
+            for invalid in (None, False, 1, "true"):
+                value = renderer_graphics_report()
+                value["renderer_probe"]["required"][key] = invalid
+                with self.subTest(key=key, invalid=invalid):
+                    self.reject(value, "required renderer capability")
+        value = renderer_graphics_report()
+        value["renderer_probe"]["required"]["unreviewed_feature"] = True
+        self.reject(value, "required renderer capability")
+
+    def test_missing_requirement_inventory_is_required_and_empty(self):
+        for invalid in (None, {}, "", ["depth_clamp"]):
+            value = renderer_graphics_report()
+            value["renderer_probe"]["missing_required"] = invalid
+            with self.subTest(invalid=invalid):
+                self.reject(value, "capability list")
+        value = renderer_graphics_report()
+        del value["renderer_probe"]["missing_required"]
+        self.reject(value, "capability list")
+
+    def test_optional_capabilities_need_observed_booleans_without_being_required(self):
+        for key in renderer_report()["optional"]:
+            value = renderer_graphics_report()
+            del value["renderer_probe"]["optional"][key]
+            with self.subTest(missing=key):
+                self.reject(value, "optional renderer capability")
+            for invalid in (None, 0, "false"):
+                value = renderer_graphics_report()
+                value["renderer_probe"]["optional"][key] = invalid
+                with self.subTest(key=key, invalid=invalid):
+                    self.reject(value, "optional renderer capability")
+
+    def test_measured_api_descriptor_limit_and_queue_cannot_contradict_support(self):
+        value = renderer_graphics_report()
+        value["device"]["api_version"] = 1 << 22 | 2 << 12
+        self.reject(value, "API differs")
+        for key in ("instance_api_version", "physical_api_version"):
+            for invalid in (None, True, 1 << 22 | 2 << 12, 2 << 22, 1 << 29 | 1 << 22 | 3 << 12):
+                value = renderer_graphics_report()
+                value["renderer_probe"][key] = invalid
+                with self.subTest(key=key, invalid=invalid):
+                    self.reject(value, "Vulkan 1.3")
+        for key, invalid in (("queue_family", True), ("queue_family", -1),
+                             ("queue_family", 0xffffffff), ("max_push_descriptors", 7),
+                             ("max_push_descriptors", True), ("max_push_descriptors", 1 << 32)):
+            value = renderer_graphics_report()
+            value["renderer_probe"][key] = invalid
+            with self.subTest(key=key, invalid=invalid):
+                self.reject(value, "measured renderer capability")
+
+    def test_each_work_counter_is_exact_and_cannot_be_missing_or_a_boolean(self):
+        keys = ("width", "height", "pipeline_creation_count", "draw_count", "dispatch_count",
+                "readbacks_completed", "pixels_checked", "mismatched_pixels",
+                "compute_words_checked", "compute_word_mismatches", "negative_checks_completed")
+        for key in keys:
+            value = renderer_graphics_report()
+            del value["renderer_probe"][key]
+            with self.subTest(missing=key):
+                self.reject(value, "renderer proof")
+            for invalid in (None, True, renderer_report()[key] + 1):
+                value = renderer_graphics_report()
+                value["renderer_probe"][key] = invalid
+                with self.subTest(key=key, invalid=invalid):
+                    self.reject(value, "renderer proof")
+
+    def test_error_and_negative_controls_cannot_hide_behind_passed_status(self):
+        for invalid in (None, False, 1, "true"):
+            value = renderer_graphics_report()
+            value["renderer_probe"]["negative_controls_passed"] = invalid
+            with self.subTest(control=invalid):
+                self.reject(value, "renderer proof")
+        value = renderer_graphics_report()
+        del value["renderer_probe"]["error"]
+        self.reject(value, "execution error")
+        for error in ({"step": "vkCreateGraphicsPipelines", "vk_result": -4}, {}, False):
+            value = renderer_graphics_report()
+            value["renderer_probe"]["error"] = error
+            with self.subTest(error=error):
+                self.reject(value, "execution error")
+
+
+    def test_unknown_duplicate_missing_and_unexecuted_renderer_cases_are_rejected(self):
+        variants = [[], [None, None], renderer_report()["cases"][:-1]]
+        duplicate = renderer_report()["cases"]
+        duplicate[1] = copy.deepcopy(duplicate[0])
+        variants.append(duplicate)
+        unknown = renderer_report()["cases"]
+        unknown[0]["name"] = "unvalidated_new_case"
+        variants.append(unknown)
+        for cases in variants:
+            value = renderer_graphics_report()
+            value["renderer_probe"]["cases"] = cases
+            with self.subTest(cases=cases):
+                self.reject(value, "renderer output cases")
+        for case_index in range(2):
+            for key in ("status", "pixels_checked", "mismatched_pixels", "draw_count"):
+                value = renderer_graphics_report()
+                del value["renderer_probe"]["cases"][case_index][key]
+                with self.subTest(case=case_index, missing=key):
+                    self.reject(value)
+            for key, invalid in (("status", "not_run"), ("pixels_checked", 255),
+                                 ("pixels_checked", True), ("mismatched_pixels", 1),
+                                 ("mismatched_pixels", False), ("draw_count", 0)):
+                value = renderer_graphics_report()
+                value["renderer_probe"]["cases"][case_index][key] = invalid
+                with self.subTest(case=case_index, key=key, invalid=invalid):
+                    self.reject(value)
+
+
+class CurrentReportTests(unittest.TestCase):
+    """CodexAstraUlt: Expanded CPU and renderer gates are mandatory only for 0.0.4."""
+
+    def reject(self, value, message):
+        _, manifest = current_report()
+        with self.assertRaisesRegex(ValueError, message):
+            RUNNER.validate_report(value, REQUEST, manifest)
+
+    def test_complete_current_protocol_passes_all_eight_routes_and_three_safety_controls(self):
+        value, manifest = current_report()
+        RUNNER.validate_report(value, REQUEST, manifest)
+        self.assertEqual(len(value["cases"]), 8)
+        self.assertEqual(len(value["code_safety"]["controls"]), 3)
+
+    def test_historical_cpu_cases_or_graphics_schema_cannot_qualify_current_build(self):
+        value, _ = current_report()
+        value["cases"] = report()["cases"]
+        self.reject(value, "CPU cases")
+        value, _ = current_report()
+        value["graphics_probe"] = graphics_report()
+        self.reject(value, "schema differs")
+        value, manifest = combined_report()
+        value["graphics_probe"] = renderer_graphics_report()
+        with self.assertRaisesRegex(ValueError, "schema differs"):
+            RUNNER.validate_report(value, REQUEST, manifest)
+
+    def test_each_case_requires_exact_route_and_budget_counters(self):
+        for index, original in enumerate(current_report()[0]["cases"]):
+            for key in ("native_calls", "native_lookup_hits", "native_budget_charged",
+                        "fallback_steps", "instruction_callbacks", "interpreter_steps",
+                        "memory_bytes_compared", "budget_exits"):
+                for invalid in (True, original[key] + 1, None):
+                    value, _ = current_report()
+                    value["cases"][index][key] = invalid
+                    with self.subTest(case=original["name"], key=key, invalid=invalid):
+                        self.reject(value, "CPU proof counter")
+                value, _ = current_report()
+                del value["cases"][index][key]
+                with self.subTest(case=original["name"], missing=key):
+                    self.reject(value, "CPU proof counter")
+
+    def test_duplicate_unknown_and_incomplete_new_cpu_cases_do_not_pass(self):
+        value, _ = current_report()
+        value["cases"].pop()
+        self.reject(value, "CPU cases")
+        value, _ = current_report()
+        value["cases"][7] = copy.deepcopy(value["cases"][6])
+        self.reject(value, "CPU cases")
+        value, _ = current_report()
+        value["cases"][7]["name"] = "unreviewed_budget_route"
+        self.reject(value, "CPU cases")
+        for index in range(4, 8):
+            for key in ("strict_expected_match", "strict_interpreter_match", "route_counts_match"):
+                value, _ = current_report()
+                value["cases"][index][key] = 1
+                with self.subTest(case=index, key=key):
+                    self.reject(value, "strict CPU proof")
+
+    def test_fixture_inventory_is_version_specific_and_caller_cannot_mutate_shared_contract(self):
+        self.assertEqual(set(RUNNER.cases_for_version("0.0.2")), set(RUNNER.CASES))
+        self.assertEqual(set(RUNNER.cases_for_version("0.0.3")), set(RUNNER.CASES))
+        current = RUNNER.cases_for_version("0.0.4")
+        self.assertEqual(set(current), {item["name"] for item in current_report()[0]["cases"]})
+        current["arm_tiny_budget_progress"]["native_calls"] = 99
+        self.assertEqual(RUNNER.cases_for_version("0.0.4")["arm_tiny_budget_progress"]["native_calls"], 2)
+        with self.assertRaisesRegex(ValueError, "Unsupported Android probe"):
+            RUNNER.cases_for_version("0.0.5")
+
+    def test_missing_failed_or_unreviewed_code_policy_does_not_pass(self):
+        value, _ = current_report()
+        del value["code_safety"]
+        self.reject(value, "code safety policy")
+        for key, invalid in (("status", "failed"), ("policy", "dynamic_code_supported")):
+            value, _ = current_report()
+            value["code_safety"][key] = invalid
+            with self.subTest(key=key):
+                self.reject(value, "code safety policy")
+
+    def test_code_safety_requires_every_exact_control_and_rejection(self):
+        variants = [[], [None] * 3, code_safety_report()["controls"][:-1]]
+        duplicate = code_safety_report()["controls"]
+        duplicate[2] = copy.deepcopy(duplicate[1])
+        variants.append(duplicate)
+        unknown = code_safety_report()["controls"]
+        unknown[0]["name"] = "unvalidated_code_mutation"
+        variants.append(unknown)
+        for controls in variants:
+            value, _ = current_report()
+            value["code_safety"]["controls"] = controls
+            with self.subTest(controls=controls):
+                self.reject(value, "code safety controls")
+        for invalid in (None, "", " ", True):
+            value, _ = current_report()
+            value["code_safety"]["controls"][0]["rejection"] = invalid
+            with self.subTest(rejection=invalid):
+                self.reject(value, "prove rejection")
+
+    def test_code_safety_counters_and_memory_preservation_cannot_be_omitted_or_faked(self):
+        for index in range(3):
+            value, _ = current_report()
+            value["code_safety"]["controls"][index]["status"] = "failed"
+            self.reject(value, "did not pass")
+        for index, keys in ((1, ("native_calls", "fallback_steps", "guest_memory_unchanged")),
+                            (2, ("native_calls", "rejected_writes", "guest_memory_unchanged"))):
+            for key in keys:
+                value, _ = current_report()
+                del value["code_safety"]["controls"][index][key]
+                with self.subTest(control=index, missing=key):
+                    self.reject(value, "code safety control")
+                original = code_safety_report()["controls"][index][key]
+                invalid_values = (None, 1, False) if type(original) is bool else (None, True, original + 1)
+                for invalid in invalid_values:
+                    value, _ = current_report()
+                    value["code_safety"]["controls"][index][key] = invalid
+                    with self.subTest(control=index, key=key, invalid=invalid):
+                        self.reject(value, "code safety control")
+
+    def test_code_safety_limitations_remain_part_of_its_narrow_proof(self):
+        for invalid in (None, [], "supported", [""], [True]):
+            value, _ = current_report()
+            value["code_safety"]["limitations"] = invalid
+            with self.subTest(limitations=invalid):
+                self.reject(value, "bounded fixture limitations")
+
+
+def binary_manifest(package="org.droidds.probe", debuggable=True, test_only=True, utf8=True,
+                    version_name="0.0.2", version_code=2):
     """CodexAstraUlt: Minimal original binary XML exercises actual package decoding."""
     strings = ["manifest", "application", "package", package,
                "http://schemas.android.com/apk/res/android", "versionCode", "versionName",
-               "0.0.2", "debuggable", "testOnly"]
+               version_name, "debuggable", "testOnly"]
     data = bytearray()
     offsets = []
     for text in strings:
@@ -338,7 +677,9 @@ def binary_manifest(package="org.droidds.probe", debuggable=True, test_only=True
             result += struct.pack("<IIIHBBI", namespace, name, 0xffffffff, 8, 0, value_type, value)
         return result
 
-    contents = pool + element(0, [(0xffffffff, 2, 3, 3), (4, 5, 0x10, 2), (4, 6, 3, 7)])
+    # CodexAstraUlt: Release tests can bind the actual binary manifest version
+    # without replacing the historical 0.0.2 package-decoding fixture.
+    contents = pool + element(0, [(0xffffffff, 2, 3, 3), (4, 5, 0x10, version_code), (4, 6, 3, 7)])
     contents += element(1, [(4, 8, 0x12, int(debuggable)), (4, 9, 0x12, int(test_only))])
     return struct.pack("<HHI", 3, 8, 8 + len(contents)) + contents
 
@@ -453,6 +794,27 @@ class DeviceContractTests(unittest.TestCase):
                                      {"request_id": REQUEST, "apk_sha256": "a" * 64}, 5)
             self.assertEqual(adb.commands[-1], ("stop-after-run", ["am", "force-stop", RUNNER.PACKAGE]))
             self.assertTrue((Path(temp) / "android-probe.json").is_file())
+
+    def test_unsupported_renderer_retains_complete_json_without_qualifying_the_run(self):
+        # CodexAstraUlt: A capability failure is useful device evidence. Preserve
+        # it before the passing-only validator rejects the qualification gate.
+        for renderer_status in ("unsupported", "failed"):
+            with self.subTest(status=renderer_status), tempfile.TemporaryDirectory() as temp:
+                failed, manifest = current_report()
+                failed["status"] = "failed"
+                graphics = failed["graphics_probe"]
+                graphics["status"] = "failed"
+                graphics["renderer_probe"]["status"] = renderer_status
+                if renderer_status == "unsupported":
+                    graphics["renderer_probe"]["required"]["depth_clamp"] = False
+                    graphics["renderer_probe"]["missing_required"] = ["depth_clamp"]
+                adb = FakeAdb(Path(temp), result=failed)
+                evidence = {"request_id": REQUEST, "apk_sha256": "a" * 64}
+                with self.assertRaisesRegex(ValueError, "identity/status"):
+                    RUNNER.execute_probe(adb, Path("/tmp/fixture.apk"), manifest, evidence, 5)
+                self.assertEqual(evidence["android_report"], failed)
+                self.assertEqual(json.loads((Path(temp) / "android-probe.json").read_text()), failed)
+                self.assertEqual(adb.commands[-1], ("stop-after-run", ["am", "force-stop", RUNNER.PACKAGE]))
 
     def test_apk_hash_mismatch_prevents_launch(self):
         with tempfile.TemporaryDirectory() as temp:

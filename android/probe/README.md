@@ -1,10 +1,11 @@
 # Android CPU and Vulkan probe shell
 
-<!-- CodexAstraUlt: Document the original 0.0.3 Java/JNI/Vulkan and export
+<!-- CodexAstraUlt: Document the original 0.0.4 Java/JNI/Vulkan and export
 contracts while separating source, host and actual Android execution evidence. -->
 
-This platform-only shell runs four synthetic CPU fixtures and an original
-offscreen Vulkan output check. It has no title loader, PICA renderer, presentation
+This platform-only shell runs eight synthetic CPU fixtures, three code-safety
+controls, the original Vulkan color tests, and a Vulkan 1.3 renderer-contract
+fixture with graphics and compute readback. It has no title loader, PICA renderer, presentation
 surface, networking or mandatory Google/vendor service. Optional document export
 uses one user-selected URI without broad storage permission.
 
@@ -12,7 +13,7 @@ uses one user-selected URI without broad storage permission.
 | --- | --- |
 | Application ID | `org.droidds.probe` |
 | Launch component | `org.droidds.probe/.ProbeActivity` |
-| Version | `0.0.3` / version code `3` |
+| Version | `0.0.4` / version code `4` |
 | Android minimum / target | API 29 / 35 |
 | Packaged ABI | `arm64-v8a` |
 | Result | `files/latest-probe.json`, in private app storage |
@@ -26,6 +27,11 @@ synchronization validation. The separate
 [0.0.3 Thor report](../../docs/device-tests/0.0.3-thor-cpu-vulkan.md) now passes
 all CPU and offscreen GPU checks on Adreno 740/Android 13. Picker/lifecycle
 behavior remains unqualified; the uploaded JSON does not identify its export route.
+**0.0.4 Thor execution remains pending.** When published, the
+[0.0.4 release entry](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.4-probe.1)
+will provide `DroidDS-0.0.4-android-arm64.apk`. Its one-off CI signer differs from
+0.0.3: preserve any needed report, then manually uninstall only **DroidDS Probe**
+if required to install it. No automation clears app data or removes other apps.
 
 ## Native interfaces
 
@@ -60,19 +66,39 @@ copying the report. The helper uses Android's Vulkan loader. Neither interface
 uses JNI's modified-UTF-8 `NewStringUTF` for report JSON. Java requires strict
 UTF-8, an object and an allowed terminal status.
 
+## CPU and immutable-code contract
+
+<!-- CodexAstraUlt: Report exact finite arithmetic and bounded dispatch evidence
+without claiming complete ARM/VFP, CRO or operating-system integration. -->
+
+The eight cases compare every exposed CPU/VFP field and the whole 64 KiB fixture
+memory with both an interpreter run and independent expected results. They cover
+the previous four integer/interworking/fallback cases, carry/shifts, Thumb-to-ARM,
+finite exactly representable VFP arithmetic/conversion, and progress under a
+one-instruction slice. The latter has two native entry calls, one charged native
+instruction, two fallback instructions and one budget exit; it is not an OS
+scheduler test. Two deliberate integer/memory corruptions must still be rejected.
+
+`code_safety` requires three real controls: stale-origin load rejection, changed
+text rejected before any native or fallback instruction, and two native stores
+to executable text rejected while every guest byte remains unchanged. Load-checked
+text ownership guards outer and callback lookups; one shared bus protects native
+and interpreter stores. This is immutable synthetic text in a single-threaded
+runner, not support for CRO unload/remap or concurrent code mutation.
+
 ## Offscreen output contract
 
 <!-- CodexAstraUlt: Make real draws, readbacks and mutation controls observable
 without presenting original test shaders as PICA or game rendering. -->
 
-The Vulkan 1.0 helper uses a graphics queue and 16 × 16 RGBA8 image. Original
+The retained Vulkan 1.0 baseline uses a graphics queue and 16 × 16 RGBA8 image. Original
 shaders are compiled and SPIR-V-validated with the pinned NDK during the build;
 no shader compiler is in the APK. One pipeline draws solid red, solid green and
 scissored red/green halves. Each of three cycles creates and destroys a logical
 device, resource set and pipeline on one selected physical device. These are
 three lifecycle cycles, not three different GPUs.
 
-A passing `graphics_probe` requires:
+A passing baseline requires:
 
 - Three cycles, three pipeline creations and twelve draw calls.
 - `solid_red`, `solid_green` and `split_red_green` each passing three cycles,
@@ -81,11 +107,35 @@ A passing `graphics_probe` requires:
   rejection and restore the original content.
 - A selected-device record and no execution error.
 
-Enumeration/allocation bounds and teardown are explicit. This finite test does
-not establish leak freedom. Unsupported or failed execution reports
-`unavailable` or `failed`, with native step/result details when available; neither
-can pass. Zakuro's full Vulkan feature set, generic PICA pipeline, swapchain and
-games are outside this fixture.
+<!-- CodexAstraUlt: Separate required renderer mechanisms from optional
+capabilities and keep the added graphics/compute oracle separate from baseline. -->
+
+`graphics_probe` schema 2 additionally requires `renderer_probe` schema 1 with
+contract `zakuro-412900a`. Required discovery covers Vulkan 1.3, one graphics+compute
+queue, `VK_KHR_push_descriptor`/at least eight push descriptors, depth clamp,
+dynamic rendering, synchronization2 and pipeline creation cache control. D24S8
+must support depth/stencil plus transfers; RGBA8 must support color/blend,
+sampled/linear-filtered, storage and transfers. Optional logic operations,
+pipeline statistics, dynamic blend and dynamic logic operations are recorded
+without making absent support a failure.
+
+Original shaders exercise textured depth/stencil acceptance/rejection and depth
+clamp through dynamic rendering, pushed descriptors, and a compute storage-image
+and buffer path. Required exact results are:
+
+- Two pipeline creations, five draws and one compute dispatch.
+- Two 16 × 16 readbacks: `textured_depth_stencil` (four draws) and `depth_clamp`
+  (one draw), each 256 pixels with zero mismatches; 512 total pixels.
+- Sixteen compute words with zero mismatches.
+- Three actual readback-corruption rejection controls.
+
+These counts are additional to the unchanged baseline. Required capabilities
+are enabled explicitly, and missing support remains in `missing_required`.
+An advanced `unsupported`/`failed` result prevents combined success even if the
+baseline passed. Enumeration/allocation bounds and teardown remain explicit.
+This finite test does not establish leak freedom. It exercises original
+representative mechanisms, not Zakuro's actual generic PICA pipeline, a swapchain
+or a game. The APK does not compile shaders at runtime.
 
 ## Run ownership and combined report
 
@@ -117,7 +167,7 @@ failure instead.
 | `started_at_epoch_ms`, `finished_at_epoch_ms` | Device wall-clock milliseconds; finish exists after completion |
 | `elapsed_realtime_ms` | Whole-run monotonic duration, not a speed benchmark |
 | `process_id` | Process executing this run |
-| `app_version_name`, `app_version_code` | Self-reported package version, `0.0.3` / `3` |
+| `app_version_name`, `app_version_code` | Self-reported package version, `0.0.4` / `4` |
 | `manufacturer`, `model` | Non-unique Android device descriptions |
 | `android_api`, `android_release` | Android API level and release |
 
@@ -170,6 +220,7 @@ warnings. JNI/Vulkan C uses NDK 27.3.13750724 for AArch64/API 29 with
 and Khronos layer. `validate_graphics_report` independently validates output.
 
 The host checks do not execute the Android picker, lifecycle or physical GPU.
-The owner's separate Thor report supplies passing physical-GPU fixture evidence.
-Passing this fixture does not qualify PICA
-accuracy, Dark Moon, game speed, sustained memory behavior or 16 KiB-page hosts.
+The owner's separate 0.0.3 Thor report supplies passing evidence for the earlier
+physical-GPU baseline. The expanded 0.0.4 device checks remain pending. Passing
+these fixtures does not qualify PICA accuracy, Dark Moon, Xenoblade, Sonic, game
+speed, sustained memory behavior or 16 KiB-page hosts.

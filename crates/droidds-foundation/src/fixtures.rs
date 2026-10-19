@@ -9,6 +9,7 @@ pub const CHECKPOINT: u32 = 42;
 
 // CodexAstraUlt: Each fixture carries explicit discovery seeds and an independent
 // expected end state. The absent-entry bytes are intentionally outside Program.
+#[derive(Clone)]
 pub struct Fixture {
     pub name: &'static str,
     pub text: Vec<u8>,
@@ -21,6 +22,10 @@ pub struct Fixture {
     // a native-entry call or incidental fallback from masquerading as AOT proof.
     pub native_budget: u64,
     pub native_lookups: u64,
+    // CodexAstraUlt: A tiny dispatch slice proves refusal can still make progress.
+    pub slice: i32,
+    pub native_calls: u64,
+    pub budget_exits: u64,
     pub thumb_entry: Option<u32>,
 }
 
@@ -97,6 +102,9 @@ pub fn fixtures() -> Vec<Fixture> {
         fallback_steps: 0,
         native_budget: 11,
         native_lookups: 0,
+        slice: 32,
+        native_calls: 1,
+        budget_exits: 0,
         thumb_entry: None,
     };
 
@@ -132,6 +140,9 @@ pub fn fixtures() -> Vec<Fixture> {
         fallback_steps: 0,
         native_budget: 7,
         native_lookups: 0,
+        slice: 32,
+        native_calls: 1,
+        budget_exits: 0,
         thumb_entry: Some(START | 1),
     };
 
@@ -163,6 +174,9 @@ pub fn fixtures() -> Vec<Fixture> {
         fallback_steps: 3,
         native_budget: 2,
         native_lookups: 0,
+        slice: 32,
+        native_calls: 1,
+        budget_exits: 0,
         thumb_entry: None,
     };
 
@@ -196,9 +210,21 @@ pub fn fixtures() -> Vec<Fixture> {
         fallback_steps: 0,
         native_budget: 5,
         native_lookups: 1,
+        slice: 32,
+        native_calls: 1,
+        budget_exits: 0,
         thumb_entry: Some(target | 1),
     };
-    vec![arm_case, thumb_case, missing_case, interwork_case]
+    vec![
+        arm_case,
+        thumb_case,
+        missing_case,
+        interwork_case,
+        flags_shifts(),
+        thumb_to_arm(),
+        finite_vfp(),
+        tiny_budget(),
+    ]
 }
 
 // CodexAstraUlt: A real guest infinite loop tests that budget exhaustion cannot
@@ -217,6 +243,159 @@ pub fn endless() -> Fixture {
         fallback_steps: 0,
         native_budget: 0,
         native_lookups: 0,
+        slice: 32,
+        native_calls: 1,
+        budget_exits: 0,
+        thumb_entry: None,
+    }
+}
+
+// CodexAstraUlt: Carry propagation and three shifts have independently derived
+// results; the final ASR leaves N=1,Z=0,C=0,V=0 and preserves Q/GE.
+fn flags_shifts() -> Fixture {
+    let (cpu, mut memory) = initial(false);
+    let text = arm(&[
+        0xe3e0_0000, // CodexAstraUlt: mvn r0,#0 -> ffffffff.
+        0xe290_1001, // CodexAstraUlt: adds r1,r0,#1 -> zero, carry one.
+        0xe2a1_2005, // CodexAstraUlt: adc r2,r1,#5 -> six using that carry.
+        0xe1b0_3fa0, // CodexAstraUlt: lsrs r3,r0,#31 -> one, carry one.
+        0xe1b0_5f80, // CodexAstraUlt: lsls r5,r0,#31 -> 80000000, carry one.
+        0xe1b0_7fc5, // CodexAstraUlt: asrs r7,r5,#31 -> ffffffff, carry zero.
+        0xe584_2000, // CodexAstraUlt: str r2,[r4] stores six.
+        0xef00_002a, // CodexAstraUlt: svc #42.
+    ]);
+    memory.load(START, &text);
+    let mut expected_cpu = cpu.clone();
+    expected_cpu.regs[0] = u32::MAX;
+    expected_cpu.regs[1] = 0;
+    expected_cpu.regs[2] = 6;
+    expected_cpu.regs[3] = 1;
+    expected_cpu.regs[5] = 0x8000_0000;
+    expected_cpu.regs[7] = u32::MAX;
+    expected_cpu.regs[15] = START + text.len() as u32;
+    expected_cpu.cpsr.n = true;
+    let mut expected_memory = memory.clone();
+    expected_memory.load(DATA, &6u32.to_le_bytes());
+    Fixture {
+        name: "arm_flags_shifts",
+        text,
+        seeds: vec![START],
+        expected: Snapshot::capture(&expected_cpu, &expected_memory),
+        cpu,
+        memory,
+        fallback_steps: 0,
+        native_budget: 8,
+        native_lookups: 0,
+        slice: 32,
+        native_calls: 1,
+        budget_exits: 0,
+        thumb_entry: None,
+    }
+}
+
+// CodexAstraUlt: Reverse interworking executes the actual runtime lookup from
+// Thumb into ARM; neither an interpreter-only pass nor ARM->Thumb qualifies it.
+fn thumb_to_arm() -> Fixture {
+    let (mut cpu, mut memory) = initial(true);
+    let target = START + 0x20;
+    cpu.regs[8] = target;
+    let mut text = thumb(&[0x2007, 0x4740]); // CodexAstraUlt: movs r0,#7; bx r8.
+    text.resize(0x20, 0);
+    text.extend(arm(&[
+        0xe280_0005, // CodexAstraUlt: add r0,r0,#5.
+        0xe584_0000, // CodexAstraUlt: str r0,[r4].
+        0xef00_002a, // CodexAstraUlt: svc #42 from ARM.
+    ]));
+    memory.load(START, &text);
+    let mut expected_cpu = cpu.clone();
+    expected_cpu.regs[0] = 12;
+    expected_cpu.regs[15] = START + text.len() as u32;
+    expected_cpu.cpsr.thumb = false;
+    let mut expected_memory = memory.clone();
+    expected_memory.load(DATA, &12u32.to_le_bytes());
+    Fixture {
+        name: "thumb_to_arm_native",
+        text,
+        seeds: vec![START | 1, target],
+        expected: Snapshot::capture(&expected_cpu, &expected_memory),
+        cpu,
+        memory,
+        fallback_steps: 0,
+        native_budget: 5,
+        native_lookups: 1,
+        slice: 32,
+        native_calls: 1,
+        budget_exits: 0,
+        thumb_entry: Some(START | 1),
+    }
+}
+
+// CodexAstraUlt: Exactly representable finite operands avoid NaN, subnormal and
+// rounding-policy ambiguity. Bitwise equality remains mandatory for all VFP
+// storage/FPSCR. This is narrow arithmetic coverage, not full VFP conformance.
+fn finite_vfp() -> Fixture {
+    let (mut cpu, mut memory) = initial(false);
+    cpu.vfp.regs[0] = 0x3fc0_0000; // CodexAstraUlt: 1.5.
+    cpu.vfp.regs[1] = 0x4000_0000; // CodexAstraUlt: 2.0.
+    let text = arm(&[
+        0xee30_1a20, // CodexAstraUlt: vadd.f32 s2,s0,s1 -> 3.5.
+        0xee61_1a20, // CodexAstraUlt: vmul.f32 s3,s2,s1 -> 7.0.
+        0xeebd_2ae1, // CodexAstraUlt: vcvt.s32.f32 s4,s3 -> integer seven.
+        0xeef8_2ac2, // CodexAstraUlt: vcvt.f32.s32 s5,s4 -> 7.0.
+        0xee12_0a10, // CodexAstraUlt: vmov r0,s4 -> integer seven.
+        0xedc4_2a00, // CodexAstraUlt: vstr s5,[r4] -> IEEE 7.0 bits.
+        0xef00_002a, // CodexAstraUlt: svc #42.
+    ]);
+    memory.load(START, &text);
+    let mut expected_cpu = cpu.clone();
+    expected_cpu.regs[0] = 7;
+    expected_cpu.regs[15] = START + text.len() as u32;
+    expected_cpu.vfp.regs[2] = 0x4060_0000;
+    expected_cpu.vfp.regs[3] = 0x40e0_0000;
+    expected_cpu.vfp.regs[4] = 7;
+    expected_cpu.vfp.regs[5] = 0x40e0_0000;
+    let mut expected_memory = memory.clone();
+    expected_memory.load(DATA, &0x40e0_0000u32.to_le_bytes());
+    Fixture {
+        name: "arm_vfp_finite",
+        text,
+        seeds: vec![START],
+        expected: Snapshot::capture(&expected_cpu, &expected_memory),
+        cpu,
+        memory,
+        fallback_steps: 0,
+        native_budget: 7,
+        native_lookups: 0,
+        slice: 32,
+        native_calls: 1,
+        budget_exits: 0,
+        thumb_entry: None,
+    }
+}
+
+// CodexAstraUlt: A one-instruction slice cannot admit the first two-instruction
+// block. Interpreter progress reaches a separate native SVC entry, proving both
+// bounded yielding and eventual completion without claiming an OS scheduler.
+fn tiny_budget() -> Fixture {
+    let (cpu, mut memory) = initial(false);
+    let text = arm(&[0xe3a0_0007, 0xe280_0005, 0xef00_002a]);
+    memory.load(START, &text);
+    let mut expected_cpu = cpu.clone();
+    expected_cpu.regs[0] = 12;
+    expected_cpu.regs[15] = START + text.len() as u32;
+    Fixture {
+        name: "arm_tiny_budget_progress",
+        text,
+        seeds: vec![START, START + 8],
+        expected: Snapshot::capture(&expected_cpu, &memory),
+        cpu,
+        memory,
+        fallback_steps: 2,
+        native_budget: 1,
+        native_lookups: 0,
+        slice: 1,
+        native_calls: 2,
+        budget_exits: 1,
         thumb_entry: None,
     }
 }

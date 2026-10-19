@@ -1,4 +1,4 @@
-//! CodexAstraUlt: Execute four original packaged CPU fixtures through the actual
+//! CodexAstraUlt: Execute eight original packaged CPU fixtures through the actual
 //! recomp ABI. This is an Android loader/CPU probe, not a 3DS emulator or title
 //! importer. Known generated native code is trusted; this API is not a sandbox.
 
@@ -33,8 +33,9 @@ fn envelope() -> Value {
         "cases": [],
         "negative_controls": [],
         "limitations": [
-            "Four original integer fixtures do not establish ARMv6K, game or graphics compatibility.",
-            "VFP storage is preserved; no VFP arithmetic instruction is tested.",
+            "Eight original fixtures do not establish broad ARMv6K, game or graphics compatibility.",
+            "Finite exact VFP arithmetic/conversions pass only their selected operands; NaN, subnormal and general rounding behavior remain unqualified.",
+            "Immutable fixture text and small-slice progress are tested; no CRO lifetime or OS scheduler integration is established.",
             "Native instruction accounting is not elapsed time or emulation speed.",
             "Instruction budgets bound cooperative fixtures; there is no in-process wall-clock watchdog.",
             "Rust panic capture cannot catch native crashes, corrupt pointers, aborts or hung native code.",
@@ -100,6 +101,7 @@ fn execute(directory: &Path) -> Result<Value, String> {
     }
     let mut cases = Vec::new();
     let mut controls = Vec::new();
+    let mut code_safety = json!({"status": "failed", "error": "code-safety controls did not run"});
     for fixture in fixtures::fixtures() {
         let file_name = format!("libdds_fixture_{}.so", fixture.name);
         // CodexAstraUlt: Keep the library alive until both the final snapshot and
@@ -112,6 +114,9 @@ fn execute(directory: &Path) -> Result<Value, String> {
             runner::validate(&fixture, &reference, &candidate)?;
             if fixture.name == "arm_integer_memory" {
                 controls = negative_controls(&fixture, &reference, &mut candidate)?;
+                // CodexAstraUlt: Run the same actual stale/changed/store guards
+                // as Linux against this packaged library on the Android device.
+                code_safety = libraries::safety_controls(&fixture, &directory.join(&file_name))?;
             }
             Ok(json!({
                 "name": fixture.name,
@@ -126,6 +131,7 @@ fn execute(directory: &Path) -> Result<Value, String> {
                 "native_budget_charged": candidate.counts.native_budget_charged,
                 "fallback_steps": candidate.counts.fallback_steps,
                 "instruction_callbacks": candidate.counts.instruction_callbacks,
+                "budget_exits": candidate.counts.budget_exits,
                 "interpreter_steps": reference.counts.interpreter_steps,
                 "memory_bytes_compared": candidate.state.memory.len(),
             }))
@@ -135,12 +141,14 @@ fn execute(directory: &Path) -> Result<Value, String> {
             Err(error) => json!({"name": fixture.name, "library": file_name, "status": "failed", "error": error}),
         });
     }
-    let passed = cases.len() == 4
+    let passed = cases.len() == 8
         && cases.iter().all(|case| case["status"] == "passed")
-        && controls.len() == 2;
+        && controls.len() == 2
+        && code_safety["status"] == "passed";
     report["status"] = json!(if passed { "passed" } else { "failed" });
     report["cases"] = json!(cases);
     report["negative_controls"] = json!(controls);
+    report["code_safety"] = code_safety;
     Ok(report)
 }
 

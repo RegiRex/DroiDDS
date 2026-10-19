@@ -27,19 +27,34 @@ all CPU and offscreen GPU checks on Android 13/Adreno 740, with Vulkan 1.3.128
 reported. Full renderer capability, lifecycle and game qualification remain open;
 the JSON does not record which export method was used.
 
-<!-- CodexAstraUlt: Link the new diagnostic release without claiming it runs a
-game or qualifies PICA rendering from a small platform Vulkan fixture. -->
-The **[0.0.3 Android probe prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.3-probe.1)**
-provides an installable ARM64 APK. Launch **DroidDS Probe** to run the CPU and
-Vulkan checks automatically, then use **Save report** to choose a JSON destination.
-See [Android instructions](docs/ANDROID_PROBE.md) and the release notes for its
-diagnostic signing identity and installation requirements.
+<!-- CodexAstraUlt: Advance to the expanded diagnostic without treating original
+backend operations or reproduced New 3DS defects as game integration. -->
+Version **0.0.4** expands the CPU corpus to eight cases, adds executable-code
+freshness/write protection controls, and tests the pinned renderer's Vulkan 1.3
+requirements with actual texture, depth/stencil and compute operations. The
+[0.0.4 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.4-probe.1)
+is the next ARM64 diagnostic. Launch **DroidDS Probe**, wait for the result, then
+use **Save report**. Device qualification remains pending until its own report
+passes; 0.0.3's pass does not qualify the new checks. See
+[Android instructions](docs/ANDROID_PROBE.md) for installation and signing details.
+
+The [New 3DS audit](docs/NEW3DS_AUDIT.md) executes the pinned parser/allocator with
+original headers and reproduces incorrect header decoding and application-memory
+limits. These are concrete integration tasks for 0.0.5; no Xenoblade execution or
+fix is claimed.
 
 This is an original DroidDS integration workspace using pinned 3dsrecomp compiler/
-ABI and Zakuro CPU components. HLE services, graphics and game performance are
-not included in these diagnostic probes. The original Vulkan fixture establishes
-an API path, not a PICA renderer. Continue the CPU lifecycle/semantic gates,
-Android device probe and graphics foundation from the roadmap.
+ABI and Zakuro CPU components. HLE services and game execution are not integrated
+in these diagnostic APKs. The original Vulkan fixtures exercise backend features,
+not PICA translation or game performance. Continue from the roadmap's runtime,
+CPU lifecycle and actual PICA qualification gates.
+
+<!-- CodexAstraUlt: Persist the owner's report-driven release instruction in the
+public overview without promising background execution or bypassing hardware. -->
+After each owner-supplied report, development proceeds to the next qualified build
+through 0.1.0 without a routine approval round. Failed gates receive diagnosis and
+a corrective build before promotion; required hardware/input decisions remain
+explicit.
 
 | Read | Purpose |
 | --- | --- |
@@ -47,7 +62,8 @@ Android device probe and graphics foundation from the roadmap.
 | [Android CPU/Vulkan probe](docs/ANDROID_PROBE.md) | Build the ARM64 test app and run it on the Thor |
 | [Thor CPU result](docs/device-tests/0.0.2-thor-cpu.md) | Owner-supplied 0.0.2 execution and its qualification boundary |
 | [Thor CPU/Vulkan result](docs/device-tests/0.0.3-thor-cpu-vulkan.md) | Passing 0.0.3 hardware readbacks and remaining renderer gates |
-| [CPU/Vulkan build evidence](docs/builds/0.0.3-android-vulkan.md) | Executed rendering/package checks and device gates still open |
+| [0.0.4 build evidence](docs/builds/0.0.4-runtime-probe.md) | Expanded CPU, renderer operations and packaging checks |
+| [New 3DS audit](docs/NEW3DS_AUDIT.md) | Reproduced parser/memory defects and integration fixes required |
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |
 | [Additional reuse candidates](docs/REUSE_CANDIDATES.md) | AnyPS5, Azahar, Citra MMJ and Uberhar source review |
 | [Architecture](docs/ARCHITECTURE.md) | Components, design decisions, boundaries and risks |

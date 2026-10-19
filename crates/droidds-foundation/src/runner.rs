@@ -2,12 +2,12 @@
 //! comparison and observable native/fallback execution. This is not a 3DS OS.
 
 use crate::fixtures::{Fixture, CHECKPOINT};
+use crate::libraries::CheckedLibrary;
 use crate::memory::Memory;
-use recomp_abi::{Code, Context, Host, Library};
+use recomp_abi::{Code, Context, Host};
 use zakuro_cpu::{Bus, Cpu, Exit};
 
 const INSTRUCTION_LIMIT: u64 = 256;
-const SLICE: i32 = 32;
 
 // CodexAstraUlt: Capture every exposed user register/flag, VFP storage and the
 // entire 64 KiB fixture image. Integer and memory comparison has no NaN exception.
@@ -44,6 +44,9 @@ impl Snapshot {
 pub enum Stop {
     Checkpoint(u32),
     InstructionLimit,
+    // CodexAstraUlt: Immutable code violations never masquerade as checkpoints.
+    CodeChanged,
+    CodeWriteRejected,
     Unexpected(String),
 }
 
@@ -57,6 +60,9 @@ pub struct Counts {
     pub fallback_steps: u64,
     pub instruction_callbacks: u64,
     pub interpreter_steps: u64,
+    // CodexAstraUlt: Expose actual cooperative yields and blocked code stores.
+    pub budget_exits: u64,
+    pub code_write_rejections: u64,
 }
 
 pub struct ResultState {
@@ -77,15 +83,22 @@ fn stopped(exit: Exit) -> Stop {
 pub fn interpreted(fixture: &Fixture) -> ResultState {
     let mut cpu = fixture.cpu.clone();
     let mut memory = fixture.memory.clone();
+    memory.protect_text(fixture.text.len());
     let mut counts = Counts::default();
     let mut stop = Stop::InstructionLimit;
     for _ in 0..INSTRUCTION_LIMIT {
         counts.interpreter_steps += 1;
-        if let Some(exit) = cpu.step(&mut memory) {
+        let exit = cpu.step(&mut memory);
+        if memory.rejected_code_writes != 0 {
+            stop = Stop::CodeWriteRejected;
+            break;
+        }
+        if let Some(exit) = exit {
             stop = stopped(exit);
             break;
         }
     }
+    counts.code_write_rejections = memory.rejected_code_writes;
     ResultState {
         stop,
         state: Snapshot::capture(&cpu, &memory),
@@ -98,7 +111,7 @@ pub fn interpreted(fixture: &Fixture) -> ResultState {
 struct Run {
     cpu: Cpu,
     memory: Memory,
-    library: *const Library,
+    library: *const CheckedLibrary,
     pending: Option<Exit>,
     counts: Counts,
 }
@@ -124,14 +137,17 @@ unsafe extern "C" fn read32(context: *mut Context, address: u32) -> u32 {
 }
 
 unsafe extern "C" fn write8(context: *mut Context, address: u32, value: u8) {
+    // CodexAstraUlt: The shared bus rejects executable writes for every engine.
     unsafe { run_of(context).memory.write8(address, value) }
 }
 
 unsafe extern "C" fn write16(context: *mut Context, address: u32, value: u16) {
+    // CodexAstraUlt: The shared bus rejects executable writes for every engine.
     unsafe { run_of(context).memory.write16(address, value) }
 }
 
 unsafe extern "C" fn write32(context: *mut Context, address: u32, value: u32) {
+    // CodexAstraUlt: The shared bus rejects executable writes for every engine.
     unsafe { run_of(context).memory.write32(address, value) }
 }
 
@@ -158,7 +174,7 @@ unsafe extern "C" fn interpret(context: *mut Context, address: u32, _opcode: u32
 unsafe extern "C" fn lookup(context: *mut Context, address: u32) -> Option<Code> {
     unsafe {
         let run = run_of(context);
-        let code = (*run.library).lookup(address);
+        let code = (*run.library).lookup(&run.memory, address);
         if code.is_some() {
             run.counts.native_lookup_hits += 1;
         }
@@ -208,7 +224,7 @@ fn store(cpu: &Cpu, context: &mut Context) {
 
 // CodexAstraUlt: Basic-block budgets are not wall-clock timing. An outer process
 // watchdog bounds buggy generated native code that fails to honor its budget.
-pub fn native(fixture: &Fixture, library: &Library) -> ResultState {
+pub fn native(fixture: &Fixture, library: &CheckedLibrary) -> ResultState {
     let mut run = Box::new(Run {
         cpu: fixture.cpu.clone(),
         memory: fixture.memory.clone(),
@@ -216,6 +232,7 @@ pub fn native(fixture: &Fixture, library: &Library) -> ResultState {
         pending: None,
         counts: Counts::default(),
     });
+    library.protect(&mut run.memory);
     let pages = vec![std::ptr::null_mut::<u8>(); 1 << 20];
     let mut context = Context {
         r: [0; 16],
@@ -248,8 +265,13 @@ pub fn native(fixture: &Fixture, library: &Library) -> ResultState {
             break Stop::InstructionLimit;
         }
         dispatches += 1;
-        if let Some(code) = library.lookup(context.r[15] | u32::from(context.thumb)) {
-            let budget = SLICE.min(remaining as i32);
+        // CodexAstraUlt: Validate against the bytes checked at load before each
+        // outer native entry; callback lookup applies the same ownership gate.
+        if !library.unchanged(&run.memory) {
+            break Stop::CodeChanged;
+        }
+        if let Some(code) = library.lookup(&run.memory, context.r[15] | u32::from(context.thumb)) {
+            let budget = fixture.slice.min(remaining as i32);
             context.budget = budget;
             context.exit = recomp_abi::EXIT_NONE;
             context.depth = 0;
@@ -263,6 +285,12 @@ pub fn native(fixture: &Fixture, library: &Library) -> ResultState {
             }
             remaining -= spent as u64;
             run.counts.native_budget_charged += spent as u64;
+            if run.memory.rejected_code_writes != 0 {
+                break Stop::CodeWriteRejected;
+            }
+            if context.exit == recomp_abi::EXIT_BUDGET {
+                run.counts.budget_exits += 1;
+            }
             if let Some(exit) = run.pending.take() {
                 break stopped(exit);
             }
@@ -283,11 +311,15 @@ pub fn native(fixture: &Fixture, library: &Library) -> ResultState {
         store(&run.cpu, &mut context);
         run.counts.fallback_steps += 1;
         remaining -= 1;
+        if run.memory.rejected_code_writes != 0 {
+            break Stop::CodeWriteRejected;
+        }
         if let Some(exit) = exit {
             break stopped(exit);
         }
     };
     load(&context, &mut run.cpu);
+    run.counts.code_write_rejections = run.memory.rejected_code_writes;
     ResultState {
         stop,
         state: Snapshot::capture(&run.cpu, &run.memory),
@@ -360,11 +392,13 @@ pub fn validate(
     }
     // CodexAstraUlt: The Android port retains the exact dispatch route proven on
     // Linux, including the real Thumb lookup and three-step missing-entry path.
-    if candidate.counts.native_calls != 1
+    if candidate.counts.native_calls != fixture.native_calls
         || candidate.counts.native_budget_charged != fixture.native_budget
         || candidate.counts.native_lookup_hits != fixture.native_lookups
         || candidate.counts.fallback_steps != fixture.fallback_steps
         || candidate.counts.instruction_callbacks != 0
+        || candidate.counts.budget_exits != fixture.budget_exits
+        || candidate.counts.code_write_rejections != 0
     {
         return Err(format!(
             "unexpected native/fallback route counts: {:?}",
@@ -380,6 +414,17 @@ mod tests {
 
     // CodexAstraUlt: These adversarial oracle checks target the inherited
     // verifier's integer/memory NaN masking and limit handling, not its internals.
+    #[test]
+    fn interpreter_rejects_executable_stores_without_changing_code() {
+        let mut fixture = crate::fixtures::fixtures().remove(0);
+        fixture.cpu.regs[4] = crate::memory::START;
+        let result = interpreted(&fixture);
+        assert_eq!(result.stop, Stop::CodeWriteRejected);
+        assert_eq!(result.counts.code_write_rejections, 1);
+        assert_eq!(result.state.memory, fixture.memory.bytes);
+        assert_eq!(result.counts.interpreter_steps, 8);
+    }
+
     #[test]
     fn rejects_nan_shaped_integer_register_difference() {
         let expected = crate::fixtures::fixtures().remove(0).expected;

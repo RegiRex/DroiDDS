@@ -1,7 +1,8 @@
-/* CodexAstraUlt: Original Vulkan 1.0 offscreen correctness fixture. Its bounded
- * synthetic draws test this API path, not PICA semantics, a game surface, memory
- * leak freedom or handheld performance. No optional extension is required. */
+/* CodexAstraUlt: Preserve the original Vulkan 1.0 offscreen baseline and add
+ * a separately reported Vulkan 1.3 renderer capability/pipeline fixture. These
+ * synthetic paths do not establish PICA accuracy, game speed or leak freedom. */
 #include "vulkan_probe.h"
+#include "vulkan_renderer.h"
 #include "droidds_probe_shaders.h"
 
 #include <inttypes.h>
@@ -42,6 +43,8 @@ typedef struct {
     int negative_ok, has_device, validation_layer_enabled;
     VkPhysicalDeviceProperties properties;
     CaseResult cases[CASES];
+    /* CodexAstraUlt: Separate bounded renderer evidence preserves baseline counters. */
+    char renderer_json[16384];
 } Report;
 
 typedef struct {
@@ -502,7 +505,7 @@ static void quoted(Writer *writer, const char *text, size_t limit) {
 
 static int serialize(const Report *report, char *json, size_t capacity) {
     Writer writer = { json, capacity, 0, 0 };
-    append(&writer, "{\"schema\":1,\"kind\":\"droidds-vulkan-probe\",\"status\":");
+    append(&writer, "{\"schema\":2,\"kind\":\"droidds-vulkan-probe\",\"status\":");
     quoted(&writer, report->status, 32);
     append(&writer, ",\"validation_layer_enabled\":%s", report->validation_layer_enabled ? "true" : "false");
     append(&writer, ",\"width\":16,\"height\":16,\"required_cycles\":3,"
@@ -535,9 +538,11 @@ static int serialize(const Report *report, char *json, size_t capacity) {
                status, result->cycles, result->pixels, result->mismatches);
     }
     append(&writer, "],\"negative_controls\":{\"pixel_mutation_rejected\":%s,"
-           "\"checks_completed\":%" PRIu32 ",\"required_checks\":9}}",
+           "\"checks_completed\":%" PRIu32 ",\"required_checks\":9}",
            report->negative_ok && report->negative_checks == CYCLES * CASES ? "true" : "false",
            report->negative_checks);
+    append(&writer, ",\"renderer_probe\":%s}", report->renderer_json[0] ?
+           report->renderer_json : "{\"schema\":1,\"status\":\"not_run\"}");
     if (writer.failed || writer.used > INT32_MAX) {
         json[0] = '\0';
         return -1;
@@ -546,14 +551,22 @@ static int serialize(const Report *report, char *json, size_t capacity) {
 }
 
 /* CodexAstraUlt: Availability failure and executed correctness failure stay
- * distinct. Only all nine real readbacks plus nine mutation checks can pass. */
+ * distinct. Passing requires all nine baseline readbacks/mutation controls plus
+ * the separately reported required capabilities and representative pipeline. */
 int dds_vk_probe_run(char *json, size_t capacity) {
     if (!json || capacity == 0) return -1;
     Report report = { .status = "unavailable", .negative_ok = 1 };
+    /* CodexAstraUlt: Negotiate up to 1.3 while retaining a 1.0 baseline on older
+     * loaders. Resolve the version query dynamically for Android loader safety. */
+    uint32_t instance_api = VK_API_VERSION_1_0;
+    PFN_vkEnumerateInstanceVersion version = (PFN_vkEnumerateInstanceVersion)
+        vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkEnumerateInstanceVersion");
+    if (version && version(&instance_api) != VK_SUCCESS) instance_api = VK_API_VERSION_1_0;
+    if (instance_api > VK_API_VERSION_1_3) instance_api = VK_API_VERSION_1_3;
     VkApplicationInfo application = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .pApplicationName = "DroidDS Vulkan Probe",
-        .applicationVersion = VK_MAKE_VERSION(0, 0, 3), .pEngineName = "DroidDS synthetic",
-        .engineVersion = VK_MAKE_VERSION(0, 0, 3), .apiVersion = VK_API_VERSION_1_0
+        .applicationVersion = VK_MAKE_VERSION(0, 0, 4), .pEngineName = "DroidDS synthetic",
+        .engineVersion = VK_MAKE_VERSION(0, 0, 4), .apiVersion = instance_api
     };
     VkInstanceCreateInfo instance_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pApplicationInfo = &application
@@ -585,7 +598,14 @@ int dds_vk_probe_run(char *json, size_t capacity) {
             ++report.cycles;
         }
         if (report.cycles == CYCLES && report.negative_checks == CYCLES * CASES &&
-            report.negative_ok && !report.error_step) report.status = "passed";
+            report.negative_ok && !report.error_step) {
+            int renderer_passed = 0;
+            int length = dds_renderer_probe_run(instance, physical, instance_api,
+                report.renderer_json, sizeof(report.renderer_json), &renderer_passed);
+            if (length < 0) fail(&report, "renderer_serialization_bound", VK_ERROR_UNKNOWN);
+            else if (!renderer_passed) fail(&report, "renderer_probe_not_passed", VK_ERROR_FEATURE_NOT_PRESENT);
+            else report.status = "passed";
+        }
     }
     vkDestroyInstance(instance, NULL);
     return serialize(&report, json, capacity);

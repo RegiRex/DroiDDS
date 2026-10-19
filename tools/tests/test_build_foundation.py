@@ -7,6 +7,10 @@ import sys
 import tempfile
 import unittest
 
+# CodexAstraUlt: Permit this test file to run alone now that the build gate
+# imports the shared versioned report contract from its sibling tool.
+sys.path.insert(0, str(Path(__file__).parents[1]))
+
 SPEC = importlib.util.spec_from_file_location(
     "build_foundation", Path(__file__).parents[1] / "build_foundation.py")
 RUNNER = importlib.util.module_from_spec(SPEC)
@@ -92,15 +96,22 @@ class ReportGateTests(unittest.TestCase):
 
     def setUp(self):
         self.pins = {"recompiler": {"abi": 4, "generation": 3}}
-        names = ("arm_integer_memory", "thumb_integer_memory",
-                 "arm_missing_entry_fallback", "arm_to_thumb_native")
+        names = RUNNER.cases_for_version("0.0.4")
         controls = ("nan_shaped_integer_register_mismatch", "nan_shaped_integer_memory_mismatch",
                     "guest_instruction_limit", "process_watchdog")
         self.report = {"schema": 1, "status": "passed", "abi": 4, "generation": 3,
-                       "cases": [{"name": name, "status": "passed", "native_calls": 1,
-                                  "native_budget_charged": 3,
-                                  "fallback_steps": int(name == "arm_missing_entry_fallback")}
-                                 for name in names],
+                       "cases": [{"name": name, "status": "passed", **counters}
+                                 for name, counters in names.items()],
+                       "code_safety": {
+                           "policy": "immutable_fixture_text", "status": "passed",
+                           "limitations": ["Original unit-test evidence only"],
+                           "controls": [
+                               {"name": "stale_origin_rejected", "status": "passed",
+                                "rejection": "Unit-test stale origin"},
+                               {"name": "changed_code_before_dispatch_rejected", "status": "passed",
+                                "native_calls": 0, "fallback_steps": 0, "guest_memory_unchanged": True},
+                               {"name": "guest_executable_write_rejected", "status": "passed",
+                                "native_calls": 1, "rejected_writes": 2, "guest_memory_unchanged": True}]},
                        "negative_controls": [{"name": name, "status": "passed"} for name in controls]}
 
     def test_complete_report_passes(self):
@@ -118,17 +129,35 @@ class ReportGateTests(unittest.TestCase):
 
     def test_unexercised_fallback_fails(self):
         self.report["cases"][2]["fallback_steps"] = 0
-        with self.assertRaisesRegex(ValueError, "not exercised"):
+        with self.assertRaisesRegex(ValueError, "route counter"):
             RUNNER.validate_report(self.report, self.pins)
 
     def test_no_native_work_fails(self):
         self.report["cases"][0]["native_budget_charged"] = 0
-        with self.assertRaisesRegex(ValueError, "not demonstrated"):
+        with self.assertRaisesRegex(ValueError, "route counter"):
             RUNNER.validate_report(self.report, self.pins)
 
     def test_missing_timeout_control_fails(self):
         self.report["negative_controls"].pop()
         with self.assertRaisesRegex(ValueError, "negative controls"):
+            RUNNER.validate_report(self.report, self.pins)
+
+    # CodexAstraUlt: A former four-case report and an unchecked code mutation
+    # cannot satisfy the expanded host milestone merely by claiming passed.
+    def test_old_case_set_and_missing_code_guard_fail(self):
+        current = self.report["cases"]
+        self.report["cases"] = current[:4]
+        with self.assertRaisesRegex(ValueError, "required CPU cases"):
+            RUNNER.validate_report(self.report, self.pins)
+        self.report["cases"] = current
+        del self.report["code_safety"]
+        with self.assertRaisesRegex(ValueError, "code safety"):
+            RUNNER.validate_report(self.report, self.pins)
+
+    def test_tiny_budget_must_prove_exit_and_fallback(self):
+        case = self.report["cases"][-1]
+        case["budget_exits"] = 0
+        with self.assertRaisesRegex(ValueError, "route counter"):
             RUNNER.validate_report(self.report, self.pins)
 
 

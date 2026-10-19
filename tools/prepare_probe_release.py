@@ -12,17 +12,22 @@ import subprocess
 import sys
 import zipfile
 
-from run_android_probe import apk_manifest
+from run_android_probe import apk_manifest, cases_for_version
 
 APK_SOURCE = "droidds-android-probe-prerelease.apk"
 NOTICE_FILE = "THIRD_PARTY_NOTICES.txt"
 NOTICE_ENTRY = "assets/THIRD_PARTY_NOTICES.txt"
 BUILD_TOOLS_VERSION = "35.0.0"
 TAG_PATTERN = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-probe\.([1-9][0-9]*)"
-LIBRARIES = {"libdroidds_android_probe.so", "libdroidds_probe_jni.so"} | {
-    "libdds_fixture_" + name + ".so" for name in (
-        "arm_integer_memory", "thumb_integer_memory", "arm_missing_entry_fallback",
-        "arm_to_thumb_native")}
+def libraries_for_version(version: str) -> set[str]:
+    """CodexAstraUlt: Bind every release's packaged code to its exact fixture set."""
+    return {"libdroidds_android_probe.so", "libdroidds_probe_jni.so"} | {
+        "libdds_fixture_" + name + ".so" for name in cases_for_version(version)}
+
+
+# CodexAstraUlt: Preserve the historical fixture used by the 0.0.2 release tests;
+# actual APK validation always selects its inventory from the requested version.
+LIBRARIES = libraries_for_version("0.0.2")
 
 
 def digest(data: bytes) -> str:
@@ -58,9 +63,10 @@ def inspect_apk(apk: Path, report: dict, version: str, notices: bytes) -> dict:
     manifest = apk_manifest(apk, allow_prerelease=True)
     require_values(manifest, {"package": "org.droidds.probe", "version_name": version,
                               "debuggable": True, "test_only": False})
+    libraries = libraries_for_version(version)
     elf = report.get("elf")
-    if not isinstance(elf, dict) or set(elf) != LIBRARIES:
-        raise ValueError("Release report must audit exactly the six known ARM64 libraries")
+    if not isinstance(elf, dict) or set(elf) != libraries:
+        raise ValueError("Release report must audit exactly the version's known ARM64 libraries")
     with zipfile.ZipFile(apk) as archive:
         names = archive.namelist()
         if len(names) != len(set(names)) or any(
@@ -68,7 +74,7 @@ def inspect_apk(apk: Path, report: dict, version: str, notices: bytes) -> dict:
                 for name in names):
             raise ValueError("Duplicate or unsafe APK entry")
         allowed = {"AndroidManifest.xml", "resources.arsc", "classes.dex", NOTICE_ENTRY,
-                   "assets/THIRD_PARTY_NOTICES.md"} | {"lib/arm64-v8a/" + name for name in LIBRARIES}
+                   "assets/THIRD_PARTY_NOTICES.md"} | {"lib/arm64-v8a/" + name for name in libraries}
         # CodexAstraUlt: aapt2 emits a resources.arsc table even for this plain
         # manifest-only application; only that fixed resource-table name joins
         # the allowlist. APK v1 signature entries are optional; no unrelated asset,

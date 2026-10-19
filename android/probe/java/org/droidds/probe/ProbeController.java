@@ -283,14 +283,26 @@ final class ProbeController {
                 graphics.put("error", errorDetails(failure));
             }
             report.put("graphics_probe", graphics);
+            // CodexAstraUlt: The old baseline alone cannot satisfy 0.0.4. A
+            // missing renderer section stays a failed, exportable diagnostic.
+            JSONObject renderer = graphics.optJSONObject("renderer_probe");
+            String rendererStatus = renderer == null ? "not reported"
+                    : renderer.optString("status", "not reported");
             boolean passed = "passed".equals(cpuStatus)
-                    && "passed".equals(graphics.optString("status"));
+                    && "passed".equals(graphics.optString("status"))
+                    && graphics.optInt("schema", -1) == 2
+                    && "passed".equals(rendererStatus);
             report.put("status", passed ? "passed" : "failed");
             finishShell(shell, startedElapsed);
             report.put("android_shell", shell);
             byte[] persisted = persist(reportFile, report);
-            String summary = "CPU: " + cpuStatus + " · Vulkan: " + graphics.optString("status");
-            complete(new Snapshot(false, passed ? "Passed — " + summary : "Failed — " + summary,
+            // CodexAstraUlt: A missing renderer capability is useful diagnostic
+            // evidence. Show it distinctly while retaining the complete report
+            // and requiring actual renderer success for an overall pass.
+            String summary = "CPU: " + cpuStatus + " · Vulkan: " + graphics.optString("status")
+                    + " · Renderer checks: " + rendererStatus;
+            String outcome = passed ? "Passed — " : "Checks did not pass — ";
+            complete(new Snapshot(false, outcome + summary,
                     report.toString(2)), persisted);
         } catch (Exception | LinkageError failure) {
             // CodexAstraUlt: Loader, UTF-8, JSON and file failures are structured

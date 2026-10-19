@@ -22,14 +22,25 @@ Broader Android qualification, picker lifecycle and 16 KiB-page execution remain
 open. The upload does not establish its export method. See
 [the separate build evidence](builds/0.0.3-android-vulkan.md) for host/packaging checks.
 
+<!-- CodexAstraUlt: Record implemented 0.0.4 scope while retaining the pending
+Thor gate and distinguishing a backend fixture from the real PICA renderer. -->
+Version **0.0.4 is implemented and awaits Thor qualification**: eight bounded
+CPU fixtures, source-origin/changed-code/write-protection controls, and a Vulkan
+capability query plus representative backend pipeline fixture. This does not
+complete broad CPU, scheduler, module-lifecycle or PICA qualification. The
+[New 3DS audit](NEW3DS_AUDIT.md) executed the pinned parser/allocator and reproduced
+header-decoding and application-memory gaps; their actual runtime corrections
+are required during 0.0.5 integration.
+
 ## Versioned path to 0.1.0
 
 <!-- CodexAstraUlt: Add the owner's requested version-by-version alpha plan.
 Separate platform probes, real 3DS homebrew, owned-game boot and playable release
 gates; version targets are plans, not measured compatibility or delivery dates. -->
 
-This is the intended release sequence as of **2026-10-19**. Only 0.0.1–0.0.3
-are implemented. Future versions below are milestone targets, not promised dates
+This is the intended release sequence as of **2026-10-19**. Versions 0.0.1–0.0.4
+are implemented; 0.0.4 device qualification remains pending. Later versions below
+are milestone targets, not promised dates
 or a fixed number of APK installations. A stage can need several prereleases;
 failed acceptance checks hold promotion, and any revised scope must be recorded.
 We can bring a game up earlier when its prerequisites pass rather than waiting
@@ -52,8 +63,15 @@ boot on Android: target 0.0.7. First repeatable playable game segment: target
   **Save report**. Host execution, APK publication and the owner's Thor CPU/GPU
   report pass. Picker/lifecycle behavior and full renderer compatibility remain
   separate checks.
+- **0.0.4:** expands to eight CPU fixtures with reverse ARM/Thumb interworking,
+  flags/shifts, a narrow finite-VFP case and tiny-budget progress. Adds bounded
+  stale-origin, changed-code and executable-memory write controls. Queries the
+  selected runtime's Vulkan requirements and exercises a representative backend
+  pipeline against exact expected output. Thor qualification is pending. The
+  accompanying [New 3DS audit](NEW3DS_AUDIT.md) identifies concrete parser/memory
+  corrections for runtime integration.
 
-The offscreen images are test inputs, not 3DS frames. Version 0.0.3 does not load
+The offscreen images are test inputs, not 3DS frames. Versions 0.0.3–0.0.4 do not load
 a game, translate PICA graphics, present game screens, implement game controls
 or measure game speed. These small tests isolate Android loader/ABI and basic GPU
 failures before the larger runtime is integrated. They do not establish that the
@@ -66,8 +84,8 @@ start ownership, memory bounds and mobile compatibility before game workloads. -
 
 | Target | Work and deliverable | What must be demonstrated before promotion |
 | --- | --- | --- |
-| **0.0.4 — qualify the runtime foundation** | Expand CPU transitions, floating-point policy, scheduling and stale/changed-code checks. Query the Thor against the actual full renderer's Vulkan requirements. | Broader native/interpreter comparisons pass; unsupported or stale native code falls back or stops safely. Check Vulkan 1.3, required extensions/features/formats and a representative renderer pipeline, not just 0.0.3's Vulkan 1.0 color patterns. A missing capability becomes an explicit implementation decision. No game promise yet. |
-| **0.0.5 — integrate the full runtime** | Bring in the existing Zakuro services, loader and PICA paths around the recompiled CPU contract. Execute real renderer tests and establish an exact-revision private control-game baseline on Linux. Attempt Dark Moon's opening early when private inputs are available. Audit and cross-link the full Android dependency graph in parallel. | Public 3DS fixtures execute through CPU, services and PICA; GPU tests actually run. Shader jobs/results/retained objects have admission limits and safe retirement before private runs. Record control-title boot/checkpoint evidence, native/fallback routes and Dark Moon blockers. Android/Bionic/PICA-JIT problems are exposed here, before a full frontend depends on them. |
+| **0.0.4 — qualify the runtime foundation** | Implemented: eight CPU fixtures, bounded code-safety controls, Vulkan capability/representative backend fixture and the New 3DS audit. Thor report pending. | Native/interpreter outputs and safety controls pass on the Thor; Vulkan 1.3 requirements and representative pipeline output pass, or missing capabilities become explicit integration decisions. This fixture does not execute PICA translation, full scheduler/CRO behavior or a game. |
+| **0.0.5 — integrate the full runtime** | Bring in the existing Zakuro services, loader and PICA paths around the recompiled CPU contract. Fix the audited New 3DS parser, resolved memory layout and configuration reporting, with actual loader/kernel regressions. Execute real renderer tests and establish an exact-revision private control-game baseline on Linux. Attempt Dark Moon's opening early when private inputs are available. Audit and cross-link the full Android dependency graph in parallel. | Public 3DS fixtures execute through CPU, services and PICA; GPU tests actually run. New/Old model memory and reporting regressions pass; Xenoblade requires its own private baseline. Shader jobs/results/retained objects have admission limits and safe retirement before private runs. Record control-title boot/checkpoint evidence, native/fallback routes and Dark Moon blockers. Android/Bionic/PICA-JIT problems are exposed here, before a full frontend depends on them. |
 | **0.0.6 — visible Android 3DS application** | Connect the real runtime to Android display surfaces, a stacked two-screen layout, controller/touch input and audio. Run an original 3DS homebrew program with observable interactions. | Guest-generated screens are displayed on the Thor; controls/touch change guest state and guest audio is heard. Pause/resume, surface replacement and normal exit work. A native Android animation or direct Vulkan demo alone cannot pass this stage. This is the first visible 3DS-program target. |
 | **0.0.7 — first owned-game boot on Android** | Finish the local per-title build/package path, exact game/update/module identity checks and private data import. Establish persistent signing/package identity and durable save locations. Package the private control title that passed the host baseline. | A reproducible private APK launches the matching owned title into an interactive menu or identified opening scene on the Thor. Native execution and interpreter fallback are measured. Wrong revisions are rejected safely; replacement builds preserve identity and app data. This is a boot milestone, not sustained playability. Attempt the equivalent Dark Moon checkpoint and record any blockers. |
 | **0.0.8 — first playable game segment** | Make one defined control-title route repeatably playable with controls, touch, audio, saving/loading and lifecycle recovery. Fix reproducible CPU/service/PICA problems. Continue Dark Moon moon/ghost/opening diagnosis and targeted corrections. | The same gameplay route can be played, saved, exited normally and resumed on the Thor at 1× with correct output. Compare native/interpreter and graphics paths where relevant. A title screen or a single cutscene is insufficient. Report Dark Moon's visual, speed and crash status separately. |
@@ -223,29 +241,28 @@ targets. Absence means unverified, not known incompatible; an upstream entry is
 also not a DroidDS test result.
 
 Xenoblade's New 3DS exclusivity adds an early **compatibility** question as well
-as a useful workload. During 0.0.4, audit guest model detection/configuration,
-memory layout and limits, CPU/core scheduling and required system services.
-Expose missing behavior as a named integration task for 0.0.5 rather than treating
-a boot failure as slow rendering. The Android CPU/Vulkan probe does not establish
+as a useful workload. The 0.0.4 [audit](NEW3DS_AUDIT.md) covers guest model
+detection/configuration, memory layout and limits, CPU/core scheduling and required
+system services. Its findings are named integration tasks for 0.0.5, rather than
+assuming a boot failure means slow rendering. The Android CPU/Vulkan probe does not establish
 New 3DS guest support. Greater original-hardware requirements do not prove that
 Xenoblade will cost more to emulate than MH4U or Dark Moon: instruction mix,
 graphics states, fallback coverage and driver behavior can change the bottleneck.
 
-<!-- CodexAstraUlt: Preserve a concrete pinned-source finding as an investigation,
-not an executed Xenoblade failure or proof that New 3DS support is absent. -->
+<!-- CodexAstraUlt: Replace the preliminary source concern with executed bounded
+evidence and an explicit runtime-fix gate; Xenoblade has not been executed. -->
 The pinned runtime already has New 3DS model selection and expanded physical RAM.
-However, source inspection found that
-[the loader](https://github.com/fearkov/zakuro/blob/412900a5a020301da15c1cc382585e05a489a535/crates/zakuro-core/src/loader.rs#L75)
-derives application memory from `system_mode`, while
-[the header parser](https://github.com/fearkov/zakuro/blob/412900a5a020301da15c1cc382585e05a489a535/crates/zakuro-fs/src/ncch.rs#L209)
-also parses `n3ds_system_mode`, CPU-speed and L2 fields with no consumers found in
-the scoped crate search. The
-[physical-memory allocator](https://github.com/fearkov/zakuro/blob/412900a5a020301da15c1cc382585e05a489a535/crates/zakuro-core/src/memory/physical.rs#L38)
-uses the supplied application limit even when total RAM increases. Verify those
-regions with synthetic tests and the actual title header before assuming that
-expanded RAM is usable by Xenoblade. This is a source-level concern, not an
-observed game failure. Audit scheduling and time accounting separately; changing
-a global CPU-clock constant alone is not a validated New 3DS implementation.
+The [executable audit](NEW3DS_AUDIT.md#confirmed-parser-and-memory-findings)
+completed 12 original cases through the actual pinned parser/allocator and the
+extracted loader allocation expression. Six inputs exposed swapped/wrong-nibble
+New 3DS header decoding. Synthetic 124/178 MiB requests still received only
+64 MiB application memory out of 256 MiB physical RAM; region splits also need
+correction. Source inspection found incorrect configuration-page mode reporting.
+These are confirmed bounded findings, not an observed Xenoblade failure or a fix
+already shipped in the probe. Correct parsing, resolve memory once, and test the
+complete loader/kernel before the private Xenoblade baseline. Scheduling and
+time accounting remain separate gates; changing a global clock constant alone
+is not a validated New 3DS implementation.
 
 During 0.0.5/M3, attempt available primary-title host baselines and record each
 boot checkpoint or blocker; retain early Dark Moon opening reconnaissance.

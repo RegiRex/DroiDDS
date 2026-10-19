@@ -86,6 +86,44 @@ class ReleaseTests(unittest.TestCase):
         self.verify.assert_called_once_with(self.apk, self.base / "sdk")
         RELEASE.verify_bundle(self.out, TAG, COMMIT)
 
+    # CodexAstraUlt: New CPU cases change the APK's executable inventory. Verify
+    # the actual archive against its version rather than widening old allowlists.
+    def current_build(self):
+        self.contents["AndroidManifest.xml"] = FIXTURE.binary_manifest(
+            test_only=False, version_name="0.0.4", version_code=4)
+        self.report["manifest"].update(version_name="0.0.4", version_code=4)
+        for name in RELEASE.libraries_for_version("0.0.4") - set(self.elf):
+            data = ("original-current-test-library:" + name).encode()
+            self.contents["lib/arm64-v8a/" + name] = data
+            self.elf[name] = {"machine": "AArch64", "text_relocations": False,
+                              "sha256": RELEASE.digest(data)}
+        self.save()
+
+    def test_current_release_contains_exact_expanded_fixture_set(self):
+        self.current_build()
+        self.prepare(tag="v0.0.4-probe.1")
+        RELEASE.verify_bundle(self.out, "v0.0.4-probe.1", COMMIT)
+        public = json.loads((self.out / "BUILD_REPORT.json").read_text())
+        self.assertEqual(len(public["elf"]), 10)
+        self.assertEqual(public["apk_manifest"]["version_code"], 4)
+
+    def test_current_release_rejects_missing_new_case(self):
+        self.current_build()
+        name = "libdds_fixture_arm_vfp_finite.so"
+        del self.elf[name]
+        del self.contents["lib/arm64-v8a/" + name]
+        self.save()
+        with self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
+            self.prepare(tag="v0.0.4-probe.1")
+
+    def test_historical_version_cannot_contain_new_fixture_libraries(self):
+        self.current_build()
+        self.contents["AndroidManifest.xml"] = FIXTURE.binary_manifest(test_only=False)
+        self.report["manifest"].update(version_name="0.0.2", version_code=2)
+        self.save()
+        with self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
+            self.prepare()
+
     def test_tags_and_commit_are_canonical_and_safe(self):
         for tag in ("v0.0.2", "v0.0.2-probe.0", "v00.0.2-probe.1", "../v0.0.2-probe.1",
                     "v0.0.2-probe.1\n", "v0.0.2-probe.1;true"):

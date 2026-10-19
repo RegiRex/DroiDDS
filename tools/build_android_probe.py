@@ -20,14 +20,15 @@ import zipfile
 
 from build_foundation import ROOT, interrupted, snapshot, terminate_group, validate_graph
 from build_vulkan_probe import generate_shaders
-from run_android_probe import apk_manifest
+from run_android_probe import apk_manifest, cases_for_version
 
 NDK_VERSION = "27.3.13750724"
 BUILD_TOOLS_VERSION = "35.0.0"
 TARGET = "aarch64-linux-android"
 PACKAGE = "org.droidds.probe"
-CASES = {"arm_integer_memory", "thumb_integer_memory",
-         "arm_missing_entry_fallback", "arm_to_thumb_native"}
+# CodexAstraUlt: Build exactly the current report contract's fixture inventory;
+# historical report validation retains its separate four-case requirements.
+CASES = set(cases_for_version("0.0.4"))
 
 
 def stage_manifest(source: Path, destination: Path, prerelease: bool) -> None:
@@ -195,7 +196,7 @@ def main() -> int:
         manifest = json.loads((out / "generated/manifest.json").read_text())
         cases = manifest["cases"]
         if {case["name"] for case in cases} != CASES or len(cases) != len(CASES):
-            raise ValueError("Generator did not emit the four expected fixture libraries")
+            raise ValueError("Generator did not emit exactly the current fixture libraries")
         libs = out / "libraries"
         libs.mkdir()
         # CodexAstraUlt: Match upstream semantic options while selecting NDK's
@@ -227,7 +228,8 @@ def main() -> int:
         report["vulkan_shaders"] = generate_shaders(ndk, out / "shaders", run)
         run("jni-bridge", [cc, *c_flags, *link_flags, "-std=c11", "-Wall", "-Wextra", "-Werror",
             "-Wl,-soname,libdroidds_probe_jni.so", ROOT / "android/probe/jni/probe_jni.c",
-            ROOT / "android/probe/jni/vulkan_probe.c", "-I", out / "shaders",
+            ROOT / "android/probe/jni/vulkan_probe.c", ROOT / "android/probe/jni/vulkan_renderer.c",
+            "-I", out / "shaders",
             "-L", libs, "-ldroidds_android_probe", "-lvulkan", "-o", libs / "libdroidds_probe_jni.so"])
         packaged = {path.name for path in libs.glob("*.so")}
         report["elf"] = {}

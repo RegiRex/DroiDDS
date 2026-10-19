@@ -11,6 +11,15 @@ planning-only state. -->
 - The owner authorizes downloadable DroidDS diagnostic prereleases. Use the
   reviewed tag workflow and four-file release bundle; never publish private
   signing keys or retail-derived data. A prerelease is not device/game evidence.
+<!-- CodexAstraUlt: Persist the owner's explicit automatic continuation request
+so receiving a device report does not create an unnecessary approval round. -->
+- Through 0.1.0, each owner-supplied report authorizes validation, necessary fixes,
+  development of the next roadmap build, and its verified DroidDS prerelease.
+  Continue in the same turn when possible. A failing gate requires diagnosis and
+  a corrective build before promotion, not silently skipping the gate. Ask only
+  for missing input or a consequential decision that actually blocks progress.
+  End each build with its download and next device test; do not claim autonomous
+  background work after the turn or proceed past unperformed hardware gates.
 <!-- CodexAstraUlt: Preserve the measured CPU milestone and the next platform
 test without treating a host Vulkan draw as a qualified PICA renderer. -->
 - The owner's 0.0.2 Thor report passes the four CPU fixtures and two corruption

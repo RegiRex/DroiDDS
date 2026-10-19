@@ -209,7 +209,7 @@ fn build(
     fixture: &fixtures::Fixture,
     directory: &Path,
     compiler: &compile::Compiler,
-) -> Result<recomp_abi::Library, String> {
+) -> Result<libraries::CheckedLibrary, String> {
     let sources = generator::emit(fixture, directory)?;
     let library_path = directory.join("libfixture.so");
     compile::compile(
@@ -251,6 +251,7 @@ fn suite(directory: &Path) -> Result<(), String> {
             "native_budget_charged": candidate.counts.native_budget_charged,
             "fallback_steps": candidate.counts.fallback_steps,
             "instruction_callbacks": candidate.counts.instruction_callbacks,
+            "budget_exits": candidate.counts.budget_exits,
             "interpreter_steps": reference.counts.interpreter_steps,
             "memory_bytes_compared": candidate.state.memory.len(),
             "guest_code_hex": fixture.text.iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
@@ -264,7 +265,10 @@ fn suite(directory: &Path) -> Result<(), String> {
     // CodexAstraUlt: Inject bad results into otherwise valid checkpoint runs.
     // Exercise the same validation gate used above, not a separate test oracle.
     let control = fixtures::fixtures().remove(0);
-    let library = recomp_abi::Library::open(&directory.join(control.name).join("libfixture.so"))?;
+    let library = libraries::open_fixture(
+        &control,
+        &directory.join(control.name).join("libfixture.so"),
+    )?;
     let reference = runner::interpreted(&control);
     let mut corrupted = runner::native(&control, &library);
     corrupted.state.registers[6] = 0x7fc0_0002;
@@ -285,6 +289,12 @@ fn suite(directory: &Path) -> Result<(), String> {
         ));
     }
 
+    // CodexAstraUlt: These load/dispatch/store controls run on the exact native
+    // fixture artifact already exercised above, not a mocked origin table.
+    let code_safety = libraries::safety_controls(
+        &control,
+        &directory.join(control.name).join("libfixture.so"),
+    )?;
     let endless = fixtures::endless();
     let library = build(&endless, &directory.join(endless.name), &compiler)?;
     let reference = runner::interpreted(&endless);
@@ -320,6 +330,7 @@ fn suite(directory: &Path) -> Result<(), String> {
         "compiler": compiler.describe(),
         "compiler_version": String::from_utf8_lossy(&version.stdout).trim(),
         "cases": results,
+        "code_safety": code_safety,
         "negative_controls": [
             {"name": "nan_shaped_integer_register_mismatch", "status": "passed", "rejection": register_error},
             {"name": "nan_shaped_integer_memory_mismatch", "status": "passed", "rejection": memory_error},
@@ -329,9 +340,9 @@ fn suite(directory: &Path) -> Result<(), String> {
             {"name": "process_watchdog", "status": "passed", "limit_ms": 150, "terminated": true}
         ],
         "limitations": [
-            "Four tiny original integer fixtures are not broad ARMv6K compatibility.",
-            "VFP storage preservation is checked; no floating-point instruction is executed.",
-            "No CRO lifetime, executable-write policy, SVC service implementation, scheduler or graphics test.",
+            "Eight tiny original fixtures are not broad ARMv6K compatibility.",
+            "Finite exactly representable VFP arithmetic/conversions are checked; NaN, subnormal and general rounding behavior remain unqualified.",
+            "Immutable fixture-code guards and cooperative budget progress are checked; CRO lifetime, real SVC services, OS scheduling and graphics remain untested.",
             "Native memory uses checked host callbacks; direct page mappings are not exercised.",
             "Host correctness and instruction accounting provide no handheld speed or memory measurement."
         ]

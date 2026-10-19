@@ -34,6 +34,35 @@ CASES = {
 CONTROLS = {"nan_shaped_integer_register_mismatch", "nan_shaped_integer_memory_mismatch"}
 
 
+def case_counters(work: int, fallback: int, lookup: int, interpreted: int,
+                  calls: int = 1) -> dict[str, int]:
+    """CodexAstraUlt: Share exact fixture accounting with build and release inventories."""
+    return {"checkpoint_svc": 42, "native_calls": calls, "native_lookup_hits": lookup,
+            "native_budget_charged": work, "fallback_steps": fallback,
+            "instruction_callbacks": 0, "interpreter_steps": interpreted,
+            "memory_bytes_compared": 65536}
+
+
+# CodexAstraUlt: Version 0.0.4 exercises reverse interworking, narrow finite VFP,
+# flags/shifts and a budget-too-small exit that must still make exact progress.
+CASES_004 = {
+    **{name: {**case_counters(*counts), "budget_exits": 0} for name, counts in CASES.items()},
+    "arm_flags_shifts": {**case_counters(8, 0, 0, 8), "budget_exits": 0},
+    "thumb_to_arm_native": {**case_counters(5, 0, 1, 5), "budget_exits": 0},
+    "arm_vfp_finite": {**case_counters(7, 0, 0, 7), "budget_exits": 0},
+    "arm_tiny_budget_progress": {**case_counters(1, 2, 0, 3, calls=2), "budget_exits": 1},
+}
+
+
+def cases_for_version(version: str) -> dict[str, dict[str, int]]:
+    """CodexAstraUlt: Future APKs cannot silently inherit historical proof requirements."""
+    if version == "0.0.4":
+        return {name: dict(counters) for name, counters in CASES_004.items()}
+    if version in ("0.0.2", "0.0.3"):
+        return {name: case_counters(*counts) for name, counts in CASES.items()}
+    raise ValueError("Unsupported Android probe report version")
+
+
 def utc_now() -> str:
     """CodexAstraUlt: Keep host timestamps distinct from Android's own clock."""
     return datetime.now(timezone.utc).isoformat()
@@ -48,7 +77,11 @@ def validate_graphics_report(report: object) -> None:
     """CodexAstraUlt: Require measured Vulkan output; unavailable never means passed."""
     if not isinstance(report, dict):
         raise ValueError("Vulkan report must be an object")
-    required = {"schema": 1, "kind": "droidds-vulkan-probe", "status": "passed",
+    # CodexAstraUlt: Schema 2 extends the original pixel test with the pinned
+    # renderer contract. Historical schema 1 remains independently reviewable.
+    if type(report.get("schema")) is not int or report["schema"] not in (1, 2):
+        raise ValueError("Missing or incorrect Vulkan proof: schema")
+    required = {"kind": "droidds-vulkan-probe", "status": "passed",
                 "width": 16, "height": 16, "required_cycles": 3, "cycles_completed": 3,
                 "pipeline_creation_count": 3, "draw_count": 12}
     for key, expected in required.items():
@@ -90,6 +123,100 @@ def validate_graphics_report(report: object) -> None:
     for key in ("checks_completed", "required_checks"):
         if type(controls.get(key)) is not int or controls[key] != 9:
             raise ValueError(f"Missing or incorrect Vulkan comparator control: {key}")
+    if report["schema"] == 2:
+        validate_renderer_report(report.get("renderer_probe"), device["api_version"])
+
+
+def validate_renderer_report(report: object, api_version: int) -> None:
+    """CodexAstraUlt: Feature discovery alone cannot qualify an unexecuted renderer."""
+    if not isinstance(report, dict):
+        raise ValueError("Missing renderer probe")
+    required = {"schema": 1, "kind": "droidds-renderer-probe", "contract": "zakuro-412900a",
+                "status": "passed", "width": 16, "height": 16,
+                "pipeline_creation_count": 2, "draw_count": 5, "dispatch_count": 1,
+                "readbacks_completed": 2, "pixels_checked": 512, "mismatched_pixels": 0,
+                "compute_words_checked": 16, "compute_word_mismatches": 0,
+                "negative_checks_completed": 3, "negative_controls_passed": True}
+    for key, expected in required.items():
+        if type(report.get(key)) is not type(expected) or report[key] != expected:
+            raise ValueError(f"Missing or incorrect renderer proof: {key}")
+    if "error" not in report or report["error"] is not None:
+        raise ValueError("Renderer passed report must have no execution error")
+    for key in ("instance_api_version", "physical_api_version"):
+        value = report.get(key)
+        if (not integer(value) or value > 0xffffffff or value >> 29 or
+                ((value >> 22) & 0x7f) != 1 or value < (1 << 22 | 3 << 12)):
+            raise ValueError(f"Renderer requires the measured Vulkan 1.3 API: {key}")
+    if report["physical_api_version"] != api_version:
+        raise ValueError("Renderer API differs from the measured Vulkan physical device")
+    features = report.get("required")
+    feature_names = {"vulkan_1_3", "graphics_compute_queue", "push_descriptor", "depth_clamp",
+                     "d24s8_attachment", "rgba8_color_sample_transfer", "dynamic_rendering",
+                     "synchronization2", "pipeline_creation_cache_control", "push_descriptor_limit"}
+    if (not isinstance(features, dict) or set(features) != feature_names or
+            any(value is not True for value in features.values())):
+        raise ValueError("Missing or unsupported required renderer capability")
+    if type(report.get("missing_required")) is not list or report["missing_required"]:
+        raise ValueError("Renderer required capability list must be present and empty")
+    optional = report.get("optional")
+    optional_names = {"logic_op", "pipeline_statistics_query", "dynamic_blend", "dynamic_logic_op"}
+    if (not isinstance(optional, dict) or set(optional) != optional_names or
+            any(type(value) is not bool for value in optional.values())):
+        raise ValueError("Missing or invalid optional renderer capability")
+    for key, minimum, maximum in (("queue_family", 0, 0xfffffffe),
+                                  ("max_push_descriptors", 8, 0xffffffff)):
+        if not integer(report.get(key), minimum) or report[key] > maximum:
+            raise ValueError(f"Invalid measured renderer capability: {key}")
+    # CodexAstraUlt: Aggregate draw/readback counts cannot conceal one skipped
+    # depth/stencil or depth-clamp case; each output has its own strict oracle.
+    cases = report.get("cases")
+    expected_cases = {"textured_depth_stencil": 4, "depth_clamp": 1}
+    if not isinstance(cases, list) or len(cases) != len(expected_cases):
+        raise ValueError("Missing renderer output cases")
+    names = [case.get("name") if isinstance(case, dict) else None for case in cases]
+    if any(not isinstance(name, str) for name in names) or set(names) != set(expected_cases):
+        raise ValueError("Missing, duplicate or unknown renderer output cases")
+    for case in cases:
+        if case.get("status") != "passed":
+            raise ValueError(f"Renderer output case did not pass: {case['name']}")
+        for key, expected in (("pixels_checked", 256), ("mismatched_pixels", 0),
+                              ("draw_count", expected_cases[case["name"]])):
+            if type(case.get(key)) is not int or case[key] != expected:
+                raise ValueError(f"Missing or incorrect renderer output proof: {case['name']}/{key}")
+
+
+def validate_code_safety(report: object) -> None:
+    """CodexAstraUlt: Immutable fixture code is enforced, not a claim of CRO invalidation."""
+    if (not isinstance(report, dict) or report.get("status") != "passed" or
+            report.get("policy") != "immutable_fixture_text"):
+        raise ValueError("Missing or incorrect code safety policy proof")
+    controls = report.get("controls")
+    expected_controls = {
+        "stale_origin_rejected": {},
+        "changed_code_before_dispatch_rejected": {
+            "native_calls": 0, "fallback_steps": 0, "guest_memory_unchanged": True},
+        "guest_executable_write_rejected": {
+            "native_calls": 1, "rejected_writes": 2, "guest_memory_unchanged": True},
+    }
+    if not isinstance(controls, list) or len(controls) != len(expected_controls):
+        raise ValueError("Missing code safety controls")
+    names = [item.get("name") if isinstance(item, dict) else None for item in controls]
+    if any(not isinstance(name, str) for name in names) or set(names) != set(expected_controls):
+        raise ValueError("Missing, duplicate or unknown code safety controls")
+    for control in controls:
+        name = control["name"]
+        if control.get("status") != "passed":
+            raise ValueError(f"Code safety control did not pass: {name}")
+        for key, expected in expected_controls[name].items():
+            if type(control.get(key)) is not type(expected) or control[key] != expected:
+                raise ValueError(f"Missing or incorrect code safety control: {name}/{key}")
+        if name == "stale_origin_rejected" and (
+                not isinstance(control.get("rejection"), str) or not control["rejection"].strip()):
+            raise ValueError("Stale code origin control did not prove rejection")
+    limitations = report.get("limitations")
+    if (not isinstance(limitations, list) or not limitations or
+            any(not isinstance(item, str) or not item.strip() for item in limitations)):
+        raise ValueError("Code safety proof must state its bounded fixture limitations")
 
 
 def validate_report(report: object, request_id: str, manifest: dict) -> None:
@@ -127,9 +254,8 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
         raise ValueError("Android report version differs from the installed APK")
     # CodexAstraUlt: Preserve historical CPU-only evidence without letting future
     # versions silently inherit an obsolete proof contract or omit the GPU run.
-    if report["version"] not in ("0.0.2", "0.0.3"):
-        raise ValueError("Unsupported Android probe report version")
-    if report["version"] == "0.0.3":
+    expected_cases = cases_for_version(report["version"])
+    if report["version"] in ("0.0.3", "0.0.4"):
         if report.get("cpu_status") != "passed":
             raise ValueError("Android CPU status did not pass")
         for key in ("manufacturer", "model", "android_release"):
@@ -139,19 +265,20 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
             raise ValueError("Missing or unsupported Android API")
         if not integer(shell.get("elapsed_realtime_ms")):
             raise ValueError("Missing Android elapsed execution duration")
-        validate_graphics_report(report.get("graphics_probe"))
+        graphics = report.get("graphics_probe")
+        graphics_schema = 2 if report["version"] == "0.0.4" else 1
+        if (not isinstance(graphics, dict) or type(graphics.get("schema")) is not int or
+                graphics["schema"] != graphics_schema):
+            raise ValueError("Vulkan report schema differs from the Android probe version")
+        validate_graphics_report(graphics)
     cases = report.get("cases")
-    if not isinstance(cases, list) or len(cases) != len(CASES):
+    if not isinstance(cases, list) or len(cases) != len(expected_cases):
         raise ValueError("Missing or unknown CPU cases")
     names = [case.get("name") if isinstance(case, dict) else None for case in cases]
-    if any(not isinstance(name, str) for name in names) or set(names) != set(CASES):
+    if any(not isinstance(name, str) for name in names) or set(names) != set(expected_cases):
         raise ValueError("Missing, duplicate or unknown CPU cases")
     for case in cases:
-        work, fallback, lookup, interpreted = CASES[case["name"]]
-        counters = {"checkpoint_svc": 42, "native_calls": 1, "native_lookup_hits": lookup,
-                    "native_budget_charged": work, "fallback_steps": fallback,
-                    "instruction_callbacks": 0, "interpreter_steps": interpreted,
-                    "memory_bytes_compared": 65536}
+        counters = expected_cases[case["name"]]
         if case.get("status") != "passed":
             raise ValueError(f"CPU case failed: {case['name']}")
         if case.get("library") != f"libdds_fixture_{case['name']}.so":
@@ -162,6 +289,8 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
         for key in ("strict_expected_match", "strict_interpreter_match", "route_counts_match"):
             if case.get(key) is not True:
                 raise ValueError(f"Missing strict CPU proof: {case['name']}/{key}")
+    if report["version"] == "0.0.4":
+        validate_code_safety(report.get("code_safety"))
     controls = report.get("negative_controls")
     if not isinstance(controls, list) or len(controls) != len(CONTROLS):
         raise ValueError("Missing negative controls")

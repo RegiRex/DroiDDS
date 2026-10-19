@@ -11,6 +11,10 @@ pub const EXTRA: u32 = 0x8000;
 pub struct Memory {
     pub bytes: Vec<u8>,
     pub faults: u64,
+    // CodexAstraUlt: One shared bus policy covers native and interpreter stores;
+    // protection is established before execution, never bypassed by guest code.
+    protected_text_end: u64,
+    pub rejected_code_writes: u64,
 }
 
 // CodexAstraUlt: The shared public fixture bus has one deterministic initial
@@ -28,6 +32,27 @@ impl Memory {
         Self {
             bytes: (0..0x1_0000).map(|index| (index % 251) as u8).collect(),
             faults: 0,
+            protected_text_end: u64::from(START),
+            rejected_code_writes: 0,
+        }
+    }
+
+    // CodexAstraUlt: Immutable executable memory is a bounded fixture policy,
+    // not a substitute for module epochs or process-wide mapping synchronization.
+    pub fn protect_text(&mut self, length: usize) {
+        self.protected_text_end = u64::from(START) + length as u64;
+    }
+
+    fn reject_code_write(&mut self, address: u32, size: u32) -> bool {
+        let start = u64::from(address);
+        if self.protected_text_end > u64::from(START)
+            && start < self.protected_text_end
+            && start + u64::from(size) > u64::from(START)
+        {
+            self.rejected_code_writes = self.rejected_code_writes.saturating_add(1);
+            true
+        } else {
+            false
         }
     }
 
@@ -64,6 +89,9 @@ impl Bus for Memory {
     }
 
     fn write8(&mut self, address: u32, value: u8) {
+        if self.reject_code_write(address, 1) {
+            return;
+        }
         if (DATA..DATA + 0x1000).contains(&address) || (0xe000..0xf000).contains(&address) {
             self.bytes[address as usize] = value;
         } else {
@@ -72,14 +100,43 @@ impl Bus for Memory {
     }
 
     fn write16(&mut self, address: u32, value: u16) {
+        if self.reject_code_write(address, 2) {
+            return;
+        }
         for (offset, byte) in value.to_le_bytes().into_iter().enumerate() {
             self.write8(address.wrapping_add(offset as u32), byte);
         }
     }
 
     fn write32(&mut self, address: u32, value: u32) {
+        if self.reject_code_write(address, 4) {
+            return;
+        }
         for (offset, byte) in value.to_le_bytes().into_iter().enumerate() {
             self.write8(address.wrapping_add(offset as u32), byte);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // CodexAstraUlt: Crossing stores are rejected atomically, including a store
+    // that starts before text or ends after it. All widths use the actual Bus.
+    #[test]
+    fn executable_write_widths_and_boundaries_preserve_every_byte() {
+        let mut memory = Memory::new();
+        memory.protect_text(12);
+        let original = memory.bytes.clone();
+        memory.write8(START, 0xff);
+        memory.write16(START - 1, 0xffff);
+        memory.write32(START + 10, u32::MAX);
+        assert_eq!(memory.rejected_code_writes, 3);
+        assert_eq!(memory.bytes, original);
+        memory.write32(DATA, 0x1234_5678);
+        assert_eq!(memory.read32(DATA), 0x1234_5678);
+        assert_eq!(memory.rejected_code_writes, 3);
+        assert_eq!(memory.faults, 0);
     }
 }

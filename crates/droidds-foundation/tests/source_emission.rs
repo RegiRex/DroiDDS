@@ -24,7 +24,7 @@ fn public_emit_sources_needs_no_compiler_and_preserves_existing_output() {
     assert_eq!(manifest["abi"], recomp_abi::ABI);
     assert_eq!(manifest["generation"], recomp_abi::GENERATION);
     let cases = manifest["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 4);
+    assert_eq!(cases.len(), 8);
     for case in cases {
         let case_directory = directory.join(case["directory"].as_str().unwrap());
         let sources = case["sources"].as_array().unwrap();

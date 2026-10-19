@@ -1,11 +1,13 @@
 # Android CPU and Vulkan probe
 
-<!-- CodexAstraUlt: Advance from the owner's passing CPU report to a bounded
-Android graphics fixture, preserving separate build, host and device evidence. -->
+<!-- CodexAstraUlt: Advance to broader CPU/code safety and the selected renderer's
+capability contract without promoting the original fixtures to PICA/game proof. -->
 
-Version **0.0.3** retains the four original ARM/Thumb CPU checks and adds an
-original offscreen Vulkan test plus **Save report**. The owner does not need to
-repeat the automated Linux foundation tests manually.
+Version **0.0.4** expands the CPU suite to eight cases, adds three code-safety
+controls, and exercises an original Vulkan 1.3 graphics/compute fixture against
+the selected renderer's capability requirements. It retains 0.0.3's offscreen
+color checks and **Save report**. The owner does not need to repeat automated
+Linux tests manually. **0.0.4 execution on the Thor remains pending.**
 
 The [owner-supplied 0.0.2 Thor report](device-tests/0.0.2-thor-cpu.md) passes all
 four CPU cases and both corruption controls on reported Android ARM64 with 4 KiB
@@ -19,23 +21,24 @@ renderer. The report does not establish whether the picker or ADB exported it.
 
 ## Install and save a report
 
-<!-- CodexAstraUlt: Record completed publication and the real signing transition
-without automatically removing an installed package or its private report. -->
+<!-- CodexAstraUlt: Identify the intended release without claiming publication
+before the build gates complete; preserve explicit signing-conflict handling. -->
 
-The published [0.0.3 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.3-probe.1)
-provides `DroidDS-0.0.3-android-arm64.apk`. The
-[release workflow](https://github.com/RegiRex/DroidDS/actions/runs/39096219229)
-passed its CPU, APK, host Vulkan and release-bundle gates. The app requires
-ARM64 Android 10/API 29 or newer. The basic Thor offscreen run now passes;
-full-renderer feature and format requirements remain unqualified.
+When published, the [0.0.4 prerelease entry](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.4-probe.1)
+provides `DroidDS-0.0.4-android-arm64.apk` and its verification files. The app
+requires ARM64 Android 10/API 29 or newer. Passing the new graphics checks also
+requires the Vulkan 1.3 features listed below; a reported API version alone is
+insufficient. Unsupported capabilities are recorded as a failed qualification,
+not an automatic game-compatibility or hardware verdict.
 
-Public diagnostic builds use one-off CI signing keys. Public 0.0.3 cannot update
-the differently signed public 0.0.2 APK in place. If you choose to switch, save
-any report you still need, explicitly uninstall **DroidDS Probe** in Android
-Settings, and install the new APK. This removes only that app's private probe
-data. The owner's 0.0.2 export has already been received and summarized above.
-Uberhar is a separate package and is unaffected. Automation never uninstalls an
-app to resolve a signing conflict. Stable product signing remains separate work.
+Public diagnostic builds use one-off CI signing keys. The public 0.0.4 APK has a
+different signer from 0.0.3 and cannot update it in place. Save any report you
+still need, explicitly uninstall **DroidDS Probe** in Android Settings, then
+install the new APK if Android reports a signing conflict. This removes only
+that app's private probe data. The owner's 0.0.2 and 0.0.3 exports have already
+been received and summarized above. Uberhar is a separate package and is
+unaffected. Automation never uninstalls an app to resolve a signing conflict.
+Stable product signing remains separate work.
 
 1. Open **DroidDS Probe**; CPU and offscreen Vulkan checks start automatically.
 2. Wait for the completed CPU/Vulkan result. **Run again** repeats the checks.
@@ -64,26 +67,50 @@ adb -s YOUR_THOR_SERIAL exec-out run-as org.droidds.probe \
 original Vulkan smoke fixture as PICA integration or a gameplay benchmark. -->
 
 Pinned 3dsrecomp generates C on the build host; the NDK compiles it for Bionic.
-The packaged Rust runtime compares four native CPU cases against Zakuro's
-interpreter and fixed outputs: ARM, Thumb, native ARM-to-Thumb interworking and
-intentional missing-entry fallback. Two controls prove strict integer/memory
-corruption rejection.
+The packaged Rust runtime compares eight native CPU cases against Zakuro's
+interpreter **and hand-derived complete expected state**:
 
-The original C Vulkan helper checks three **16 × 16** RGBA8 patterns: solid red,
-solid green and red/green halves. It creates and destroys a logical device,
-resources and pipeline for each of three cycles on one selected physical device.
-A pass requires **nine readbacks, nine pixel-mutation rejection controls, three
-pipeline creations and twelve draw calls**, with every expected pixel matching.
-Unsupported or failed Vulkan execution cannot become a combined pass. Three
-cycles provide a bounded teardown check, not proof of leak freedom.
+- The original ARM, Thumb, ARM-to-Thumb interworking and missing-entry fallback.
+- Carry/shift flags and reverse Thumb-to-ARM interworking.
+- Exactly representable finite VFP addition, multiplication and conversions.
+- A one-instruction dispatch budget that rejects an oversized block, makes
+  interpreter progress and reaches a native checkpoint.
 
-Original shaders are compiled and SPIR-V-validated during the build; the APK
-contains no shader compiler. The helper uses Vulkan 1.0 without optional
-extensions. It does not qualify Zakuro's separate Vulkan 1.3/feature requirements,
-generic PICA pipeline, presentation surface or game workload. Full HLE and retail
-inputs are absent.
+Two controls still reject deliberately corrupted integer registers/memory.
+Three additional `code_safety` controls reject stale origins at load, stop
+changed code before native dispatch, and reject actual guest executable stores
+without changing code bytes. This is a single-threaded immutable-fixture policy,
+not CRO remapping/lifetime or operating-system scheduler integration. General
+VFP rounding, NaN and subnormal behavior remain unqualified.
 
-CPU fields remain at the top level. New `cpu_status` and `graphics_probe` fields
+The baseline C Vulkan helper retains three **16 × 16** RGBA8 patterns: solid red,
+solid green and red/green halves. It recreates the logical device, resources and
+pipeline for three cycles. A pass requires **nine readbacks, 2,304 matching
+pixels, nine pixel-mutation controls, three pipeline creations and twelve draws**.
+These baseline counters are unchanged from 0.0.3.
+
+The added `graphics_probe.renderer_probe` checks Zakuro revision `412900a`'s
+capability contract and executes original synthetic shaders. Required support is
+Vulkan 1.3, a graphics+compute queue, `VK_KHR_push_descriptor` with at least eight
+push descriptors, depth clamp, dynamic rendering, synchronization2 and pipeline
+creation cache control. Format checks require D24S8 depth/stencil plus transfers,
+and RGBA8 color/blend, sampled/linear-filtered, storage and transfer usages.
+Logic operations, pipeline statistics and extended dynamic blend/logic state are
+**optional discovery fields**, not pass prerequisites.
+
+Actual execution uses two pipelines and checks textured depth/stencil acceptance
+and rejection, depth clamp, pushed descriptors and a compute storage-image/buffer
+path. A pass requires **two readbacks, 512 matching pixels, five draws, one compute
+dispatch, 16 matching compute words and three deliberate corruption checks**.
+These are additional to the baseline counts. Missing requirements or failed
+execution prevent combined success and retain useful capability/error evidence.
+
+All shaders are original, compiled and SPIR-V-validated during the build; the APK
+contains no shader compiler. This exercises representative mechanisms, **not
+Zakuro's actual PICA renderer or a game**. There is no presentation surface, full
+HLE or retail input. Bounded recreation/readback tests do not prove leak freedom.
+
+CPU fields remain at the top level. `cpu_status` and `graphics_probe` fields
 record each result; combined `status` passes only when both pass. Manufacturer,
 model, Android API/release and non-unique GPU/device properties provide context.
 No hardware serial or advertising identifier is collected; per-run/request UUIDs
@@ -149,9 +176,11 @@ python3 tools/build_vulkan_probe.py \
 `--require-validation` fails if the layer cannot load. Standard installations
 use normal driver/layer discovery; nonstandard installations may need their own
 `VK_DRIVER_FILES` or `VK_LAYER_PATH`. Review `build-report.json` and diagnostics.
-The development host passed with Mesa software Vulkan, Khronos validation and
-synchronization validation enabled, with no reported validation errors. Android
-execution remains separately recorded as not run.
+The historical 0.0.3 helper passed Mesa software Vulkan with Khronos and
+synchronization validation enabled. The 0.0.4 build gate requires the expanded
+helper to pass the same actual execution checks; use that build's report for
+its result. Host validation does not execute the Android binary or qualify the
+Thor driver. 0.0.4 Android execution remains pending.
 
 ## Run from the laptop with ADB
 
@@ -171,8 +200,10 @@ python3 tools/run_android_probe.py \
 
 For a downloaded public APK, use its path and add `--allow-prerelease`. The runner
 decodes the manifest, checks the installed APK hash, issues a fresh request ID
-and validates all CPU counters/output. For 0.0.3 it also requires every Vulkan
-case, counter and mutation control. A hang, crash, missing/stale result, wrong
+and validates all CPU counters/output. Versioned validation preserves the
+historical 0.0.2/0.0.3 contracts. For 0.0.4 it requires eight CPU cases, three
+code-safety controls, all baseline Vulkan checks and the complete capability,
+graphics and compute fixture. A hang, crash, missing/stale result, wrong
 version or unavailable Vulkan fails the run.
 
 Only `org.droidds.probe` is installed/updated and stopped. Its latest report is
@@ -191,10 +222,12 @@ the ADB runner supplies the external deadline. This is not a native sandbox.
 <!-- CodexAstraUlt: Retain full renderer, lifecycle, memory and game acceptance
 criteria beyond the bounded CPU and offscreen output fixture. -->
 
-The owner's 0.0.3 report passes the basic CPU/offscreen GPU gate. Continue with
-0.0.4's full-renderer capabilities, broader CPU/code safety and New 3DS audit.
-Android picker behavior, lifecycle and 16 KiB-page execution remain separate
-device gates. The 0.0.3 pass does not complete A0's representative generic PICA
-pipeline or M2's renderer work. Broader CPU/VFP/module tests, surface presentation,
-long-run memory stability and games remain open. This probe establishes no
-Dark Moon correction or game-performance improvement.
+The owner's 0.0.3 report passes the basic CPU/offscreen GPU gate. The next device
+report must establish 0.0.4's expanded CPU/code-safety and renderer-contract
+results. New 3DS runtime configuration is a separate source audit; this probe
+does not establish Xenoblade boot compatibility. Android picker behavior,
+lifecycle and 16 KiB-page execution remain separate device gates. Even a passing
+0.0.4 fixture does not complete A0's actual generic PICA pipeline or M2's renderer
+integration. Broader CPU/VFP/module tests, surface presentation, long-run memory
+stability and games remain open. This probe establishes no Dark Moon correction
+or game-performance improvement.

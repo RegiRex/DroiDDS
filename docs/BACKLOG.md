@@ -22,8 +22,16 @@ Full renderer capabilities/PICA, picker lifecycle, sustained memory and the
 remaining platform gates stay open. The upload does not identify its export
 method. Version 0.0.3's APK and host rendering checks also pass. See
 [the build evidence](builds/0.0.3-android-vulkan.md) and [the probe](ANDROID_PROBE.md).
-Other DDS-004 onward items remain planned. The table defines acceptance, not completion of
-every item merely because a related source component exists.
+<!-- CodexAstraUlt: Promote only the implemented 0.0.4 subset and preserve the
+device/full-runtime gates; an original Vulkan fixture is not PICA qualification. -->
+Version 0.0.4 implements bounded subsets of DDS-004/005/010: eight CPU cases,
+code-origin/changed-code/write-protection controls, full-renderer capability
+queries and a representative Vulkan backend pipeline fixture. Thor qualification
+is pending. Broader floating-point, full scheduler/CRO behavior and actual PICA
+execution remain open. The [New 3DS audit](NEW3DS_AUDIT.md) reproduced parser and
+application-allocation gaps through 12 original host cases; runtime fixes are
+required during 0.0.5. The table defines acceptance, not completion of every item
+merely because a related source component exists.
 The original [119-ticket catalog](research/2026-10-17/06_IMPLEMENTATION_BACKLOG.md)
 is reference material, not an instruction to implement everything at once.
 
@@ -72,10 +80,22 @@ the pack's MIT summary does not replace that inventory.
 
 DDS-003 now supplies separate ARM/Thumb cases, actual native ARM-to-Thumb
 interworking, fixed memory output and intentional missing-entry fallback. Continue
-with DDS-004/005; broader VFP/CRO/service coverage remains named follow-up work.
+with DDS-004/005 beyond 0.0.4's finite-VFP, reverse interworking, tiny-budget and
+bounded code-safety cases; broader VFP/CRO/service coverage remains named follow-up work.
 A missing-compiler skip cannot pass DDS-003/M1 or unblock A0. Static 16 KiB
 alignment checks do not establish runtime compatibility on a 16 KiB-page host;
 record that execution as untested unless such a device actually runs the fixture.
+
+<!-- CodexAstraUlt: Carry the completed New 3DS audit into dependency-ordered
+0.0.5 implementation work instead of declaring Xenoblade compatibility. -->
+During **0.0.5**, implement the [New 3DS integration gates](NEW3DS_AUDIT.md#005-integration-gates)
+alongside DDS-004/005/011/012: correct the header offsets/nibble, resolve physical
+regions and title commit limits before construction, and report the resolved
+configuration explicitly. Require actual loader/kernel tests for allocation
+boundaries, Base service allocations, configuration-page values, resource-limit
+queries and Old-mode regressions. Scheduling, clocks/audio and required services
+need their own cases. Xenoblade's private header/boot baseline remains necessary;
+the audit and Thor CPU/Vulkan probe cannot establish title compatibility.
 
 ## Work to defer until evidence supports it
 

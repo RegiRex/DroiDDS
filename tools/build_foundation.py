@@ -17,6 +17,8 @@ import subprocess
 import sys
 import tomllib
 
+from run_android_probe import cases_for_version, validate_code_safety
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -32,25 +34,20 @@ def validate_report(report: dict, pins: dict) -> None:
     for key in ("abi", "generation"):
         if report.get(key) != pins["recompiler"][key]:
             raise ValueError(f"Synthetic {key} does not match the selected ABI")
-    expected = {"arm_integer_memory", "thumb_integer_memory",
-                "arm_missing_entry_fallback", "arm_to_thumb_native"}
+    # CodexAstraUlt: Host and Android execute the same eight fixtures. Require
+    # the full current contract, including deliberate tiny-budget fallback.
+    expected = cases_for_version("0.0.4")
     cases = report.get("cases", [])
     names = [case["name"] for case in cases]
-    if len(names) != len(set(names)) or not expected.issubset(names):
+    if len(names) != len(set(names)) or set(names) != set(expected):
         raise ValueError("Synthetic report is missing required CPU cases")
     for case in cases:
         if case.get("status") != "passed":
             raise ValueError(f"CPU case did not pass: {case['name']}")
-        for key in ("native_calls", "native_budget_charged", "fallback_steps"):
-            if type(case.get(key)) is not int or case[key] < 0:
-                raise ValueError(f"Missing or invalid route counter: {key}")
-        if case["native_calls"] == 0 or case["native_budget_charged"] == 0:
-            raise ValueError(f"Native execution not demonstrated: {case['name']}")
-        if case["name"] == "arm_missing_entry_fallback":
-            if case["fallback_steps"] == 0:
-                raise ValueError("Missing-entry fallback was not exercised")
-        elif case["name"] in expected and case["fallback_steps"] != 0:
-            raise ValueError(f"Unexpected fallback in native-only case: {case['name']}")
+        for key, value in expected[case["name"]].items():
+            if type(case.get(key)) is not int or case[key] != value:
+                raise ValueError(f"Incorrect fixture route counter: {case['name']}/{key}")
+    validate_code_safety(report.get("code_safety"))
     controls = report.get("negative_controls", [])
     required = {"nan_shaped_integer_register_mismatch", "nan_shaped_integer_memory_mismatch",
                 "guest_instruction_limit", "process_watchdog"}

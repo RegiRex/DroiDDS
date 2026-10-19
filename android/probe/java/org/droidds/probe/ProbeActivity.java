@@ -62,8 +62,11 @@ public final class ProbeActivity extends Activity implements ProbeController.Obs
         title.setTextSize(24);
         content.addView(title);
         TextView scope = new TextView(this);
-        scope.setText("Synthetic CPU tests and an offscreen Vulkan draw with pixel readback. "
-                + "This probe does not run games or emulate 3DS graphics.");
+        // CodexAstraUlt: Describe the expanded diagnostic in terms useful to
+        // the tester while preserving the separation from actual game support.
+        scope.setText("CPU correctness and code-safety tests, GPU capability checks, "
+                + "and offscreen rendering tests. Save the report even if a check fails. "
+                + "This probe does not run games.");
         scope.setTextSize(16);
         content.addView(scope);
         status = new TextView(this);
