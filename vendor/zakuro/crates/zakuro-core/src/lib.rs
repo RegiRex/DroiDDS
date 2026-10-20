@@ -91,6 +91,9 @@ pub struct Config {
     /// the interpreter skips to the next event past loops that change
     /// nothing, see idle.
     pub skip_idle_loops: bool,
+    /// CodexAstraUlt: Diagnostic tools stop at an undefined instruction or
+    /// breakpoint instead of skipping it; ordinary frontends retain their default.
+    pub strict_diagnostics: bool,
 }
 
 impl Default for Config {
@@ -119,6 +122,7 @@ impl Default for Config {
             dlp_child: None,
             wireless_reboot: None,
             skip_idle_loops: true,
+            strict_diagnostics: false,
         }
     }
 }
@@ -132,6 +136,14 @@ pub enum FrameOutcome {
     Exited,
     /// the title called svcBreak, or hit an instruction we do not have.
     Faulted,
+}
+
+/// CodexAstraUlt: Keep only the first strict CPU blocker, with bounded metadata
+/// for a local diagnostic report rather than exposing the instruction history.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticFault {
+    UndefinedInstruction { pc: u32, opcode: u32, thumb: bool },
+    Breakpoint { pc: u32, imm: u32 },
 }
 
 /// a screen's picture as RGBA, and its width and height.
@@ -190,6 +202,8 @@ pub struct System {
     pub fatal_errors: Vec<String>,
     /// undefined instructions we have seen, so the log stays readable.
     undefined_seen: BTreeMap<u32, u32>,
+    // CodexAstraUlt: Strict diagnostic runs retain one fault and halt immediately.
+    diagnostic_fault: Option<DiagnosticFault>,
     /// branches into unmapped memory, keyed by target.
     pub prefetch_aborts: BTreeMap<u32, u32>,
     /// the last few instruction addresses, so a fault can say how it got there.
@@ -295,6 +309,7 @@ impl System {
             room: None,
             fatal_errors: Vec::new(),
             undefined_seen: BTreeMap::new(),
+            diagnostic_fault: None,
             prefetch_aborts: BTreeMap::new(),
             history: [0; HISTORY_LENGTH],
             history_index: 0,
@@ -367,6 +382,12 @@ impl System {
         self.next_frame_boundary = self.cpu.cycles + CYCLES_PER_FRAME;
         self.end_frame();
         FrameOutcome::Completed
+    }
+
+    /// CodexAstraUlt: The first CPU blocker from a strict diagnostic run, if any.
+    /// Unsupported services/SVCs and memory faults have their existing counters.
+    pub fn diagnostic_fault(&self) -> Option<&DiagnosticFault> {
+        self.diagnostic_fault.as_ref()
     }
 
     /// advances the machine by one instruction, doing whatever scheduling is
@@ -514,6 +535,19 @@ impl System {
             None => {}
             Some(Exit::Supervisor(number)) => kernel::svc::dispatch(self, number),
             Some(Exit::Undefined { pc, opcode }) => {
+                // CodexAstraUlt: A baseline must not claim progress by skipping
+                // an unsupported instruction. Preserve its PC and stop before
+                // another guest instruction or an unbounded diagnostic log.
+                if self.config.strict_diagnostics {
+                    self.diagnostic_fault.get_or_insert(DiagnosticFault::UndefinedInstruction {
+                        pc,
+                        opcode,
+                        thumb: self.cpu.cpsr.thumb,
+                    });
+                    self.cpu.regs[15] = pc;
+                    self.broke = true;
+                    return StepOutcome::Faulted;
+                }
                 let count = self.undefined_seen.entry(pc).or_insert(0);
                 *count += 1;
                 if *count == 1 {
@@ -526,6 +560,14 @@ impl System {
                 self.cpu.regs[15] = pc.wrapping_add(step);
             }
             Some(Exit::Breakpoint { pc, imm }) => {
+                // CodexAstraUlt: A deliberate debug trap is also a baseline
+                // blocker, not evidence that the following code can run safely.
+                if self.config.strict_diagnostics {
+                    self.diagnostic_fault.get_or_insert(DiagnosticFault::Breakpoint { pc, imm });
+                    self.cpu.regs[15] = pc;
+                    self.broke = true;
+                    return StepOutcome::Faulted;
+                }
                 log::warn!("bkpt #{imm} at 0x{pc:08X}");
                 let step = if self.cpu.cpsr.thumb { 2 } else { 4 };
                 self.cpu.regs[15] = pc.wrapping_add(step);
@@ -1395,6 +1437,80 @@ mod tests {
         assert_eq!(system.kernel.current_thread, Some(id));
         system.cpu.regs[0] = 0x0010_0800;
         id
+    }
+
+    // CodexAstraUlt: Execute original ARM/Thumb trap fixtures through the actual
+    // scheduler/CPU path and prove strict mode cannot execute their next MOV.
+    #[test]
+    fn strict_diagnostics_hold_undefined_instruction_and_stop_future_steps() {
+        for (thumb, code, opcode) in [
+            (false, [0xE7F0_00F0, 0xE3A0_102A], 0xE7F0_00F0),
+            (true, [0x212A_DE00, 0], 0xDE00),
+        ] {
+            let mut system = System::new(Config { strict_diagnostics: true, ..Config::default() });
+            one_thread_running(&mut system, &code);
+            system.cpu.cpsr.thumb = thumb;
+            system.cpu.regs[1] = 0;
+            assert_eq!(system.step(None), StepOutcome::Faulted);
+            let fault = DiagnosticFault::UndefinedInstruction { pc: 0x0010_0000, opcode, thumb };
+            assert_eq!(system.diagnostic_fault(), Some(&fault));
+            assert_eq!(system.cpu.regs[15], 0x0010_0000);
+            assert_eq!(system.cpu.regs[1], 0);
+            assert!(system.undefined_seen.is_empty(), "strict runs do not grow the legacy log map");
+            let cycles = system.cpu.cycles;
+            for _ in 0..3 {
+                assert_eq!(system.step(None), StepOutcome::Faulted);
+            }
+            assert_eq!(system.cpu.cycles, cycles);
+            assert_eq!(system.interpreted_instructions, 1);
+            assert_eq!(system.cpu.regs[15], 0x0010_0000);
+            assert_eq!(system.cpu.regs[1], 0);
+            assert_eq!(system.diagnostic_fault(), Some(&fault));
+        }
+    }
+
+    // CodexAstraUlt: Strict debug traps preserve their original PC in either
+    // instruction set and produce a distinct, bounded blocker classification.
+    #[test]
+    fn strict_diagnostics_stop_at_breakpoints() {
+        for (thumb, code) in [
+            (false, [0xE120_0070, 0xE3A0_102A]),
+            (true, [0x212A_BE00, 0]),
+        ] {
+            let mut system = System::new(Config { strict_diagnostics: true, ..Config::default() });
+            one_thread_running(&mut system, &code);
+            system.cpu.cpsr.thumb = thumb;
+            system.cpu.regs[1] = 0;
+            assert_eq!(system.step(None), StepOutcome::Faulted);
+            assert_eq!(system.diagnostic_fault(), Some(&DiagnosticFault::Breakpoint { pc: 0x0010_0000, imm: 0 }));
+            assert_eq!(system.cpu.regs[15], 0x0010_0000);
+            assert_eq!(system.step(None), StepOutcome::Faulted);
+            assert_eq!(system.interpreted_instructions, 1);
+            assert_eq!(system.cpu.regs[1], 0);
+        }
+    }
+
+    // CodexAstraUlt: Opt-in diagnostics must not change existing probe/frontends;
+    // the original skip behavior still reaches the following MOV in both modes.
+    #[test]
+    fn default_diagnostics_preserve_undefined_and_breakpoint_skip_behavior() {
+        for (thumb, code) in [
+            (false, [0xE7F0_00F0, 0xE3A0_102A]),
+            (false, [0xE120_0070, 0xE3A0_102A]),
+            (true, [0x212A_DE00, 0]),
+            (true, [0x212A_BE00, 0]),
+        ] {
+            let mut system = System::new(Config::default());
+            one_thread_running(&mut system, &code);
+            system.cpu.cpsr.thumb = thumb;
+            system.cpu.regs[1] = 0;
+            assert_eq!(system.step(None), StepOutcome::Ran);
+            assert_eq!(system.cpu.regs[15], 0x0010_0000 + if thumb { 2 } else { 4 });
+            assert_eq!(system.step(None), StepOutcome::Ran);
+            assert_eq!(system.cpu.regs[1], 42);
+            assert_eq!(system.diagnostic_fault(), None);
+            assert!(!system.broke);
+        }
     }
 
     /// runs steps until the run gets to tick or steps runs out, how many it

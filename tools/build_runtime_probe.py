@@ -207,6 +207,12 @@ def main() -> int:
         run("clippy-runtime", [cargo, "clippy", "--locked", "-p", "droidds-runtime-probe",
                               "--features", "producer", "--all-targets", "--no-deps", "-j", args.jobs,
                               "--", "-D", "warnings"])
+        # CodexAstraUlt: The private-title worker must pass public original-fixture
+        # gates before local users trust its bounded first-blocker reports.
+        run("format-title-tools", [cargo, "fmt", "-p", "droidds-title-tools", "--", "--check"])
+        run("clippy-title-tools", [cargo, "clippy", "--locked", "-p", "droidds-title-tools",
+                                  "--all-targets", "--no-deps", "-j", args.jobs,
+                                  "--", "-D", "warnings"])
         evidence["suites"] = {}
         for package in ("zakuro-fs", "zakuro-core", "droidds-runtime-probe"):
             command = [cargo, "test", "--locked", "-p", package, "--lib", "-j", args.jobs]
@@ -215,6 +221,12 @@ def main() -> int:
             command += ["--", "--test-threads=1"]
             proof = run("test-" + package, command, timeout=1800, machine=True, tests=True)
             evidence["suites"][package] = validate_suite(proof)
+        title_proof = run("test-title-tools", [cargo, "test", "--locked", "-p", "droidds-title-tools",
+                          "-j", args.jobs, "--", "--test-threads=1"], machine=True, tests=True)
+        evidence["suites"]["droidds-title-tools"] = validate_suite(title_proof)
+        run("build-title-tools", [cargo, "build", "--locked", "--release", "-p", "droidds-title-tools",
+                                 "-j", args.jobs], timeout=1800)
+        title_worker = Path(metadata["target_directory"]) / "release/droidds-private-title"
         proof = run("test-loader-memory", [cargo, "test", "--locked", "-p", "zakuro-core",
                     "--test", "droidds_memory_layout", "-j", args.jobs, "--", "--test-threads=1"],
                     timeout=1800, machine=True, tests=True)
@@ -242,6 +254,11 @@ def main() -> int:
             generated = output / "generated"
             manifest = json.loads(run("emit-runtime", [executable, "emit", "--output", generated], machine=True))
             sources = generated_sources(manifest, generated)
+            # CodexAstraUlt: The integration test creates disposable private-style
+            # output outside Git and exercises the real worker, never retail data.
+            run("private-title-integration", [sys.executable, ROOT / "tools/tests/test_private_title.py",
+                "--worker", title_worker, "--fixture", generated / "runtime-fixture.cxi"],
+                timeout=180, tests=True)
             libraries = output / "libraries"
             libraries.mkdir()
             library = libraries / manifest["library"]

@@ -1,10 +1,8 @@
 # Local implementation handoff
 
-<!-- CodexAstraUlt: Supply an executable project direction without silently starting implementation or requiring a cloud-to-local session bridge. -->
-
 <!-- CodexAstraUlt: Continue from the passed bounded runtime report into
 interactive-device qualification without claiming a cloud/local session bridge. -->
-As of 2026-10-19, the owner's
+As of 2026-10-20, the owner's
 [0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) passes all required
 CPU/Vulkan/runtime, five memory-layout and code-safety checks. The
 [0.0.5 runtime integration](builds/0.0.5-runtime-integration.md) is published in
@@ -21,14 +19,26 @@ The existing Nobara laptop and USB-connected Thor can host the private
 development/test loop once their current readiness is checked. This cloud chat
 does not share a live session, device connection or private files with local Codex.
 
-<!-- CodexAstraUlt: Update the interactive gate from the received report;
-physical dual-display expectations do not imply a missing guest image. -->
-The [first 0.0.6 Thor report](device-tests/0.0.6-thor-homebrew.md) passes
-all automatic checks, and the owner confirms both guest views on the top
-physical screen. Measured guest touch, view recreation and audio continuity
-still need a focused retest. The [frontend correction](builds/0.0.6-frontend-correction.md)
-retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
-Read its build status before installing or claiming publication.
+<!-- CodexAstraUlt: Replace the pending touch/recreation retest with measured
+correction evidence, retaining missing A and unresolved sound-quality evidence. -->
+The [0.0.6 correction 2 report](device-tests/0.0.6-correction2-thor.md), reviewed
+2026-10-20, now passes every automatic check and records both views, audible
+sound, 42 guest-consumed touch frames, six view replacements and pause/resume.
+The standalone manual qualifier remains pending because A was not consumed in
+this run; unchanged-path historical evidence is recorded separately. Eleven
+audio underruns remain under quality review, with the tester's audible-continuity
+observation pending. Do not rewrite these gaps as a fresh passing observation.
+The [verified correction](builds/0.0.6-frontend-correction.md) remains version
+0.0.6 / install code 7. No private title or 0.0.7 APK is qualified.
+
+<!-- CodexAstraUlt: A bounded local host baseline can expose the next real-title
+blocker independently of finishing the Android manual observation. -->
+The immediate development task is [private title reconnaissance](PRIVATE_TITLE_RECONNAISSANCE.md)
+on the owner's Nobara laptop. The implemented host worker uses the interpreter
+and software renderer in a fresh isolated run, without loading existing saves,
+updates, DLC or user configuration. It does not compile a title, build an APK,
+run Vulkan or establish playable speed. Use it to identify the first actual
+loader/service/CPU blocker from an authorized local decrypted game file.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->
@@ -39,7 +49,9 @@ on the owner's Linux computer. This is planned work after the 0.0.6 gate.
 
 ## Starting scope
 
-Work in a separate DroidDS checkout. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`,
+<!-- CodexAstraUlt: Reuse the existing DroidDS checkout while preserving the
+separate Uberhar project and other local sessions' uncommitted work. -->
+Work in the existing DroidDS checkout, separate from Uberhar. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`,
 `docs/ARCHITECTURE.md` and `docs/BACKLOG.md`. Keep Uberhar files, APK and saves intact.
 Check branch and local changes before fetching; do not reset another session's work.
 
@@ -54,21 +66,23 @@ asymmetric 8×8 image. This is bounded public-fixture evidence, not retail suppo
 or complete PICA coverage. The actual Thor result uses CPU vertex shading with
 Vulkan rasterization; retain that distinction in future reports.
 
-The 0.0.6 local/main/tag CI gates pass and its public downloads are verified.
-Use the [published prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2) for the manual Thor test.
-The original NCCH guest must visibly display its 400×240
-and 320×240 images, respond to D-pad/A/touch and produce audible guest audio.
-Both views use CPU readback/Bitmap/Canvas on one Android display while PICA
-rasterization remains Vulkan. Do not claim Thor physical dual-display support.
-Guest PCM is resampled from 32728.498046875 Hz to Android 48000 Hz; a tone is not
-DSP firmware compatibility. Verify pause/resume, view replacement and normal exit.
-Automatic image/PCM success alone cannot qualify these human observations or
-permit 0.0.7 promotion. Record installed artifact identity where ADB is available.
-Save failed/partial reports too. After the required gate passes, proceed directly
-into fixes and the next roadmap build through 0.1.0 under the owner's standing
-instruction; failed gates require correction before promotion.
-Do not attempt all archive prompts or claim a background device/session bridge.
-Public fixture work needs no game upload or retail APK.
+<!-- CodexAstraUlt: Carry the corrected device result forward without asking
+for unrelated replay or closing remaining manual and private-title gates. -->
+The 0.0.6 local/main/tag CI gates and public-download verification pass.
+The [published correction](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2)
+now has the device evidence summarized above. Keep its 400×240 and 320×240
+Bitmap/Canvas views on one Android display distinct from physical dual-display
+support. Guest PICA rasterization uses Vulkan; guest PCM is resampled from
+32728.498046875 Hz to 48000 Hz, without qualifying DSP firmware.
+Retain the unresolved observation and control-attribution limits. A targeted
+follow-up can account for them; do not require another full earlier-version
+replay without a relevant change. Record installed artifact identity where ADB
+is available and preserve failed/partial reports. The bounded host
+reconnaissance below may proceed independently, but neither it nor automatic
+image/PCM success completes the Android manual or 0.0.7 private-boot gate.
+Continue necessary fixes and the next qualified build through 0.1.0 under the
+owner's standing instruction. Do not execute all archive prompts or claim a
+background device/session bridge. No cloud game upload is needed.
 
 Use one coordinator and assigned-file ownership. Reviewers can independently audit
 CPU semantics, GPU resource lifetimes and Android contracts. Only one agent performs
@@ -78,10 +92,16 @@ authorization for routine work and respect actual approval/account limits.
 
 ## Local inputs and device work
 
-Public fixtures must work without private input. Later, select a user-supplied
-local title path and preserve it outside Git, derived output outside public CI, and
-saves outside disposable directories. A Proton link or chat upload is unnecessary
-when the local agent already has an authorized local file path.
+<!-- CodexAstraUlt: Keep the first private baseline local and isolated instead
+of importing existing saves or requesting unnecessary cloud transfers. -->
+Public fixtures must work without private input. For the new host baseline,
+local Codex should inspect the owner's already authorized paths, select the
+exact decrypted title and follow [the reconnaissance procedure](PRIVATE_TITLE_RECONNAISSANCE.md).
+Keep the original and each fresh output directory outside every Git checkout.
+Do not supply an existing save/configuration tree or reset Uberhar data. A Proton
+link or chat upload is unnecessary when the local agent has an authorized local
+file path. Review the small diagnostic summary before sharing it; do not upload
+the staged game copy, runtime files or other private derived material.
 
 For each new device run, check `adb devices -l`, select the authorized Thor's
 explicit serial, and record device/driver and installed artifact identity.
@@ -130,25 +150,33 @@ a 256 MiB staging-ring baseline and unqualified surface/texture/driver memory.
 Static generic pipelines can still compile synchronously on first use. Require
 matched cold/warm and long-run evidence before claiming those problems solved.
 
-## Suggested task to give local Codex when ready
+## Suggested task to give local Codex
 
-> Continue DroidDS from the passing 0.0.5 Thor runtime report. Read AGENTS.md,
-> docs/device-tests/0.0.5-thor-runtime.md,
-> docs/builds/0.0.6-interactive-homebrew.md and docs/ANDROID_PROBE.md.
-> Version 0.0.6 is published with passing local/main/tag CI gates and verified
-> public downloads. Its manual Thor gate remains pending. Retain all prior
-> regressions, then run the automatic probe and manual original-homebrew test
-> on the authorized Thor's explicit ADB serial and record installed APK identity.
-> Verify visible guest screens, D-pad/A/touch, audible tone, pause/resume, view
-> replacement and normal exit. A passing automatic JSON does not replace these
-> observations. Preserve failed/partial evidence and distinguish CPU vertex
-> shading, Vulkan rasterization and CPU-readback presentation. Continue through
-> 0.1.0 under the standing instruction, but do not promote to 0.0.7 before this
-> manual device gate passes. Keep private-title, scheduler, CRO and sustained-memory gates open.
-> Use CodexAstraUlt comments, preserve local
-> changes, keep all retail inputs/derived outputs private, and leave Uberhar intact.
-> Do not execute the archive's entire prompt pack or claim Android/game readiness
-> from compilation alone. Checkpoint after each ticket and report concrete blockers.
+<!-- CodexAstraUlt: Give the local session the executable next task, preserving
+its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
-The owner can give this task to the local session. This document does not itself
-connect sessions or start unattended local/device work.
+> Continue DroidDS on this Nobara laptop. Read AGENTS.md,
+> docs/PRIVATE_TITLE_RECONNAISSANCE.md and
+> docs/device-tests/0.0.6-correction2-thor.md. Preserve local changes and Uberhar.
+> Build the host reconnaissance worker with the pinned toolchain, then use
+> tools/run_private_title.py against an already authorized local decrypted copy
+> of Luigi's Mansion: Dark Moon, with a fresh output directory outside every
+> Git checkout. If its exact path is unknown, ask me for the local path; do not
+> request a game upload or search unrelated private directories. Keep updates,
+> DLC, saves and existing configuration out of this isolated baseline. Run the
+> bounded interpreter/software path and report the first loader, service, CPU
+> or execution-budget blocker accurately. Do not treat a bounded stop or zero
+> failure counters as an interactive boot pass. Prepare a small reviewed summary
+> with source/tool identity, title revision identity, outcome, counters and the
+> next concrete fix; keep raw inputs, snapshots and private runtime data local.
+> Run other selected titles separately only when their local paths are authorized.
+> This is host reconnaissance, not a 0.0.7 APK or native-performance result.
+> Continue independent implementation work while preserving the remaining
+> Android audio-quality/control evidence and private-boot gates. Use
+> CodexAstraUlt comments and stop only for missing input or a concrete blocker.
+
+The owner can paste this task into local Codex; they do not need to transcribe
+all build/run commands themselves. This document does not connect sessions or
+start unattended local/device work. The host reconnaissance needs a local title
+path but does not need USB/ADB; later Thor tests still require the explicitly
+selected and authorized device.

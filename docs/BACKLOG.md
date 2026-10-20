@@ -62,14 +62,20 @@ pending. Observed
 images, controls/touch, audible audio, lifecycle recovery and normal exit must
 pass before 0.0.7 promotion; an automatic probe pass alone is insufficient.
 
-<!-- CodexAstraUlt: Update the interactive gate from the received report;
-physical dual-display expectations do not imply a missing guest image. -->
-The [first 0.0.6 Thor report](device-tests/0.0.6-thor-homebrew.md) passes
-all automatic checks, and the owner confirms both guest views on the top
-physical screen. Measured guest touch, view recreation and audio continuity
-still need a focused retest. The [frontend correction](builds/0.0.6-frontend-correction.md)
-retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
-Read its build status before installing or claiming publication.
+<!-- CodexAstraUlt: Replace the pending touch/recreation retest with measured
+correction evidence, while preserving the unresolved audio quality observation. -->
+The [corrected 0.0.6 Thor report](device-tests/0.0.6-correction2-thor.md)
+passes every automatic check and records 42 submitted/consumed touch frames,
+six view replacements and working pause/resume. Both guest views and sound are
+confirmed. Audio underruns fell from 197 to 11 across different-duration runs;
+audible continuity still needs the owner's observation. This run omitted A;
+unchanged-path evidence from the earlier run is retained separately. No new
+full test is required solely because A was omitted.
+
+Generic [local private-title reconnaissance](PRIVATE_TITLE_RECONNAISSANCE.md)
+is now being implemented and tested to identify an owned game's first runtime
+blocker. This interpreter/software host tool does not promote milestone 0.0.7
+or produce a game-playing Android APK.
 
 The [New 3DS audit](NEW3DS_AUDIT.md) now leads to implemented loader/header,
 physical-region, commitment-limit and configuration/service corrections with

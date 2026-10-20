@@ -1,0 +1,21 @@
+# CodexAstraUlt: Local-only interpreter reconnaissance has no compiler, native
+# library discovery, Android packaging, or private-input upload dependency.
+[package]
+name = "droidds-title-tools"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "droidds-private-title"
+path = "src/main.rs"
+
+[dependencies]
+zakuro-core.workspace = true
+zakuro-fs.workspace = true
+zakuro-common.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+droidds-runtime-probe = { path = "../droidds-runtime-probe" }

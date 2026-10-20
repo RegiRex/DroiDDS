@@ -16,6 +16,15 @@ ABI, loader, interpreter and PICA runtime. Public releases provide generic tools
 and original-fixture packages. Retail inputs, generated C/libraries, private
 APKs and captures stay on the owner's Linux computer.
 
+<!-- CodexAstraUlt: Implement the bounded baseline first, before compiler and
+native module work can turn an unknown runtime gap into an ambiguous failure. -->
+The first implementation slice is the [local reconnaissance tool](PRIVATE_TITLE_RECONNAISSANCE.md):
+a stable private input snapshot, strict interpreter/software run, exact metadata
+and bounded first-blocker report. It reuses the actual loader and HLE runtime.
+It does not yet implement the native compiler/package steps below. Actual local
+title evidence is needed before selecting and fixing the first game blocker;
+public original fixtures validate the tool, not game compatibility.
+
 ## One resolved title identity
 
 <!-- CodexAstraUlt: Prevent compiler/runtime disagreement about the executable,

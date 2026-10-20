@@ -12,6 +12,13 @@ libraries. This executable remains the CPU foundation; the separate integrated
 runtime gate below now exercises the loader, HLE services and PICA. Android has
 its own cross-build and physical-device gate.
 
+<!-- CodexAstraUlt: Expose the separate local-title tool without expanding this
+public foundation harness to accept private input or claiming Android boot. -->
+For an owned decrypted title on the Linux laptop, use the separate
+[private-title reconnaissance procedure](PRIVATE_TITLE_RECONNAISSANCE.md).
+Its first implementation runs a bounded interpreter/software baseline and
+reports observed blockers. It does not generate native title code or an APK.
+
 ## Prerequisites and build
 
 Use a Linux host with Git, Python 3.11 or newer, a working C compiler and Rustup.

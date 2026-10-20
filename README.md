@@ -71,19 +71,24 @@ checks compare image and PCM output; the Android frontend presents 400×240 and
 Bitmap/Canvas. PICA rasterization remains Vulkan; this is not direct Vulkan
 presentation or Thor physical dual-display support.
 
-<!-- CodexAstraUlt: Update the interactive gate from the received report;
-physical dual-display expectations do not imply a missing guest image. -->
-The [first 0.0.6 Thor report](docs/device-tests/0.0.6-thor-homebrew.md) passes
-all automatic checks, and the owner confirms both guest views on the top
-physical screen. Measured guest touch, view recreation and audio continuity
-still need a focused retest. The [frontend correction](docs/builds/0.0.6-frontend-correction.md)
-retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
-Read its build status before installing or claiming publication.
+<!-- CodexAstraUlt: Replace the pending touch/recreation retest with measured
+correction evidence, while preserving the unresolved audio quality observation. -->
+The [corrected 0.0.6 Thor report](docs/device-tests/0.0.6-correction2-thor.md)
+passes every automatic check and records 42 submitted/consumed touch frames,
+six view replacements and working pause/resume. Both guest views and sound are
+confirmed. Audio underruns fell from 197 to 11 across different-duration runs;
+audible continuity still needs the owner's observation. This run omitted A;
+unchanged-path evidence from the earlier run is retained separately. No new
+full test is required solely because A was omitted.
 
-The focused corrected-device gate still needs measured lower-view touch,
-view recreation and review of audio continuity. Both views were seen, hardware
-buttons and audio worked, and pause/resume and normal host close were observed
-in the first 0.0.6 run. Automated success alone cannot qualify that gate. Original NCCH fixtures
+Generic [local private-title reconnaissance](docs/PRIVATE_TITLE_RECONNAISSANCE.md)
+is now being implemented and tested to identify an owned game's first runtime
+blocker. This interpreter/software host tool does not promote milestone 0.0.7
+or produce a game-playing Android APK.
+
+The corrected-device gate now has measured touch and view-recreation evidence;
+audio quality remains under review. Automated success alone cannot qualify
+human observations. Original NCCH fixtures
 do not establish a 3DSX loader or retail-title support. Private Dark Moon,
 Xenoblade and Sonic baselines remain open because their inputs are not present
 here. See [Android instructions](docs/ANDROID_PROBE.md) for testing and signing.
@@ -105,6 +110,8 @@ explicit.
 | [0.0.5 build and release evidence](docs/builds/0.0.5-runtime-integration.md) | Actual runtime integration, fixes, host tests and verified public APK |
 | [Thor integrated runtime result](docs/device-tests/0.0.5-thor-runtime.md) | Passing 0.0.5 guest/PICA/memory evidence and its limits |
 | [0.0.6 interactive homebrew](docs/builds/0.0.6-interactive-homebrew.md) | Passing local/CI gates, verified public assets and required device observations |
+| [Corrected Thor result](docs/device-tests/0.0.6-correction2-thor.md) | Measured touch and view recreation; remaining audio quality observation |
+| [Local title reconnaissance](docs/PRIVATE_TITLE_RECONNAISSANCE.md) | Bounded interpreter/software baseline for owned decrypted inputs on the laptop |
 | [0.0.4 build evidence](docs/builds/0.0.4-runtime-probe.md) | Expanded CPU, renderer operations and packaging checks |
 | [New 3DS audit and corrections](docs/NEW3DS_AUDIT.md) | Reproduced defects, implemented runtime fixes and remaining title gates |
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |

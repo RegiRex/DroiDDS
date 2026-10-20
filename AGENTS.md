@@ -73,6 +73,20 @@ identity instead of mistaking install code 7 for completion of milestone .7. -->
   docs/builds/0.0.6-frontend-correction.md for the exact correction artifact.
   Require the focused corrected-device gate before 0.0.7 promotion; preserve
   the original report and supplemental human observation separately.
+<!-- CodexAstraUlt: Preserve corrected touch/recreation evidence without
+rewriting its missing A observation or qualifying private games from a fixture. -->
+- The corrected 0.0.6/code7 report passes strict automatic validation; read
+  docs/device-tests/0.0.6-correction2-thor.md. Touch consumption is 42/42,
+  six view replacements succeed, and both views/sound are confirmed. The new
+  standalone manual qualifier is pending for omitted A; carry historical A
+  evidence only as an explicit unchanged-path assessment. Audio has 11
+  underruns and its audible continuity question remains open. Do not require
+  another full run solely for omitted A, or call this report a private-title pass.
+- Generic bounded local title reconnaissance is independent preparatory work;
+  read docs/PRIVATE_TITLE_RECONNAISSANCE.md. Keep its inputs, fresh snapshots,
+  saves and reports outside Git. A host interpreter/software outcome is neither
+  native qualification nor an Android 0.0.7 boot milestone. Stop at the first
+  unsupported runtime behavior; never qualify progress by silently skipping it.
 - Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,
   commitment/configuration, heap-bound and restore-preflight corrections. The
   host compiler is also vendored to repair conditional-flow budget accounting;

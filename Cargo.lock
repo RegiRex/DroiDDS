@@ -648,6 +648,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "droidds-title-tools"
+version = "0.0.1"
+dependencies = [
+ "droidds-runtime-probe",
+ "serde_json",
+ "zakuro-common",
+ "zakuro-core",
+ "zakuro-fs",
+]
+
+[[package]]
 name = "either"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
