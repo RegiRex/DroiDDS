@@ -30,7 +30,10 @@ final class ScreenView extends View {
         bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         touch = target;
         presented = drawn;
-        setContentDescription(target == null ? "Guest top display" : "Guest lower touch display");
+        // CodexAstraUlt: Name the in-app images explicitly; this View never
+        // targets the Thor's separate physical display or its black letterbox.
+        setContentDescription(target == null ? "3DS top view on this Android display"
+                : "3DS bottom touch view on this Android display; drag inside the colored image");
         setClickable(target != null);
     }
 

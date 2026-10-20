@@ -101,14 +101,98 @@ public final class HomebrewLogicTest {
                 "Rotation/resize changed guest center mapping");
     }
 
+    private static void deadlineOracle() {
+        // CodexAstraUlt: An independent absolute timeline injects a different
+        // wake delay on each frame. Relative-delay scheduling would accumulate
+        // those delays and fail this duration check even with short frame work.
+        final long period = 1000000L;
+        FramePacer pacer = new FramePacer(period, 4);
+        pacer.resume(0);
+        long now = 0;
+        for (int i = 0; i < 1000; i++) {
+            pacer.begin(now);
+            long finished = now + period / 5;
+            long delay = pacer.finish(finished);
+            check(finished + delay == (i + 1) * period, "Scheduler jitter accumulated into guest slowdown");
+            now = finished + delay + (i % 7) * 1000;
+        }
+        check(pacer.frames() == 1000 && pacer.resets() == 0 && pacer.lateFrames() > 0,
+                "Normal jitter changed frame count or reset the clock");
+        check(pacer.maximumLateness() == 6000 && pacer.maximumWork() == period / 5,
+                "Measured wake lateness/work differs from injected timing");
+
+        // CodexAstraUlt: Modest stalls catch up with real frames; a long stall
+        // abandons bounded wall-clock debt without inventing completed frames.
+        FramePacer loaded = new FramePacer(period, 4);
+        loaded.resume(0);
+        loaded.begin(0);
+        check(loaded.finish(2 * period) == 0 && loaded.resets() == 0,
+                "Short overload did not allow bounded catch-up");
+        loaded.begin(2 * period);
+        check(loaded.finish(2 * period + period / 5) == 0, "Catch-up inserted a relative wait");
+        loaded.begin(2 * period + period / 5);
+        check(loaded.finish(2 * period + 2 * period / 5) == 3 * period / 5,
+                "Catch-up did not return to the original timeline");
+        loaded.begin(3 * period);
+        check(loaded.finish(20 * period) == 0 && loaded.resets() == 1 && loaded.frames() == 4,
+                "Long overload accumulated unbounded debt or skipped guest frames");
+        loaded.begin(20 * period);
+        check(loaded.finish(20 * period + period / 5) == period * 4 / 5 && loaded.resets() == 1,
+                "Overload reset added idle time or retained the old catch-up debt");
+    }
+
+    private static void pacingResumeOracle() {
+        // CodexAstraUlt: A background interval must not generate frame debt.
+        FramePacer pacer = new FramePacer(1000, 4);
+        pacer.resume(100);
+        pacer.begin(100);
+        check(pacer.finish(300) == 800, "Initial pacing differs");
+        pacer.resume(1000000000);
+        pacer.begin(1000000000);
+        check(pacer.finish(1000000200) == 800 && pacer.resets() == 0 && pacer.epochs() == 2,
+                "Paused wall time leaked into the resumed timeline");
+        check(pacer.frames() == 2 && pacer.maximumLateness() == 0,
+                "Resume invented catch-up frames or lateness");
+    }
+
+    private static void prefillOracle() {
+        // CodexAstraUlt: Model platform partial writes, including a full queue
+        // accepting zero bytes. Only accepted guest samples may start playback.
+        AudioStartup startup = new AudioStartup(2400);
+        check(!startup.ready() && !startup.playing(), "Empty track was ready to play");
+        boolean rejected = false;
+        try { startup.started(); } catch (IllegalStateException expected) { rejected = true; }
+        check(rejected, "Empty playback was allowed");
+        for (int accepted : new int[] {800, 0, 400, 1199}) startup.accepted(accepted);
+        check(!startup.ready() && startup.prefillFrames() == 2399, "Partial writes invented prefill");
+        startup.accepted(1);
+        check(startup.ready(), "Accepted threshold did not permit playback");
+        startup.started();
+        startup.accepted(10000);
+        check(startup.playing() && !startup.ready() && startup.prefillFrames() == 2400,
+                "Started track was counted again or prefill changed");
+        startup.reset();
+        startup.accepted(800);
+        check(!startup.ready() && !startup.playing() && startup.prefillFrames() == 800,
+                "Pause retained prefill from the released platform queue");
+        startup.reset(); // CodexAstraUlt: Pause during prefill also clears ownership.
+        startup.accepted(3200);
+        check(startup.ready() && startup.prefillFrames() == 3200, "Whole guest frame crossing threshold was lost");
+    }
+
     public static void main(String[] args) {
         waveformOracle();
         streamingAndReset();
         clippingAndInvalidInput();
         letterboxOracle();
+        deadlineOracle();
+        pacingResumeOracle();
+        prefillOracle();
         System.out.println("{\"schema\":1,\"kind\":\"droidds-java-homebrew-logic\",\"status\":\"passed\","
                 + "\"controls\":[\"time_based_pcm_oracle\",\"chunk_and_pause_continuity\","
-                + "\"full_scale_and_invalid_pcm\",\"letterbox_touch_and_resize\"]}");
+                + "\"full_scale_and_invalid_pcm\",\"letterbox_touch_and_resize\","
+                + "\"absolute_deadline_jitter_and_overload\",\"pause_resets_frame_timeline\","
+                + "\"guest_pcm_prefill_and_partial_writes\"]}");
     }
     private HomebrewLogicTest() {}
 }

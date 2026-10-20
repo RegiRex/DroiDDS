@@ -1,6 +1,7 @@
 package org.droidds.probe;
 
 import android.app.Activity;
+import android.content.res.Configuration;
 import android.hardware.input.InputManager;
 import android.os.Bundle;
 import android.view.InputDevice;
@@ -10,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 /** CodexAstraUlt: Manual presentation/input/audio observations for the original
@@ -30,56 +32,112 @@ public final class HomebrewActivity extends Activity implements HomebrewControll
         sessionId = getIntent().getStringExtra("session_id");
         if (!controller.matches(sessionId)) { finish(); return; }
         inputManager = (InputManager)getSystemService(INPUT_SERVICE);
+        // CodexAstraUlt: Reserve image space independently of instruction text.
+        // A scrolling sidebar on a landscape handheld keeps both guest views
+        // usable; portrait keeps the same views above scrollable controls.
+        boolean landscape = getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE;
         LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
+        content.setOrientation(landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
         content.setFitsSystemWindows(true);
         int padding = Math.round(8 * getResources().getDisplayMetrics().density);
         content.setPadding(padding, padding, padding, padding);
-        TextView help = new TextView(this);
-        help.setText("Original homebrew: use your D-pad and A button, then touch the lower screen. "
-                + "Listen for its tone. Briefly switch apps and return to test pause/resume.");
-        content.addView(help);
-        status = new TextView(this);
-        content.addView(status);
         LinearLayout screens = new LinearLayout(this);
         screens.setOrientation(LinearLayout.VERTICAL);
         top = new ScreenView(this, 400, 240, null,
                 sequence -> controller.canvasDrawn(sessionId, true, sequence));
         bottom = new ScreenView(this, 320, 240, (x, y, down) -> controller.touch(x, y, down),
                 sequence -> controller.canvasDrawn(sessionId, false, sequence));
-        screens.addView(top, new LinearLayout.LayoutParams(-1, 0, 1));
-        screens.addView(bottom, new LinearLayout.LayoutParams(-1, 0, 1));
-        content.addView(screens, new LinearLayout.LayoutParams(-1, 0, 1));
+        addGuestView(screens, top, "3DS top · D-pad + A");
+        addGuestView(screens, bottom, "3DS bottom · touch the colored image");
+        content.addView(screens, landscape ? new LinearLayout.LayoutParams(0, -1, 2)
+                : new LinearLayout.LayoutParams(-1, 0, 3));
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(landscape ? padding : 0, landscape ? 0 : padding, 0, 0);
+        TextView help = new TextView(this);
+        // CodexAstraUlt: Distinguish the emulated touch view from a handheld's
+        // separate physical screen and from the view's inactive letterbox.
+        help.setText("Both 3DS views are on this Android display. "
+                + "The Thor's separate lower display is unused.\n\n"
+                + "Use D-pad/A and listen for the tone. Drag inside the lower colored image; "
+                + "black borders do not accept touch. Switch apps and return, then try Recreate view.");
+        panel.addView(help);
+        status = new TextView(this);
+        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        panel.addView(status);
         // CodexAstraUlt: Touch buttons are a useful fallback but are counted
-        // separately; they cannot qualify physical-controller input.
+        // separately; they cannot qualify physical-controller input. Split
+        // the narrow landscape sidebar into two rows to retain touch targets.
         LinearLayout controls = new LinearLayout(this);
-        addControl(controls, "←", 1 << 5);
-        addControl(controls, "↑", 1 << 6);
-        addControl(controls, "↓", 1 << 7);
-        addControl(controls, "→", 1 << 4);
-        addControl(controls, "A", 1);
-        addControl(controls, "B", 1 << 1);
-        content.addView(controls);
+        addControl(controls, "←", "On-screen D-pad left", 1 << 5);
+        addControl(controls, "↑", "On-screen D-pad up", 1 << 6);
+        addControl(controls, "→", "On-screen D-pad right", 1 << 4);
+        panel.addView(controls);
+        LinearLayout extraControls = landscape ? new LinearLayout(this) : controls;
+        addControl(extraControls, "↓", "On-screen D-pad down", 1 << 7);
+        addControl(extraControls, "A", "On-screen A button", 1);
+        addControl(extraControls, "B", "On-screen B button", 1 << 1);
+        if (landscape) panel.addView(extraControls);
         CheckBox display = new CheckBox(this);
-        display.setText("I can see both guest screens");
+        display.setText("I can see both 3DS views here");
         display.setChecked(controller.displayConfirmed());
         display.setOnCheckedChangeListener((button, checked) -> controller.confirmDisplay(checked));
-        content.addView(display);
+        panel.addView(display);
         CheckBox sound = new CheckBox(this);
         sound.setText("I heard the guest's tone");
         sound.setChecked(controller.audioConfirmed());
         sound.setOnCheckedChangeListener((button, checked) -> controller.confirmAudio(checked));
-        content.addView(sound);
+        panel.addView(sound);
+        LinearLayout actions = new LinearLayout(this);
+        Button recreate = new Button(this);
+        recreate.setText("Recreate view");
+        recreate.setContentDescription("Recreate this app view and resume the same guest session");
+        // CodexAstraUlt: Exercise real Activity replacement even when handheld
+        // rotation is locked. The controller owns the session and confirmations;
+        // normal pause/stop/start/resume callbacks release input and reattach it.
+        recreate.setOnClickListener(view -> {
+            if (!controller.matches(sessionId) || isFinishing() || isDestroyed()) return;
+            recreate.setEnabled(false);
+            controller.releaseInputs();
+            HomebrewActivity.this.recreate();
+        });
+        actions.addView(recreate, new LinearLayout.LayoutParams(0, -2, 1));
         Button stop = new Button(this);
         stop.setText("Stop and save session");
-        stop.setOnClickListener(view -> controller.stop(sessionId, "stop_button"));
-        content.addView(stop);
+        stop.setOnClickListener(view -> {
+            recreate.setEnabled(false);
+            stop.setEnabled(false);
+            controller.stop(sessionId, "stop_button");
+        });
+        actions.addView(stop, new LinearLayout.LayoutParams(0, -2, 1));
+        panel.addView(actions);
+        ScrollView controlsScroll = new ScrollView(this);
+        controlsScroll.addView(panel);
+        content.addView(controlsScroll, landscape ? new LinearLayout.LayoutParams(0, -1, 1)
+                : new LinearLayout.LayoutParams(-1, 0, 2));
         setContentView(content);
     }
 
-    private void addControl(LinearLayout row, String label, int mask) {
+    // CodexAstraUlt: Keep screen names outside the guest bitmap, with accessible
+    // label associations, so instructions never paint over or replace guest work.
+    private void addGuestView(LinearLayout screens, ScreenView screen, String name) {
+        LinearLayout labeled = new LinearLayout(this);
+        labeled.setOrientation(LinearLayout.VERTICAL);
+        TextView label = new TextView(this);
+        label.setText(name);
+        label.setTextSize(14);
+        screen.setId(View.generateViewId());
+        label.setLabelFor(screen.getId());
+        labeled.addView(label);
+        labeled.addView(screen, new LinearLayout.LayoutParams(-1, 0, 1));
+        screens.addView(labeled, new LinearLayout.LayoutParams(-1, 0, 1));
+    }
+
+    private void addControl(LinearLayout row, String label, String description, int mask) {
         Button button = new Button(this);
         button.setText(label);
+        button.setContentDescription(description);
         button.setMinWidth(0);
         button.setMinimumWidth(0);
         button.setOnTouchListener((view, event) -> {

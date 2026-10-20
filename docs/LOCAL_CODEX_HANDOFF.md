@@ -21,6 +21,15 @@ The existing Nobara laptop and USB-connected Thor can host the private
 development/test loop once their current readiness is checked. This cloud chat
 does not share a live session, device connection or private files with local Codex.
 
+<!-- CodexAstraUlt: Update the interactive gate from the received report;
+physical dual-display expectations do not imply a missing guest image. -->
+The [first 0.0.6 Thor report](device-tests/0.0.6-thor-homebrew.md) passes
+all automatic checks, and the owner confirms both guest views on the top
+physical screen. Measured guest touch, view recreation and audio continuity
+still need a focused retest. The [frontend correction](builds/0.0.6-frontend-correction.md)
+retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
+Read its build status before installing or claiming publication.
+
 ## Starting scope
 
 Work in a separate DroidDS checkout. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`,

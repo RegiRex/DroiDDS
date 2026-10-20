@@ -16,7 +16,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     java = args.java_home / "bin"
     sources = [root / "android/probe/java/org/droidds/probe" / name
-               for name in ("PcmResampler.java", "ScreenGeometry.java")]
+               for name in ("PcmResampler.java", "ScreenGeometry.java", "FramePacer.java", "AudioStartup.java")]
     sources.append(root / "tools/java-tests/org/droidds/probe/HomebrewLogicTest.java")
     subprocess.run([str(java / "javac"), "--release", "8", "-Xlint:all", "-Werror", "-d", str(args.output),
                     *map(str, sources)], check=True, timeout=60)
@@ -25,7 +25,8 @@ def main():
     report = json.loads(result.stdout)
     if report != {"schema": 1, "kind": "droidds-java-homebrew-logic", "status": "passed", "controls": [
             "time_based_pcm_oracle", "chunk_and_pause_continuity", "full_scale_and_invalid_pcm",
-            "letterbox_touch_and_resize"]}:
+            "letterbox_touch_and_resize", "absolute_deadline_jitter_and_overload",
+            "pause_resets_frame_timeline", "guest_pcm_prefill_and_partial_writes"]}:
         raise ValueError("Required frontend math controls did not execute")
     print(json.dumps(report, indent=2))
 

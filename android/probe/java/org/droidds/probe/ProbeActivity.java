@@ -59,7 +59,9 @@ public final class ProbeActivity extends Activity implements ProbeController.Obs
         int padding = Math.round(20 * getResources().getDisplayMetrics().density);
         content.setPadding(padding, padding, padding, padding);
         TextView title = new TextView(this);
-        title.setText("DroidDS Android probe");
+        // CodexAstraUlt: Name the correction visibly; the milestone remains
+        // 0.0.6 while Android's increasing install code distinguishes reports.
+        title.setText("DroidDS 0.0.6 · correction 2");
         title.setTextSize(24);
         content.addView(title);
         TextView scope = new TextView(this);

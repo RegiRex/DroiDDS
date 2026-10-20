@@ -62,6 +62,16 @@ Android qualification that must precede promotion to private-game boot work. -->
   audible audio or lifecycle recovery. Complete the manual 0.0.6 device gate
   before 0.0.7 promotion. Preserve session/run binding and all prior report
   sections; failed or unfinished manual work must remain distinguishable.
+<!-- CodexAstraUlt: Preserve the first .6 device result and the correction's
+identity instead of mistaking install code 7 for completion of milestone .7. -->
+- The first 0.0.6 Thor report passes every automatic gate; read
+  docs/device-tests/0.0.6-thor-homebrew.md. The owner confirms both guest views
+  were visible on the top physical display. Touch consumption was not measured,
+  Activity recreation was untested, and 197 audio underruns need correction.
+  The corrective v0.0.6-probe.2 keeps version name 0.0.6 with install code 7.
+  Read docs/builds/0.0.6-frontend-correction.md for its current build status.
+  Require the focused corrected-device gate before 0.0.7 promotion; preserve
+  the original report and supplemental human observation separately.
 - Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,
   commitment/configuration, heap-bound and restore-preflight corrections. The
   host compiler is also vendored to repair conditional-flow budget accounting;

@@ -565,7 +565,8 @@ def validate_interactive_report(report: object) -> None:
         raise ValueError("Homebrew proof must state its bounded fixture limitations")
 
 
-def validate_interactive_session(report: object, bound_run_id: str) -> None:
+def validate_interactive_session(report: object, bound_run_id: str, *,
+                                 diagnostics_schema: int | None = None) -> None:
     """CodexAstraUlt: Manual evidence has its own identity and never substitutes for automation."""
     manual = _proof_fields(report, {"schema": 1, "kind": "droidds-android-interactive-session",
                                    "bound_run_id": bound_run_id}, "manual homebrew")
@@ -586,6 +587,11 @@ def validate_interactive_session(report: object, bound_run_id: str) -> None:
     android = _proof_fields(manual["android"], {"presentation": "android-canvas-rgba-readback",
         "top_width": 400, "top_height": 240, "bottom_width": 320, "bottom_height": 240},
         "manual Android presentation")
+    # CodexAstraUlt: A corrected APK must report its expanded successful-session
+    # evidence; historical and interrupted reports retain their original contract.
+    if diagnostics_schema is not None:
+        _proof_fields(android, {"diagnostics_schema": diagnostics_schema},
+                      "manual Android diagnostics revision")
     for key in ("frames_received", "presented_frames"):
         _proof_count(android, key, "manual Android", 0, 6000)
     _proof_count(android, "duration_foreground_ms", "manual Android", 0, 180000)
@@ -629,13 +635,48 @@ def validate_interactive_session(report: object, bound_run_id: str) -> None:
                 raise ValueError("Failed manual audio report has no failure detail")
         elif audio.get("error") is not None:
             raise ValueError("Measured manual audio report contains an error")
+    if "diagnostics_schema" in android:
+        validate_interactive_diagnostics(android)
 
 
-def manual_qualification(report: object, bound_run_id: str) -> dict:
+def validate_interactive_diagnostics(android: dict) -> None:
+    """CodexAstraUlt: Cross-check corrected frontend counters without inventing device observations."""
+    _proof_fields(android, {"diagnostics_schema": 2}, "manual Android diagnostics")
+    _proof_count(android, "touch_down_events", "manual mapped touch", 0, android["touch_events"])
+    _proof_count(android, "valid_touch_input_frames", "manual submitted touch",
+                 0, android["foreground_frame_starts"])
+    if android["valid_touch_input_frames"] and not android["touch_down_events"]:
+        raise ValueError("Manual valid touch submission has no mapped touch-down event")
+    pacing = _proof_fields(android.get("pacing"), {
+        "policy": "absolute-deadline-bounded-catchup", "interval_ns": 16713681,
+        "max_catchup_frames": 4, "epochs": android["resume_count"],
+        "frame_starts": android["foreground_frame_starts"]}, "manual frame pacing")
+    late = _proof_count(pacing, "late_frame_starts", "manual frame pacing", 0, pacing["frame_starts"])
+    total = _proof_count(pacing, "lateness_ns_total", "manual frame pacing")
+    peak = _proof_count(pacing, "lateness_ns_max", "manual frame pacing", 0, total)
+    work = _proof_count(pacing, "frame_work_ns_max", "manual frame pacing")
+    _proof_count(pacing, "deadline_resets", "manual frame pacing", 0, pacing["frame_starts"])
+    if total < late or total > late * peak or (not pacing["frame_starts"] and work):
+        raise ValueError("Manual frame pacing totals contradict observed starts")
+    audio = android["audio"]
+    if audio["status"] == "not_started":
+        return
+    _proof_fields(audio, {"prefill_target_frames": 2400}, "manual audio startup")
+    prepared = _proof_count(audio, "track_preparations", "manual audio startup",
+                            0, android["resume_count"])
+    started = _proof_count(audio, "playback_starts", "manual audio startup", 0, prepared)
+    prefill = _proof_count(audio, "prefill_frames_total", "manual audio startup",
+                           started * 2400, audio["written_frames"])
+    if (not started and prefill) or (audio["playback_head_frames"] and not started):
+        raise ValueError("Manual audio playback contradicts actual startup/prefill")
+
+
+def manual_qualification(report: object, bound_run_id: str, *,
+                         diagnostics_schema: int | None = None) -> dict:
     """CodexAstraUlt: Describe the separate device gate without inferring sight or hearing."""
     if report is None:
         return {"status": "pending", "reasons": ["The manual homebrew session has not been reported."]}
-    validate_interactive_session(report, bound_run_id)
+    validate_interactive_session(report, bound_run_id, diagnostics_schema=diagnostics_schema)
     if report["status"] != "completed":
         return {"status": "failed" if report["status"] == "failed" else "pending",
                 "reasons": [f"The manual homebrew session is {report['status']}."]}
@@ -646,7 +687,9 @@ def manual_qualification(report: object, bound_run_id: str) -> dict:
         return {"status": "failed", "reasons": [str(error)]}
     failures, pending, notes = [], [], []
     if not android["view_replacements"]:
-        notes.append("Activity/view recreation was not exercised; pause/resume alone does not establish it.")
+        # CodexAstraUlt: Recreation is a documented device gate, not an optional
+        # quality note that a passing pause/resume counter can silently waive.
+        pending.append("Activity/view recreation was not exercised; pause/resume alone does not establish it.")
     for key, label in (("display_seen_by_user", "The guest display"), ("heard_by_user", "Audible guest sound")):
         if android[key] == "no":
             failures.append(label + " was reported incorrect or absent.")
@@ -664,6 +707,12 @@ def manual_qualification(report: object, bound_run_id: str) -> dict:
         pending.append("Physical controls and guest-observed A/direction input need testing.")
     if not android["touch_events"] or not native["guest_observed_touch_updates"]:
         pending.append("Bottom-screen touch and its guest consumption need testing.")
+    if android.get("diagnostics_schema") == 2 and (
+            not android["touch_down_events"] or not android["valid_touch_input_frames"]):
+        # CodexAstraUlt: Callback totals can include outside/release events. The
+        # corrected report also needs mapped/submitted touch, still separately
+        # requiring the guest consumption evidence above.
+        pending.append("A valid touch inside the lower guest view and its native submission need testing.")
     if any(not source[key] for source in (android, native) for key in ("pause_count", "resume_count")):
         pending.append("Android background/pause and resumed guest progress need testing.")
     audio = android["audio"]
@@ -760,7 +809,10 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
     if report["version"] == "0.0.6":
         validate_interactive_report(report.get("interactive_probe"))
         if "interactive_session" in report:
-            validate_interactive_session(report["interactive_session"], shell["run_id"])
+            # CodexAstraUlt: The code-7 corrective APK retains the 0.0.6 native
+            # proof, while requiring its new Android diagnostics on completion.
+            validate_interactive_session(report["interactive_session"], shell["run_id"],
+                                         diagnostics_schema=2 if shell["app_version_code"] >= 7 else None)
     controls = report.get("negative_controls")
     if not isinstance(controls, list) or len(controls) != len(CONTROLS):
         raise ValueError("Missing negative controls")

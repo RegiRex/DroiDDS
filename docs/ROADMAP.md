@@ -45,6 +45,15 @@ assets are independently verified; the Thor manual gate remains pending.
 Read [0.0.4 device evidence](device-tests/0.0.4-thor-runtime-probe.md) and the audit's
 [correction record](NEW3DS_AUDIT.md#005-integration-corrections).
 
+<!-- CodexAstraUlt: Update the interactive gate from the received report;
+physical dual-display expectations do not imply a missing guest image. -->
+The [first 0.0.6 Thor report](device-tests/0.0.6-thor-homebrew.md) passes
+all automatic checks, and the owner confirms both guest views on the top
+physical screen. Measured guest touch, view recreation and audio continuity
+still need a focused retest. The [frontend correction](builds/0.0.6-frontend-correction.md)
+retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
+Read its build status before installing or claiming publication.
+
 ## Versioned path to 0.1.0
 
 <!-- CodexAstraUlt: Add the owner's requested version-by-version alpha plan.

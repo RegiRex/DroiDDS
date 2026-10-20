@@ -97,7 +97,7 @@ def manual_report():
             "android": {"presentation": "android-canvas-rgba-readback", "top_width": 400,
                 "top_height": 240, "bottom_width": 320, "bottom_height": 240,
                 "frames_received": 18, "presented_frames": 17, "duration_foreground_ms": 1000,
-                "view_attachments": 1, "view_replacements": 0,
+                "view_attachments": 2, "view_replacements": 1,
                 "pause_count": 1, "resume_count": 1, "foreground_frame_starts": 18,
                 "background_frame_start_rejections": 0, "in_flight_frames_completed_after_pause": 0,
                 "native_step_errors": 0, "stop_reason": "user_stop",
@@ -109,6 +109,29 @@ def manual_report():
                     "playback_head_frames": 13900, "dropped_frames": 0, "flushed_frames": 315,
                     "partial_writes": 2, "underruns": 0, "queue_high_water_frames": 800,
                     "resampler_resets": 1, "discarded_input_frames": 0}}}
+
+
+def corrected_manual_report():
+    """CodexAstraUlt: Independent code-7 telemetry examples keep code-6 fixtures unchanged."""
+    value = manual_report()
+    value["android"].update(
+        diagnostics_schema=2, touch_down_events=1, valid_touch_input_frames=4,
+        pacing={"policy": "absolute-deadline-bounded-catchup", "interval_ns": 16713681,
+                "max_catchup_frames": 4, "epochs": 1, "frame_starts": 18,
+                "late_frame_starts": 5, "lateness_ns_total": 3000, "lateness_ns_max": 1000,
+                "frame_work_ns_max": 500000, "deadline_resets": 0})
+    value["android"]["audio"].update(prefill_target_frames=2400, track_preparations=1,
+                                      playback_starts=1, prefill_frames_total=2800)
+    return value
+
+
+def corrected_report():
+    """CodexAstraUlt: Same milestone/version name, distinct APK code and manual contract."""
+    value, manifest = visible_report()
+    value["android_shell"]["app_version_code"] = 7
+    manifest["version_code"] = 7
+    value["interactive_session"] = corrected_manual_report()
+    return value, manifest
 
 
 class HomebrewReportTests(unittest.TestCase):
@@ -397,13 +420,150 @@ class ManualQualificationTests(unittest.TestCase):
 
     def test_view_recreation_is_measured_separately_from_ordinary_pause_resume(self):
         value = manual_report()
-        self.assertTrue(any("recreation was not exercised" in note for note in self.qualify(value)["notes"]))
+        value["android"].update(view_attachments=1, view_replacements=0)
+        verdict = self.qualify(value)
+        self.assertEqual(verdict["status"], "pending")
+        self.assertTrue(any("recreation was not exercised" in reason for reason in verdict["reasons"]))
         value["android"].update(view_attachments=2, view_replacements=1)
         self.assertEqual(self.qualify(value)["status"], "passed")
-        self.assertFalse(any("recreation was not exercised" in note for note in self.qualify(value)["notes"]))
+        self.assertFalse(any("recreation was not exercised" in reason for reason in self.qualify(value)["reasons"]))
         value["android"]["view_replacements"] = 2
         with self.assertRaises(ValueError):
             self.qualify(value)
+
+
+class CorrectedManualDiagnosticsTests(unittest.TestCase):
+    """CodexAstraUlt: Missing correction telemetry cannot inherit a historical passing gate."""
+
+    def qualify(self, value):
+        return RUNNER.manual_qualification(value, manual_report()["bound_run_id"],
+                                            diagnostics_schema=2)
+
+    def test_historical_code_six_and_corrected_code_seven_have_distinct_contracts(self):
+        historical, manifest = visible_report()
+        historical["interactive_session"] = manual_report()
+        RUNNER.validate_report(historical, REQUEST, manifest)
+        corrected, corrected_manifest = corrected_report()
+        RUNNER.validate_report(corrected, REQUEST, corrected_manifest)
+        self.assertEqual(self.qualify(corrected["interactive_session"])["status"], "passed")
+        for report, wrong_manifest in ((historical, corrected_manifest), (corrected, manifest)):
+            with self.subTest(code=report["android_shell"]["app_version_code"]), self.assertRaisesRegex(
+                    ValueError, "version differs"):
+                RUNNER.validate_report(report, REQUEST, wrong_manifest)
+        corrected["interactive_session"] = manual_report()
+        with self.assertRaisesRegex(ValueError, "diagnostics revision"):
+            RUNNER.validate_report(corrected, REQUEST, corrected_manifest)
+
+    def test_automatic_only_and_unfinished_corrected_evidence_are_preserved(self):
+        value, manifest = corrected_report()
+        del value["interactive_session"]
+        RUNNER.validate_report(value, REQUEST, manifest)
+        self.assertEqual(self.qualify(None)["status"], "pending")
+        for status in ("running", "interrupted", "failed"):
+            manual = manual_report()
+            manual["status"] = status
+            if status == "running":
+                del manual["native"], manual["android"]
+            else:
+                manual["native"], manual["android"] = {"status": status}, {}
+            value["interactive_session"] = manual
+            with self.subTest(status=status):
+                RUNNER.validate_report(value, REQUEST, manifest)
+                self.assertEqual(self.qualify(manual)["status"],
+                                 "failed" if status == "failed" else "pending")
+
+    def test_diagnostics_identity_and_every_expanded_field_are_required(self):
+        fields = {
+            "android": ("diagnostics_schema", "touch_down_events", "valid_touch_input_frames", "pacing"),
+            "pacing": tuple(corrected_manual_report()["android"]["pacing"]),
+            "audio": ("prefill_target_frames", "track_preparations", "playback_starts",
+                      "prefill_frames_total"),
+        }
+        for section, keys in fields.items():
+            for key in keys:
+                for invalid in ("missing", None, True, -1, 1 << 53):
+                    manual = corrected_manual_report()
+                    target = manual["android"] if section == "android" else manual["android"][section]
+                    if invalid == "missing":
+                        del target[key]
+                    else:
+                        target[key] = invalid
+                    with self.subTest(section=section, key=key, invalid=invalid), self.assertRaises(ValueError):
+                        self.qualify(manual)
+
+    def test_schema_two_cannot_evade_validation_when_not_explicitly_requested(self):
+        manual = corrected_manual_report()
+        del manual["android"]["pacing"]
+        with self.assertRaises(ValueError):
+            RUNNER.manual_qualification(manual, manual["bound_run_id"])
+        manual = corrected_manual_report()
+        manual["android"]["diagnostics_schema"] = 3
+        with self.assertRaises(ValueError):
+            RUNNER.manual_qualification(manual, manual["bound_run_id"])
+
+    def test_mapped_and_submitted_touch_counters_are_bounded_but_not_guest_substitutes(self):
+        for key, invalid in (("touch_down_events", 3), ("valid_touch_input_frames", 19)):
+            manual = corrected_manual_report()
+            manual["android"][key] = invalid
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                self.qualify(manual)
+        manual = corrected_manual_report()
+        manual["android"]["touch_down_events"] = 0
+        with self.assertRaisesRegex(ValueError, "mapped touch-down"):
+            self.qualify(manual)
+        for section, key in (("android", "touch_down_events"), ("android", "valid_touch_input_frames"),
+                             ("native", "guest_observed_touch_updates")):
+            manual = corrected_manual_report()
+            manual[section][key] = 0
+            if key == "touch_down_events":
+                manual["android"]["valid_touch_input_frames"] = 0
+            with self.subTest(section=section, key=key):
+                self.assertEqual(self.qualify(manual)["status"], "pending")
+
+    def test_pacing_policy_and_cross_counter_invariants_reject_inconsistent_evidence(self):
+        for key, invalid in (("policy", "relative-delay"), ("interval_ns", 16666667),
+                             ("max_catchup_frames", 5), ("epochs", 2), ("frame_starts", 19),
+                             ("late_frame_starts", 19), ("lateness_ns_total", 999),
+                             ("lateness_ns_max", 3001), ("lateness_ns_total", 5001),
+                             ("deadline_resets", 19)):
+            manual = corrected_manual_report()
+            manual["android"]["pacing"][key] = invalid
+            with self.subTest(key=key, invalid=invalid), self.assertRaises(ValueError):
+                self.qualify(manual)
+        manual = corrected_manual_report()
+        manual["android"]["pacing"].update(late_frame_starts=0, lateness_ns_total=0, lateness_ns_max=0)
+        self.assertEqual(self.qualify(manual)["status"], "passed")
+        manual["android"]["pacing"]["lateness_ns_max"] = 1
+        with self.assertRaises(ValueError):
+            self.qualify(manual)
+        manual = corrected_manual_report()
+        manual["android"].update(frames_received=0, presented_frames=0, foreground_frame_starts=0,
+                                 valid_touch_input_frames=0)
+        manual["android"]["pacing"].update(frame_starts=0, late_frame_starts=0,
+                                           lateness_ns_total=0, lateness_ns_max=0)
+        with self.assertRaisesRegex(ValueError, "pacing totals"):
+            self.qualify(manual)
+
+    def test_actual_audio_startup_cannot_be_inferred_from_preparation_or_written_pcm(self):
+        for key, invalid in (("prefill_target_frames", 2399), ("track_preparations", 2),
+                             ("playback_starts", 2), ("prefill_frames_total", 2399),
+                             ("prefill_frames_total", 14001)):
+            manual = corrected_manual_report()
+            manual["android"]["audio"][key] = invalid
+            with self.subTest(key=key, invalid=invalid), self.assertRaises(ValueError):
+                self.qualify(manual)
+        manual = corrected_manual_report()
+        audio = manual["android"]["audio"]
+        audio.update(playback_starts=0, prefill_frames_total=0)
+        with self.assertRaisesRegex(ValueError, "actual startup"):
+            self.qualify(manual)
+        audio["playback_head_frames"] = 0
+        self.assertEqual(self.qualify(manual)["status"], "pending")
+        audio["prefill_frames_total"] = 1
+        with self.assertRaisesRegex(ValueError, "actual startup"):
+            self.qualify(manual)
+        manual["android"]["audio"] = {"status": "not_started"}
+        self.assertEqual(self.qualify(manual)["status"], "pending")
 
 
 if __name__ == "__main__":

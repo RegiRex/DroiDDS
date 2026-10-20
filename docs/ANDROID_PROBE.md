@@ -24,6 +24,14 @@ previous gate and adds an original interactive NCCH guest, automatic image/PCM
 checks, and an Android screen/input/audio frontend. No retail game or 3DSX loader
 is included. Automatic success alone cannot qualify visible or audible output.
 
+<!-- CodexAstraUlt: Preserve the received automatic pass and human display
+clarification while directing remaining work to the frontend correction. -->
+The [first 0.0.6 Thor report](device-tests/0.0.6-thor-homebrew.md) now passes all
+automatic gates. The owner confirms both guest views were visible on the top
+physical display. The report records 197 audio underruns, zero guest-consumed
+touch and no view recreation. The [0.0.6 correction](builds/0.0.6-frontend-correction.md)
+addresses pacing and test clarity; its focused device gate is still required.
+
 The [owner-supplied 0.0.2 Thor report](device-tests/0.0.2-thor-cpu.md) passes all
 four CPU cases and both corruption controls on reported Android ARM64 with 4 KiB
 host pages. Its exported JSON does not independently bind the installed APK hash.
@@ -240,16 +248,20 @@ confirm the screen/audio observations before that limit. Background time is
 excluded; this is not a sustained-performance test.
 
 1. Let the automatic checks finish, then tap **Test original homebrew**.
-2. Confirm both guest views appear. Use the Thor's physical D-pad and A button;
+2. Confirm both labeled 3DS guest views appear on the **same Android display**.
+   The Thor's separate lower physical display is not used by 0.0.6.
+   Use the Thor's physical D-pad and A button;
    check that the guest image changes and A changes the audible tone. Try the
    on-screen arrows/A separately; they do not establish physical-controller input.
-3. Touch different locations inside the lower guest view and release. Confirm
+3. Hold and drag inside the **colored lower guest image**, then release.
+   The black letterbox is outside its touch area. Confirm
    its marker responds and does not remain stuck after release or backgrounding.
 4. Briefly switch to another app and return. The guest should pause while away,
-   clear held input and recover its image, controls and audio on return. Rotate
-   and return if rotation is enabled, to exercise view replacement; otherwise
-   report that recreation was not tested rather than marking it passed.
-5. Check **I can see both guest screens** and **I heard the guest's tone** only
+   clear held input and recover its image, controls and audio on return. In
+   correction 2, tap **Recreate view** and check recovery again. Earlier builds
+   require rotation if enabled; otherwise record recreation as untested.
+5. Check **I can see both 3DS views here** (previously **I can see both guest
+   screens**) and **I heard the guest's tone** only
    if those statements are true. Leave them unchecked for a missing/corrupt view
    or inaudible tone; explain input, audio or lifecycle problems with the report.
 6. Tap **Stop and save session** and wait to return to the probe. This requests

@@ -71,6 +71,15 @@ checks compare image and PCM output; the Android frontend presents 400×240 and
 Bitmap/Canvas. PICA rasterization remains Vulkan; this is not direct Vulkan
 presentation or Thor physical dual-display support.
 
+<!-- CodexAstraUlt: Update the interactive gate from the received report;
+physical dual-display expectations do not imply a missing guest image. -->
+The [first 0.0.6 Thor report](docs/device-tests/0.0.6-thor-homebrew.md) passes
+all automatic checks, and the owner confirms both guest views on the top
+physical screen. Measured guest touch, view recreation and audio continuity
+still need a focused retest. The [frontend correction](docs/builds/0.0.6-frontend-correction.md)
+retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
+Read its build status before installing or claiming publication.
+
 The manual device gate must still establish visible guest output, working
 controls/touch, audible guest audio, pause/resume, view replacement and normal
 exit. Automated success alone cannot qualify that gate. Original NCCH fixtures

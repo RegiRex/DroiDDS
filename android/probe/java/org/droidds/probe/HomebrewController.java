@@ -33,6 +33,7 @@ final class HomebrewController {
     // memory independently of display size, frame count and repeated UI events.
     private static final int INPUT_LIMIT = 64;
     private static final long FRAME_NANOS = Math.round(4_481_136.0 / 268_111_856.0 * 1_000_000_000.0);
+    private static final int MAX_CATCHUP_FRAMES = 4;
     private static final long MAX_FOREGROUND_MS = 120000L;
     private static HomebrewController instance;
     private final Context application;
@@ -71,6 +72,7 @@ final class HomebrewController {
     private boolean touched;
     private long hardwareEvents;
     private long touchEvents;
+    private long touchDownEvents;
     private long virtualEvents;
     private long inputOverflows;
     private long otherKeyEvents;
@@ -93,6 +95,10 @@ final class HomebrewController {
     private long foregroundFrameStarts;
     private long rejectedBackgroundStarts;
     private long inFlightCompletions;
+    // CodexAstraUlt: Separate mapped touch edges from inputs actually submitted
+    // to the native guest, and report bounded pacing aggregates without frame logs.
+    private long validTouchInputFrames;
+    private FramePacer pacer = new FramePacer(FRAME_NANOS, MAX_CATCHUP_FRAMES);
     private AudioSink audio;
     private String stopReason = "stop_button";
 
@@ -148,6 +154,7 @@ final class HomebrewController {
             touchY = 0;
             hardwareEvents = 0;
             touchEvents = 0;
+            touchDownEvents = 0;
             virtualEvents = 0;
             inputOverflows = 0;
             otherKeyEvents = 0;
@@ -166,6 +173,8 @@ final class HomebrewController {
             foregroundFrameStarts = 0;
             rejectedBackgroundStarts = 0;
             inFlightCompletions = 0;
+            validTouchInputFrames = 0;
+            pacer = new FramePacer(FRAME_NANOS, MAX_CATCHUP_FRAMES);
             scheduleGeneration++;
             audio = null;
             stopReason = "stop_button";
@@ -282,6 +291,7 @@ final class HomebrewController {
                 resumeCount++;
                 foregroundStarted = SystemClock.elapsedRealtime();
                 audio.start();
+                pacer.resume(SystemClock.elapsedRealtimeNanos());
                 final long generation = ++scheduleGeneration;
                 worker.execute(() -> step(id, generation));
             } else if (!requested && !paused) {
@@ -317,7 +327,9 @@ final class HomebrewController {
                 return;
             }
             final long lifecycle = lifecycleGeneration.get();
+            pacer.begin(start);
             foregroundFrameStarts++;
+            if (currentInput.touched) validTouchInputFrames++;
             int result = nativeFrame(nativeToken, currentInput.buttons, currentInput.x, currentInput.y,
                     currentInput.touched, top, bottom, pcm, metrics);
             // CodexAstraUlt: A paused native session is a recoverable lifecycle
@@ -336,12 +348,15 @@ final class HomebrewController {
             if (foreground && !crossedPause) {
                 queuePresentation(id, frameCount, lifecycle);
             }
+            // CodexAstraUlt: Replace relative per-frame waiting, which added
+            // every executor wake delay to guest time, with bounded absolute
+            // deadlines. Catch-up runs the full guest frame and all its draws.
+            long delay = pacer.finish(SystemClock.elapsedRealtimeNanos());
             long elapsed = foregroundMs + SystemClock.elapsedRealtime() - foregroundStarted;
             if (metrics[3] != 0 || frameCount >= 6000 || elapsed >= MAX_FOREGROUND_MS) {
                 stopReason = metrics[3] != 0 ? "guest_exited" : "session_limit";
                 finishWorker(id, "completed");
             } else if (foreground && !stopRequested) {
-                long delay = Math.max(0, FRAME_NANOS - (SystemClock.elapsedRealtimeNanos() - start));
                 worker.schedule(() -> step(id, generation), delay, TimeUnit.NANOSECONDS);
             }
         } catch (Exception | LinkageError failure) {
@@ -405,6 +420,7 @@ final class HomebrewController {
     void touch(int x, int y, boolean down) {
         if (!foreground || stopRequested) return;
         synchronized (inputLock) {
+            if (down && !touched) touchDownEvents++;
             touched = down;
             touchX = Math.max(0, Math.min(319, x));
             touchY = Math.max(0, Math.min(239, y));
@@ -485,6 +501,7 @@ final class HomebrewController {
         }
         JSONObject observations = new JSONObject();
         try {
+            observations.put("diagnostics_schema", 2);
             observations.put("presentation", "android-canvas-rgba-readback");
             observations.put("top_width", 400);
             observations.put("top_height", 240);
@@ -502,11 +519,27 @@ final class HomebrewController {
             observations.put("in_flight_frames_completed_after_pause", inFlightCompletions);
             observations.put("native_step_errors", stepErrors);
             observations.put("stop_reason", stopReason);
+            // CodexAstraUlt: These counters distinguish UI mapping from native
+            // input submission, and expose pacing drift without per-frame data.
+            observations.put("valid_touch_input_frames", validTouchInputFrames);
+            JSONObject pacing = new JSONObject();
+            pacing.put("policy", "absolute-deadline-bounded-catchup");
+            pacing.put("interval_ns", FRAME_NANOS);
+            pacing.put("max_catchup_frames", MAX_CATCHUP_FRAMES);
+            pacing.put("epochs", pacer.epochs());
+            pacing.put("frame_starts", pacer.frames());
+            pacing.put("late_frame_starts", pacer.lateFrames());
+            pacing.put("lateness_ns_total", pacer.totalLateness());
+            pacing.put("lateness_ns_max", pacer.maximumLateness());
+            pacing.put("frame_work_ns_max", pacer.maximumWork());
+            pacing.put("deadline_resets", pacer.resets());
+            observations.put("pacing", pacing);
             observations.put("display_seen_by_user", seen);
             observations.put("heard_by_user", heard);
             synchronized (inputLock) {
                 observations.put("hardware_button_events", hardwareEvents);
                 observations.put("touch_events", touchEvents);
+                observations.put("touch_down_events", touchDownEvents);
                 observations.put("virtual_button_events", virtualEvents);
                 observations.put("other_key_events", otherKeyEvents);
                 observations.put("input_queue_overflows", inputOverflows);
@@ -541,6 +574,7 @@ final class HomebrewController {
      * memory; overflow/flush/underrun counters remain visible in the report. */
     private static final class AudioSink {
         private static final int OUTPUT_RATE = 48000;
+        private static final int PREFILL_FRAMES = OUTPUT_RATE / 20;
         private final double inputRate;
         private final short[] queue = new short[8192 * 2];
         private AudioTrack track;
@@ -556,6 +590,10 @@ final class HomebrewController {
         private long underruns;
         private long trackWritten;
         private long trackPlayed;
+        private final AudioStartup startup = new AudioStartup(PREFILL_FRAMES);
+        private long trackPreparations;
+        private long playbackStarts;
+        private long prefillFrames;
         private int highWater;
         private final PcmResampler resampler;
         private final PcmResampler.Sink enqueue = this::enqueueFrame;
@@ -570,6 +608,11 @@ final class HomebrewController {
 
         void start() {
             if (track != null || error != null) return;
+            // CodexAstraUlt: A failed replacement track must not inherit the
+            // released track's PCM totals and count those samples as flushed twice.
+            trackWritten = 0;
+            trackPlayed = 0;
+            startup.reset();
             try {
                 int minimum = AudioTrack.getMinBufferSize(OUTPUT_RATE,
                         AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
@@ -583,10 +626,14 @@ final class HomebrewController {
                         .setTransferMode(AudioTrack.MODE_STREAM)
                         .setBufferSizeInBytes(Math.max(minimum, OUTPUT_RATE / 10 * 4)).build();
                 if (track.getState() != AudioTrack.STATE_INITIALIZED) throw new IllegalStateException("Audio initialization failed");
+                if (track.getBufferSizeInFrames() < PREFILL_FRAMES) {
+                    throw new IllegalStateException("Audio queue cannot hold startup prefill");
+                }
                 track.setVolume(0.2f);
-                trackWritten = 0;
-                trackPlayed = 0;
-                track.play();
+                // CodexAstraUlt: The former empty play() call began starving
+                // before the first guest frame. Prepare a paused track and start
+                // it only after 50 ms of actual guest PCM has been accepted.
+                trackPreparations++;
             } catch (Exception failure) {
                 error = failure.getClass().getSimpleName();
                 pause();
@@ -613,7 +660,14 @@ final class HomebrewController {
                     read = (read + accepted) % queue.length;
                     written += accepted / 2;
                     trackWritten += accepted / 2;
+                    startup.accepted(accepted / 2);
                     if (accepted == 0) break;
+                }
+                if (startup.ready()) {
+                    track.play();
+                    prefillFrames += startup.prefillFrames();
+                    startup.started();
+                    playbackStarts++;
                 }
                 trackPlayed = Integer.toUnsignedLong(track.getPlaybackHeadPosition());
             } catch (Exception failure) {
@@ -643,6 +697,7 @@ final class HomebrewController {
             flushed += count / 2;
             count = 0;
             read = 0;
+            startup.reset();
             if (track == null) return;
             try {
                 trackPlayed = Integer.toUnsignedLong(track.getPlaybackHeadPosition());
@@ -679,6 +734,12 @@ final class HomebrewController {
             value.put("queue_high_water_frames", highWater);
             value.put("resampler_resets", resamplerResets);
             value.put("discarded_input_frames", discardedInput);
+            // CodexAstraUlt: Actual starts and accepted prefill remain observable;
+            // a prepared or paused track alone is never evidence of playback.
+            value.put("prefill_target_frames", PREFILL_FRAMES);
+            value.put("track_preparations", trackPreparations);
+            value.put("playback_starts", playbackStarts);
+            value.put("prefill_frames_total", prefillFrames);
             if (error != null) value.put("error", error);
             return value;
         }
