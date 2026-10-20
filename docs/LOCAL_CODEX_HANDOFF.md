@@ -30,6 +30,13 @@ still need a focused retest. The [frontend correction](builds/0.0.6-frontend-cor
 retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
 Read its build status before installing or claiming publication.
 
+<!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
+local signing and durable data ownership before claiming a game build. -->
+The [0.0.7 private title build plan](PRIVATE_TITLE_BUILD_PLAN.md) specifies the
+local builder, matching data import, signing/save identity and host/Thor boot
+checks. It records the compiler/loader update mismatch and keeps private inputs
+on the owner's Linux computer. This is planned work after the 0.0.6 gate.
+
 ## Starting scope
 
 Work in a separate DroidDS checkout. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`,
@@ -48,7 +55,7 @@ or complete PICA coverage. The actual Thor result uses CPU vertex shading with
 Vulkan rasterization; retain that distinction in future reports.
 
 The 0.0.6 local/main/tag CI gates pass and its public downloads are verified.
-Use the [published prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.1) for the manual Thor test.
+Use the [published prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2) for the manual Thor test.
 The original NCCH guest must visibly display its 400×240
 and 320×240 images, respond to D-pad/A/touch and produce audible guest audio.
 Both views use CPU readback/Bitmap/Canvas on one Android display while PICA

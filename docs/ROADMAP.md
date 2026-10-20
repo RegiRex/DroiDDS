@@ -54,6 +54,13 @@ still need a focused retest. The [frontend correction](builds/0.0.6-frontend-cor
 retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
 Read its build status before installing or claiming publication.
 
+<!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
+local signing and durable data ownership before claiming a game build. -->
+The [0.0.7 private title build plan](PRIVATE_TITLE_BUILD_PLAN.md) specifies the
+local builder, matching data import, signing/save identity and host/Thor boot
+checks. It records the compiler/loader update mismatch and keeps private inputs
+on the owner's Linux computer. This is planned work after the 0.0.6 gate.
+
 ## Versioned path to 0.1.0
 
 <!-- CodexAstraUlt: Add the owner's requested version-by-version alpha plan.

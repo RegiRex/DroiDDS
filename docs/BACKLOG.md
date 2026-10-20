@@ -90,6 +90,13 @@ tickets to user-visible builds: first real 3DS homebrew on Android at target
 planned release gates, not completed results or fixed delivery dates. Resource
 bounds start during runtime integration; 0.0.9 stresses and refines them.
 
+<!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
+local signing and durable data ownership before claiming a game build. -->
+The [0.0.7 private title build plan](PRIVATE_TITLE_BUILD_PLAN.md) specifies the
+local builder, matching data import, signing/save identity and host/Thor boot
+checks. It records the compiler/loader update mismatch and keeps private inputs
+on the owner's Linux computer. This is planned work after the 0.0.6 gate.
+
 | Ticket | Scope and concrete output | Acceptance | Depends on | Pack mapping |
 | --- | --- | --- | --- | --- |
 | DDS-001 | Source map, exact dependency resolution, ABI/generation inventory, notice inventory, architecture decision records | Verifier/runtime mismatch addressed explicitly; actual ABI documented; proposed vs observed claims separate; missing license notice provenance tracked | This plan | NRR-0002/0005/0101/0301/0401 |

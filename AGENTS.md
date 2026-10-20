@@ -69,7 +69,8 @@ identity instead of mistaking install code 7 for completion of milestone .7. -->
   were visible on the top physical display. Touch consumption was not measured,
   Activity recreation was untested, and 197 audio underruns need correction.
   The corrective v0.0.6-probe.2 keeps version name 0.0.6 with install code 7.
-  Read docs/builds/0.0.6-frontend-correction.md for its current build status.
+  Local/main/tag CI and independent public-download verification pass; read
+  docs/builds/0.0.6-frontend-correction.md for the exact correction artifact.
   Require the focused corrected-device gate before 0.0.7 promotion; preserve
   the original report and supplemental human observation separately.
 - Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,

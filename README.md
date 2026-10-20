@@ -60,10 +60,10 @@ pipeline stall.
 
 <!-- CodexAstraUlt: Record verified publication after local and CI gates
 while retaining the unperformed manual Thor qualification. -->
-**[0.0.6 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.1); local and CI gates pass, and all four public
+**[0.0.6 correction 2 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2); local and CI gates pass, and all four public
 downloads are independently verified. Thor interactive qualification remains
-pending.** [Download the Android ARM64 APK](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.1/DroidDS-0.0.6-android-arm64.apk).
-Read the [build and verification record](docs/builds/0.0.6-interactive-homebrew.md).
+pending.** [Download the Android ARM64 APK](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk).
+Read the [correction and verification record](docs/builds/0.0.6-frontend-correction.md).
 It adds an original NCCH guest that uses real HID, GSP/PICA and DSP HLE paths for
 two images, D-pad/A/touch interaction and a tone. Automated native/interpreter
 checks compare image and PCM output; the Android frontend presents 400×240 and
@@ -80,9 +80,10 @@ still need a focused retest. The [frontend correction](docs/builds/0.0.6-fronten
 retains version 0.0.6 with install code 7; it does not promote milestone 0.0.7.
 Read its build status before installing or claiming publication.
 
-The manual device gate must still establish visible guest output, working
-controls/touch, audible guest audio, pause/resume, view replacement and normal
-exit. Automated success alone cannot qualify that gate. Original NCCH fixtures
+The focused corrected-device gate still needs measured lower-view touch,
+view recreation and review of audio continuity. Both views were seen, hardware
+buttons and audio worked, and pause/resume and normal host close were observed
+in the first 0.0.6 run. Automated success alone cannot qualify that gate. Original NCCH fixtures
 do not establish a 3DSX loader or retail-title support. Private Dark Moon,
 Xenoblade and Sonic baselines remain open because their inputs are not present
 here. See [Android instructions](docs/ANDROID_PROBE.md) for testing and signing.
