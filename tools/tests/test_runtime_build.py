@@ -160,5 +160,25 @@ class StaticRuntimePathTests(unittest.TestCase):
                 build.validate_static_runtime({"cases": [{"name": "native_vulkan", "hardware": hardware}]})
 
 
+class PrivateTitleIntegrationGateTests(unittest.TestCase):
+    """CodexAstraUlt: Python controls need their own executed-test summary gate."""
+
+    def proof(self):
+        return ('test_real_original_fixture_executes_and_hashes (__main__.RealWorkerIntegration.test_real_original_fixture_executes_and_hashes) ... ok\n'
+                'test_real_malformed_container_records_loader_failure (__main__.RealWorkerIntegration.test_real_malformed_container_records_loader_failure) ... ok\n'
+                '\nRan 2 tests in 0.1s\n\nOK\n')
+
+    def test_real_worker_controls_and_complete_python_summary_pass(self):
+        self.assertEqual(build.validate_title_integration(self.proof())["passed"], 2)
+
+    def test_only_mocks_skip_failure_or_count_mismatch_cannot_qualify(self):
+        for proof in (self.proof().replace('test_real_original_fixture_executes_and_hashes', 'test_mock'),
+                      self.proof().replace('... ok', "... skipped 'unavailable'", 1),
+                      self.proof().replace('\nOK\n', '\nFAILED (failures=1)\n'),
+                      self.proof().replace('Ran 2 tests', 'Ran 3 tests')):
+            with self.subTest(proof=proof), self.assertRaises(ValueError):
+                build.validate_title_integration(proof)
+
+
 if __name__ == "__main__":
     unittest.main()

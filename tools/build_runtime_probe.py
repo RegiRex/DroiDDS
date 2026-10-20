@@ -47,6 +47,20 @@ VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation"
 SYNC_VALIDATION = "VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT"
 
 
+def validate_title_integration(output: str) -> dict:
+    """CodexAstraUlt: Require actual worker execution in the Python suite, not
+    only coordinator mocks or the Rust-only summary understood by run_logged.
+    """
+    required = {"test_real_original_fixture_executes_and_hashes",
+                "test_real_malformed_container_records_loader_failure"}
+    passed = set(re.findall(r"^([\w]+) \([^\n]+\) \.\.\. ok$", output, re.M))
+    count = re.search(r"^Ran ([1-9]\d*) tests? in ", output, re.M)
+    if (not required.issubset(passed) or count is None or int(count[1]) != len(passed)
+            or not re.search(r"^OK$", output, re.M)):
+        raise ValueError("Private-title integration must execute all tests and both real-worker controls")
+    return {"passed": int(count[1]), "required_tests": sorted(required)}
+
+
 @contextmanager
 def command_environment(overrides: dict[str, str | None]):
     """CodexAstraUlt: Scope child settings and restore the caller even on failure."""
@@ -256,9 +270,10 @@ def main() -> int:
             sources = generated_sources(manifest, generated)
             # CodexAstraUlt: The integration test creates disposable private-style
             # output outside Git and exercises the real worker, never retail data.
-            run("private-title-integration", [sys.executable, ROOT / "tools/tests/test_private_title.py",
-                "--worker", title_worker, "--fixture", generated / "runtime-fixture.cxi"],
-                timeout=180, tests=True)
+            title_integration = run("private-title-integration", [sys.executable,
+                ROOT / "tools/tests/test_private_title.py", "--worker", title_worker,
+                "--fixture", generated / "runtime-fixture.cxi", "-v"], timeout=180)
+            evidence["suites"]["private-title-integration"] = validate_title_integration(title_integration)
             libraries = output / "libraries"
             libraries.mkdir()
             library = libraries / manifest["library"]
