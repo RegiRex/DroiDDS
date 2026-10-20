@@ -11,8 +11,9 @@ CPU/Vulkan/runtime, five memory-layout and code-safety checks. The
 [prerelease v0.0.5-probe.1](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1).
 All required host/CI gates pass in
 [run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
-and public downloads are verified. **0.0.6 interactive homebrew is in development;
-build verification, publication and manual Thor qualification are pending. No
+and public downloads are verified. **0.0.6 interactive homebrew is implemented
+and published. Local/main/tag CI gates and independent public-download
+verification pass; manual Thor qualification remains pending. No
 retail title is qualified.** Read [build instructions](BUILDING.md),
 [0.0.6 scope](builds/0.0.6-interactive-homebrew.md) and
 [Android probe instructions](ANDROID_PROBE.md) for the current gate and artifact.
@@ -37,8 +38,9 @@ asymmetric 8×8 image. This is bounded public-fixture evidence, not retail suppo
 or complete PICA coverage. The actual Thor result uses CPU vertex shading with
 Vulkan rasterization; retain that distinction in future reports.
 
-Complete the 0.0.6 host/package gates and verified prerelease before using it for
-the manual Thor test. The original NCCH guest must visibly display its 400×240
+The 0.0.6 local/main/tag CI gates pass and its public downloads are verified.
+Use the [published prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.1) for the manual Thor test.
+The original NCCH guest must visibly display its 400×240
 and 320×240 images, respond to D-pad/A/touch and produce audible guest audio.
 Both views use CPU readback/Bitmap/Canvas on one Android display while PICA
 rasterization remains Vulkan. Do not claim Thor physical dual-display support.
@@ -117,9 +119,9 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 > Continue DroidDS from the passing 0.0.5 Thor runtime report. Read AGENTS.md,
 > docs/device-tests/0.0.5-thor-runtime.md,
 > docs/builds/0.0.6-interactive-homebrew.md and docs/ANDROID_PROBE.md.
-> Version 0.0.6 is in development; verify current build/publication status rather
-> than assuming the artifact is available. Retain all prior regressions. Once its
-> prerelease gates pass, run the automatic probe and manual original-homebrew test
+> Version 0.0.6 is published with passing local/main/tag CI gates and verified
+> public downloads. Its manual Thor gate remains pending. Retain all prior
+> regressions, then run the automatic probe and manual original-homebrew test
 > on the authorized Thor's explicit ADB serial and record installed APK identity.
 > Verify visible guest screens, D-pad/A/touch, audible tone, pause/resume, view
 > replacement and normal exit. A passing automatic JSON does not replace these

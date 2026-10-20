@@ -58,10 +58,12 @@ resources have admission limits; the optional PICA CPU JIT is disabled. These
 limits do not establish total GPU-memory bounds or eliminate every first-use
 pipeline stall.
 
-<!-- CodexAstraUlt: State the next implemented scope without promoting pending
-builds, observed device behavior or physical dual-display support. -->
-**[0.0.6 interactive homebrew](docs/builds/0.0.6-interactive-homebrew.md) is in
-development; build verification, publication and Thor qualification are pending.**
+<!-- CodexAstraUlt: Record verified publication after local and CI gates
+while retaining the unperformed manual Thor qualification. -->
+**[0.0.6 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.1); local and CI gates pass, and all four public
+downloads are independently verified. Thor interactive qualification remains
+pending.** [Download the Android ARM64 APK](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.1/DroidDS-0.0.6-android-arm64.apk).
+Read the [build and verification record](docs/builds/0.0.6-interactive-homebrew.md).
 It adds an original NCCH guest that uses real HID, GSP/PICA and DSP HLE paths for
 two images, D-pad/A/touch interaction and a tone. Automated native/interpreter
 checks compare image and PCM output; the Android frontend presents 400×240 and
@@ -92,7 +94,7 @@ explicit.
 | [Thor expanded probe result](docs/device-tests/0.0.4-thor-runtime-probe.md) | Passing 0.0.4 CPU/safety/capability checks and the static-state requirement |
 | [0.0.5 build and release evidence](docs/builds/0.0.5-runtime-integration.md) | Actual runtime integration, fixes, host tests and verified public APK |
 | [Thor integrated runtime result](docs/device-tests/0.0.5-thor-runtime.md) | Passing 0.0.5 guest/PICA/memory evidence and its limits |
-| [0.0.6 interactive homebrew](docs/builds/0.0.6-interactive-homebrew.md) | Current implementation, pending build/publication and required device observations |
+| [0.0.6 interactive homebrew](docs/builds/0.0.6-interactive-homebrew.md) | Passing local/CI gates, verified public assets and required device observations |
 | [0.0.4 build evidence](docs/builds/0.0.4-runtime-probe.md) | Expanded CPU, renderer operations and packaging checks |
 | [New 3DS audit and corrections](docs/NEW3DS_AUDIT.md) | Reproduced defects, implemented runtime fixes and remaining title gates |
 | [First build evidence](docs/builds/0.0.1-foundation.md) | Results, scope, limitations and next work |

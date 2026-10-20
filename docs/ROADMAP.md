@@ -39,8 +39,9 @@ evidence. **The [0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) now pass
 three guest routes, exact PICA output, five memory layouts and runtime code guards.
 The device uses CPU vertex shading with static-state Vulkan rasterization and
 zero software raster fallbacks. No retail title is qualified. The
-[0.0.6 interactive implementation](builds/0.0.6-interactive-homebrew.md) is in
-progress; its build verification, publication and Thor manual gate are pending.
+[0.0.6 interactive implementation](builds/0.0.6-interactive-homebrew.md) and final
+local/main/tag CI gates pass. The prerelease is published and its four public
+assets are independently verified; the Thor manual gate remains pending.
 Read [0.0.4 device evidence](device-tests/0.0.4-thor-runtime-probe.md) and the audit's
 [correction record](NEW3DS_AUDIT.md#005-integration-corrections).
 
@@ -52,8 +53,9 @@ gates; version targets are plans, not measured compatibility or delivery dates. 
 
 This is the intended release sequence as of **2026-10-19**. Versions 0.0.1–0.0.5
 are implemented; 0.0.5 is published with verified artifacts, passing host/CI gates
-and a passing bounded Thor runtime report. Version 0.0.6 is in development with
-build/publication and interactive-device qualification pending. Later versions
+and a passing bounded Thor runtime report. Version 0.0.6 is implemented with
+passing local and CI gates, a published prerelease and independently verified
+public assets. Manual Thor qualification remains pending. Later versions
 are milestone targets, not promised dates
 or a fixed number of APK installations. A stage can need several prereleases;
 failed acceptance checks hold promotion, and any revised scope must be recorded.
@@ -91,12 +93,13 @@ boot on Android: target 0.0.7. First repeatable playable game segment: target
   activation are checked. New/Old memory fixes and resource-admission policies are
   integrated. Host/CI gates, public-download verification and the owner's Thor
   runtime report pass. Its timing is not a game-performance measurement.
-- **0.0.6 (in development):** an original NCCH guest consumes HID controls/touch,
+- **0.0.6 (published; downloads verified):** an original NCCH guest consumes HID controls/touch,
   submits PICA screen output and drives a DSP HLE tone. Three automatic routes
   compare exact images and PCM. The manual Android frontend displays 400×240 and
   320×240 views using CPU readback and Bitmap/Canvas on one Android display,
   while the PICA rasterizer uses Vulkan. This does not implement the Thor's two
-  physical displays. Build, publication and manual-device qualification are pending.
+  physical displays. Local/main/tag CI gates and public-download verification
+  pass; manual-device qualification remains pending.
 
 The offscreen images are test inputs, not 3DS frames. Versions 0.0.3–0.0.4 do not load
 a game, translate PICA graphics, present game screens, implement game controls
@@ -113,7 +116,7 @@ start ownership, memory bounds and mobile compatibility before game workloads. -
 | --- | --- | --- |
 | **0.0.4 — qualify the runtime foundation** | Complete for its bounded diagnostic scope: eight CPU fixtures, code-safety controls, Vulkan capability/backend operations and New 3DS audit. The owner's Thor report passes. | Native/interpreter and safety controls, required Vulkan capabilities and exact graphics/compute output passed on the Thor. Its optional dynamic blend/logic states are absent. This version does not execute PICA, full scheduler/CRO behavior or a game. |
 | **0.0.5 — integrate the runtime** | Published and downloads verified: selected Zakuro loader/services/PICA, original NCCH guest in three execution routes, actual New/Old loader/kernel corrections, compiler conditional-flow budget correction, bounded shader work and retained resources. Required host/CI gates and the bounded Thor runtime report pass. | Exact PICA output and native/interpreter work, observed Vulkan execution, static-state device rendering, five device memory layouts and code guards pass. The Thor uses CPU vertex shading with Vulkan rasterization; the CPU PICA JIT remains disabled. Private Linux baselines remain open because no retail inputs are present; this public probe does not close M3 or the remaining M2 cold-stall/sustained-memory gates. |
-| **0.0.6 — visible Android 3DS application** | In development: original NCCH HID/GSP/DSP guest; three-route image/PCM oracles; stacked 400×240 and 320×240 views with D-pad/A/touch, resampled guest audio and session lifecycle. CPU readback/Bitmap/Canvas presents actual Vulkan-rasterized guest images on one Android display. Build verification and publication pending. | Required automatic regressions pass, then guest-generated screens are visibly displayed on the Thor; controls/touch change guest state and guest audio is heard. Pause/resume, view/surface replacement and normal exit work. Automatic success alone cannot qualify this manual gate or permit 0.0.7 promotion. This does not qualify physical dual-display output, direct Vulkan presentation or a retail title. |
+| **0.0.6 — visible Android 3DS application** | Published and downloads verified; local/main/tag CI gates pass: original NCCH HID/GSP/DSP guest; three-route image/PCM oracles; stacked 400×240 and 320×240 views with D-pad/A/touch, resampled guest audio and session lifecycle. CPU readback/Bitmap/Canvas presents actual Vulkan-rasterized guest images on one Android display. The Thor interactive gate remains pending. | Local automatic, package, FFI and JVM logic gates pass. Actual guest-generated screens must still be visibly displayed on the Thor; controls/touch must change guest state and guest audio must be heard. Pause/resume, view/surface replacement and normal exit remain device checks. Automatic success alone cannot qualify this manual gate or permit 0.0.7 promotion. This does not qualify physical dual-display output, direct Vulkan presentation or a retail title. |
 | **0.0.7 — first owned-game boot on Android** | Finish the local per-title build/package path, exact game/update/module identity checks and private data import. Establish persistent signing/package identity and durable save locations. Package the private control title that passed the host baseline. | A reproducible private APK launches the matching owned title into an interactive menu or identified opening scene on the Thor. Native execution and interpreter fallback are measured. Wrong revisions are rejected safely; replacement builds preserve identity and app data. This is a boot milestone, not sustained playability. Attempt the equivalent Dark Moon checkpoint and record any blockers. |
 | **0.0.8 — first playable game segment** | Make one defined control-title route repeatably playable with controls, touch, audio, saving/loading and lifecycle recovery. Fix reproducible CPU/service/PICA problems. Continue Dark Moon moon/ghost/opening diagnosis and targeted corrections. | The same gameplay route can be played, saved, exited normally and resumed on the Thor at 1× with correct output. Compare native/interpreter and graphics paths where relevant. A title screen or a single cutscene is insufficient. Report Dark Moon's visual, speed and crash status separately. |
 | **0.0.9 — sustained and cold-run qualification** | Stress the existing resource limits, cold generic-rendering coverage, cache handling, logging cost and repeated teardown. Optimize measured bottlenecks. Measure 1× first, then 2×/4×; qualify Thor display options separately. | Required draws survive delayed/failed/full shader workers. Memory settles during the chosen workload and recovers over normal exits. Collect repeated frame-time/speed/audio/thermal evidence and a 30-minute route. Record which resolutions meet the playability target and which remain limited. Limits and safe cleanup are strengthened here, not introduced for the first time. |
@@ -229,8 +232,8 @@ gates; public fixture progress must not silently close the private baseline. -->
 1. Retain the passing 0.0.5 Thor evidence and all existing regressions. Its Vulkan
    draw uses CPU vertex interpretation; report that separately. Keep normal and
    forced-static host Vulkan gates and the exact twelve-library 0.0.6 package audit.
-2. Complete and verify the 0.0.6 original guest, Android view/input/audio and
-   lifecycle implementation, then publish only after required gates pass. Obtain
+2. Use the verified public 0.0.6 prerelease; local and main/tag CI gates pass.
+   The original guest and Android frontend are implemented. Obtain
    a manual Thor result for visible output, controls/touch, audible audio,
    pause/resume, view replacement and normal exit before 0.0.7 promotion. Automatic
    image/PCM evidence cannot replace these observations. Carry forward

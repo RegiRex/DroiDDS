@@ -7,7 +7,7 @@ selected existing components. It does not rewrite their CPU interpreter,
 recompiler or ABI. This document records source selection and integration
 decisions; exact final execution/publication results belong in build evidence.
 
-## Runtime integration and 0.0.6 development
+## Runtime integration and 0.0.6 implementation
 
 <!-- CodexAstraUlt: Replace the no-vendor/no-runtime summary with the maintained
 source boundary, real guest proof and measured reason for the compiler patch. -->
@@ -95,8 +95,9 @@ original DroidDS code. One owner thread controls the live runtime and lifecycle.
 Android display. Actual PICA rasterization remains Vulkan; direct Vulkan
 presentation and the Thor's two physical displays are separate future work.
 No upstream desktop frontend or additional emulator codebase is imported for
-this step. Build verification, publication and actual Thor visible/input/audio/
-lifecycle qualification are pending. The manual device gate is required before
+this step. Implementation, local/main/tag CI gates and independent public-download
+verification pass; the prerelease is published. Actual Thor visible/input/audio/
+lifecycle qualification remains pending. The manual device gate is required before
 0.0.7 promotion even if the automatic guest oracle passes.
 
 ## Initial 0.0.1 inventory (historical)

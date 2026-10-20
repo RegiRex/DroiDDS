@@ -9,16 +9,17 @@ three code-safety controls and Vulkan graphics/compute requirements. Read
 no optional dynamic blend/logic-state support, so the runtime integration explicitly
 tests the static pipeline path. The owner need not repeat automated Linux tests.
 
-<!-- CodexAstraUlt: Advance the passed runtime device gate and distinguish the
-new interactive implementation from final verification and device observations. -->
+<!-- CodexAstraUlt: Advance the passed runtime device gate and completed local
+interactive validation while keeping release/device evidence separate. -->
 **0.0.5 is published and its [Thor report](device-tests/0.0.5-thor-runtime.md)
 passes.** It retains the 0.0.4 checks and executes an original NCCH guest through
 the real loader, HLE services and PICA renderer. Its hardware route uses CPU
 vertex shading and static-state Vulkan rasterization with no software raster
 fallback. The uploaded JSON does not independently verify the installed APK.
 
-**[0.0.6](builds/0.0.6-interactive-homebrew.md) is in development; final build
-verification, publication and Thor qualification are pending.** It retains every
+**[0.0.6 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.1); local/main/tag CI gates pass and its four
+public assets are independently verified. Thor interactive qualification
+remains pending.** It retains every
 previous gate and adds an original interactive NCCH guest, automatic image/PCM
 checks, and an Android screen/input/audio frontend. No retail game or 3DSX loader
 is included. Automatic success alone cannot qualify visible or audible output.
@@ -35,18 +36,16 @@ renderer. The report does not establish whether the picker or ADB exported it.
 
 ## Install and save a report
 
-<!-- CodexAstraUlt: Keep the last verified download separate from the upcoming
-interactive prerelease, retaining explicit signing-conflict handling. -->
+<!-- CodexAstraUlt: Provide the independently verified interactive APK
+while retaining diagnostic signing and manual-device qualification. -->
 
-The [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
-provides `DroidDS-0.0.5-android-arm64.apk` and its verification files. The
-[release workflow](https://github.com/RegiRex/DroidDS/actions/runs/39341905818)
-passed all required host, Android-package and publication gates; public downloads
-were verified against the release evidence. See the
-[build record](builds/0.0.5-runtime-integration.md). Its Thor runtime report now
-passes. A 0.0.6 download must not be assumed available until its
-[build/release record](builds/0.0.6-interactive-homebrew.md) records verified
-publication. The app
+Download [DroidDS-0.0.6-android-arm64.apk](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.1/DroidDS-0.0.6-android-arm64.apk) from the
+[0.0.6 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.1). All required local/main/tag CI gates pass;
+the public APK, `BUILD_REPORT.json`, `SHA256SUMS` and
+`THIRD_PARTY_NOTICES.txt` are independently verified. See the
+[build/release record](builds/0.0.6-interactive-homebrew.md) for source,
+signature, alignment and download evidence. The 0.0.5 Thor runtime report
+passes; the new 0.0.6 interactive test below remains pending. The app
 requires ARM64 Android 10/API 29 or newer. Passing the new graphics checks also
 requires the Vulkan 1.3 features listed below; a reported API version alone is
 insufficient. Unsupported capabilities are recorded as a failed qualification,
@@ -229,8 +228,16 @@ remain distinguishable from completed ones.
 <!-- CodexAstraUlt: Require explicit human observations alongside guest and
 Android counters; a checked box is a report of experience, not an automatic oracle. -->
 
-Run this after installing a verified 0.0.6 artifact. Its publication is currently
-pending; do not expect the 0.0.5 APK to expose these controls.
+Install the [verified 0.0.6 APK](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.1/DroidDS-0.0.6-android-arm64.apk), then perform these checks.
+The 0.0.5 APK does not expose the new interactive controls. The 0.0.6 manual
+Thor result is still pending; automated success cannot replace it.
+
+<!-- CodexAstraUlt: Explain the implemented diagnostic limit so automatic return
+to the probe is distinguishable from a crash or an unlimited play session. -->
+The session automatically stops and saves at 6,000 delivered frames or two
+minutes in the foreground, whichever comes first. Complete the brief checks and
+confirm the screen/audio observations before that limit. Background time is
+excluded; this is not a sustained-performance test.
 
 1. Let the automatic checks finish, then tap **Test original homebrew**.
 2. Confirm both guest views appear. Use the Thor's physical D-pad and A button;
@@ -381,8 +388,9 @@ criteria beyond the bounded CPU and offscreen output fixture. -->
 
 The owner's 0.0.5 report qualifies its bounded actual-runtime scope. The next
 device gate is 0.0.6's **automatic checks plus manual visible/input/audio/lifecycle
-observations**, required before 0.0.7 promotion. Build verification and publication
-are pending; no Thor result is claimed for the new frontend. Android picker and
+observations**, required before 0.0.7 promotion. Local/main/tag CI gates and
+public-download verification pass; the new frontend's Thor result remains
+pending. Android picker and
 16 KiB-page execution remain separate checks. The implemented New 3DS layouts
 do not establish Xenoblade boot compatibility, and the HLE tone does not qualify
 all audio behavior. Broader CPU/VFP/modules, first-use compilation, long-run

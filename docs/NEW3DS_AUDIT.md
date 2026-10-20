@@ -23,8 +23,10 @@ and public downloads are verified; see the
 The [owner's 0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) now passes five
 actual loader/memory cases, including New 3DS legacy-64, 124 and 178 MiB modes.
 Xenoblade has not been run. The original audit still describes the unchanged
-upstream revision. Version 0.0.6 develops original interactive homebrew while
-retaining these regressions; its build and device qualification remain pending.
+upstream revision. Version 0.0.6 implements original interactive homebrew and
+retains these regressions; local/main/tag CI gates and independent public-download
+verification pass. The prerelease is published; manual-device qualification
+remains pending.
 
 The existing New 3DS model selection, 256 MiB physical RAM, model-reporting
 services and extra input service provide useful foundations. We should correct

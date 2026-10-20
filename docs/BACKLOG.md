@@ -47,8 +47,8 @@ three actual guest routes, five memory layouts and runtime code guards. The
 hardware route uses CPU vertex shading and static-state Vulkan rasterization
 without software raster fallback. No retail title is qualified by this fixture.
 
-<!-- CodexAstraUlt: Scope the new DDS-012 work to original guest interaction and
-retain explicit pending build/publication and manual-device acceptance gates. -->
+<!-- CodexAstraUlt: Record the implemented DDS-012 subset and local verification
+while retaining separate verified publication and manual-device acceptance. -->
 [0.0.6](builds/0.0.6-interactive-homebrew.md) develops bounded DDS-012 integration:
 an original NCCH guest uses HID/GSP/DSP HLE, three automatic routes compare images
 and PCM, and an Android frontend presents 400×240/320×240 readbacks with
@@ -56,7 +56,9 @@ Bitmap/Canvas, D-pad/A/touch input and resampled guest audio. A single session
 thread owns runtime pause/resume and exit. Both guest views share one Android
 display; physical dual-display output is not included. All 0.0.5 regressions
 remain required, with the package expanded to twelve native libraries.
-Build verification, publication and the Thor manual test are pending. Observed
+Implementation, final local/main/tag CI gates and independent public-download
+verification pass; the prerelease is published. The Thor manual test remains
+pending. Observed
 images, controls/touch, audible audio, lifecycle recovery and normal exit must
 pass before 0.0.7 promotion; an automatic probe pass alone is insufficient.
 

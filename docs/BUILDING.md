@@ -164,8 +164,8 @@ neither host nor device fixture success establishes retail qualification.
 
 ## 0.0.6 interactive homebrew work
 
-<!-- CodexAstraUlt: Document the extended existing runner and its output while
-leaving exact build results to the coordinator's completed execution record. -->
+<!-- CodexAstraUlt: Document the extended runner and completed local gates while
+retaining independent release/download and physical-device qualification. -->
 
 Version 0.0.6 extends the same runtime host command above. It generates the
 original `droidds-original-homebrew-v1` NCCH guest and
@@ -183,11 +183,16 @@ frontend presents readback pixels with Bitmap/Canvas and resamples guest PCM for
 Android playback. Compiling that frontend does not establish visible images,
 audible audio, input or lifecycle behavior on the Thor.
 
-Implementation is in progress. Final host/package/CI results, published assets
-and the Thor interactive test are **pending** in the
-[0.0.6 build record](builds/0.0.6-interactive-homebrew.md). Use fresh output
-directories and exact recorded commands; do not infer test counts, source hashes
-or successful publication from this planned gate.
+Implementation and all final local gates pass: 246 Python gate tests, 162
+foundation Rust tests, the runtime/loader suites, normal/static Vulkan suites,
+the automatic three-route homebrew proof, seven real-runtime FFI controls, four
+JVM logic controls and the twelve-library Android audit. The local four-file
+bundle is verified using a local diagnostic key; it is not the public CI APK.
+See the [0.0.6 build record](builds/0.0.6-interactive-homebrew.md) for source binding,
+commands and exact per-suite results. Main/tag CI gates pass, the prerelease
+is published and all four public assets are independently verified. The Thor
+interactive test remains **pending**. Use fresh output
+directories when reproducing the recorded checks.
 
 ## This prepared cloud workspace
 

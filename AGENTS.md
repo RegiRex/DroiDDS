@@ -48,8 +48,10 @@ retaining separate interactive-device, lifecycle and retail-title gates. -->
   fallback. No 3DSX loader or retail-title result is established.
 <!-- CodexAstraUlt: Keep automatic homebrew checks separate from the visible
 Android qualification that must precede promotion to private-game boot work. -->
-- Version 0.0.6 is in development; read docs/builds/0.0.6-interactive-homebrew.md.
-  Build verification, publication and Thor qualification are pending. It adds an
+- Version 0.0.6 is published with passing local/main/tag CI gates and
+  independently verified public assets; read
+  docs/builds/0.0.6-interactive-homebrew.md. Thor interactive qualification
+  remains pending; do not promote to 0.0.7 before its manual gate. It adds an
   original NCCH guest using HID/GSP/PICA/DSP HLE and three-route image/PCM oracles,
   plus a manual two-view Android frontend. Retain every 0.0.5 regression and the
   exact twelve-library package inventory. Presentation uses CPU readback and
