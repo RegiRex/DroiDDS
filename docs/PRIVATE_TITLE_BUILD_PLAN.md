@@ -68,6 +68,18 @@ inventory rather than weakening the probe's twelve-library rule. Record a local
 build report and signed-APK hash. Cancellation or failure must leave the previous
 working APK, input and saves intact.
 
+<!-- CodexAstraUlt: Preserve source-review findings as explicit native-builder
+work, not as proven runtime failures or completed fixes in reconnaissance. -->
+Before enabling this builder, bind or explicitly disable the compiler's automatic
+hint inputs; its current `apply_hints` reads owner-local information in addition
+to bundled hints. Module discovery must report parse failures instead of dropping
+them from the manifest. Neither behavior is exercised by the interpreter-only
+reconnaissance tool. Also add a focused executable-remap regression: the current
+`Memory::map` sets fast read/write pointers when a permission is present, without
+clearing disallowed pointers on a narrower remap. This is a source-review concern,
+not a reproduced title failure; test and correct it before general native module
+execution. Keep these tasks separate from the first measured private-title blocker.
+
 The APK carries its expected manifest and generated native library in standard
 installer-owned native-library storage. Android lets the owner select matching
 game data through SAF. Initially, use a cancellable, space-checked import into a

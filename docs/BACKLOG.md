@@ -73,9 +73,10 @@ unchanged-path evidence from the earlier run is retained separately. No new
 full test is required solely because A was omitted.
 
 Generic [local private-title reconnaissance](PRIVATE_TITLE_RECONNAISSANCE.md)
-is now being implemented and tested to identify an owned game's first runtime
-blocker. This interpreter/software host tool does not promote milestone 0.0.7
-or produce a game-playing Android APK.
+is implemented and passes the [host verification gates](builds/0.0.7-reconnaissance-tools.md).
+It identifies an owned game's first observed runtime blocker. This
+interpreter/software host tool does not promote milestone 0.0.7 or produce a
+game-playing Android APK.
 
 The [New 3DS audit](NEW3DS_AUDIT.md) now leads to implemented loader/header,
 physical-region, commitment-limit and configuration/service corrections with
