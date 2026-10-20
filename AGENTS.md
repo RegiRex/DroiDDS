@@ -30,8 +30,8 @@ test without treating a host Vulkan draw as a qualified PICA renderer. -->
   Vulkan 1.3.128; that result alone did not qualify full renderer features/formats,
   picker lifecycle, PICA/game, sustained memory or performance. The manual upload
   does not independently bind an installed APK or establish its export method.
-<!-- CodexAstraUlt: Advance from the independently version-validated 0.0.4
-upload, while retaining the new runtime's separate Android and retail gates. -->
+<!-- CodexAstraUlt: Advance from validated 0.0.5 Android runtime evidence while
+retaining separate interactive-device, lifecycle and retail-title gates. -->
 - The owner's 0.0.4 Thor report passes all eight CPU cases, three code-safety
   controls and the original Vulkan capability/graphics/compute checks. Read
   docs/device-tests/0.0.4-thor-runtime-probe.md. Dynamic blend/logic state is absent
@@ -39,10 +39,27 @@ upload, while retaining the new runtime's separate Android and retail gates. -->
 - Version 0.0.5 now integrates selected vendored loader/HLE/PICA sources and an
   original NCCH guest through three CPU/rendering routes. Its host/release gates
   and downloaded public APK verification pass; read
-  docs/builds/0.0.5-runtime-integration.md. Thor 0.0.5 execution remains pending.
+  docs/builds/0.0.5-runtime-integration.md. The owner's strict 0.0.5 Thor report
+  passes; read docs/device-tests/0.0.5-thor-runtime.md. It executes CPU vertex
+  shading with Vulkan rasterization, static blend/logic state, zero software
+  raster fallback, five memory layouts and the bounded runtime code guards.
   Preserve all 0.0.4 checks. Distinguish Vulkan rasterization from GPU vertex
   execution, and never qualify hardware rendering after an unnoticed software
   fallback. No 3DSX loader or retail-title result is established.
+<!-- CodexAstraUlt: Keep automatic homebrew checks separate from the visible
+Android qualification that must precede promotion to private-game boot work. -->
+- Version 0.0.6 is in development; read docs/builds/0.0.6-interactive-homebrew.md.
+  Build verification, publication and Thor qualification are pending. It adds an
+  original NCCH guest using HID/GSP/PICA/DSP HLE and three-route image/PCM oracles,
+  plus a manual two-view Android frontend. Retain every 0.0.5 regression and the
+  exact twelve-library package inventory. Presentation uses CPU readback and
+  Bitmap/Canvas on one Android display; do not claim direct Vulkan presentation
+  or Thor physical dual-display support. Guest PCM is resampled from
+  32728.498046875 Hz to Android 48000 Hz; this does not qualify DSP firmware.
+  Automatic report success does not establish visible screens, controls/touch,
+  audible audio or lifecycle recovery. Complete the manual 0.0.6 device gate
+  before 0.0.7 promotion. Preserve session/run binding and all prior report
+  sections; failed or unfinished manual work must remain distinguishable.
 - Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,
   commitment/configuration, heap-bound and restore-preflight corrections. The
   host compiler is also vendored to repair conditional-flow budget accounting;

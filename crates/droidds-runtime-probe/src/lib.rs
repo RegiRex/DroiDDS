@@ -2,6 +2,9 @@
 //! services and PICA path. This bounded probe is not a retail compatibility test.
 
 pub mod fixture;
+// CodexAstraUlt: The visible original guest has a persistent session while the
+// frozen 0.0.5 fixture and its exact instruction/pixel gates remain unchanged.
+pub mod homebrew;
 #[cfg(feature = "producer")]
 pub mod producer;
 

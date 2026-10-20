@@ -1,4 +1,4 @@
-# Android CPU, Vulkan and runtime probe
+# Android runtime probe and interactive homebrew
 
 <!-- CodexAstraUlt: Advance to broader CPU/code safety and the selected renderer's
 capability contract without promoting the original fixtures to PICA/game proof. -->
@@ -9,13 +9,19 @@ three code-safety controls and Vulkan graphics/compute requirements. Read
 no optional dynamic blend/logic-state support, so the runtime integration explicitly
 tests the static pipeline path. The owner need not repeat automated Linux tests.
 
-<!-- CodexAstraUlt: Record verified runtime publication without promoting host
-and CI results to an actual Thor run or retail compatibility. -->
-**0.0.5 is published with verified downloads and passing host/CI gates; its Thor
-execution remains pending.** It retains the 0.0.4 CPU/Vulkan checks and adds an original NCCH
-guest through the actual loader, HLE services and PICA renderer. It still runs
-offscreen and exports one report; no retail game, display/input/audio frontend
-or 3DSX loader is included in this diagnostic.
+<!-- CodexAstraUlt: Advance the passed runtime device gate and distinguish the
+new interactive implementation from final verification and device observations. -->
+**0.0.5 is published and its [Thor report](device-tests/0.0.5-thor-runtime.md)
+passes.** It retains the 0.0.4 checks and executes an original NCCH guest through
+the real loader, HLE services and PICA renderer. Its hardware route uses CPU
+vertex shading and static-state Vulkan rasterization with no software raster
+fallback. The uploaded JSON does not independently verify the installed APK.
+
+**[0.0.6](builds/0.0.6-interactive-homebrew.md) is in development; final build
+verification, publication and Thor qualification are pending.** It retains every
+previous gate and adds an original interactive NCCH guest, automatic image/PCM
+checks, and an Android screen/input/audio frontend. No retail game or 3DSX loader
+is included. Automatic success alone cannot qualify visible or audible output.
 
 The [owner-supplied 0.0.2 Thor report](device-tests/0.0.2-thor-cpu.md) passes all
 four CPU cases and both corruption controls on reported Android ARM64 with 4 KiB
@@ -29,16 +35,18 @@ renderer. The report does not establish whether the picker or ADB exported it.
 
 ## Install and save a report
 
-<!-- CodexAstraUlt: Record completed publication while preserving explicit
-signing-conflict handling and the pending physical-device gate. -->
+<!-- CodexAstraUlt: Keep the last verified download separate from the upcoming
+interactive prerelease, retaining explicit signing-conflict handling. -->
 
 The [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
 provides `DroidDS-0.0.5-android-arm64.apk` and its verification files. The
 [release workflow](https://github.com/RegiRex/DroidDS/actions/runs/39341905818)
 passed all required host, Android-package and publication gates; public downloads
 were verified against the release evidence. See the
-[build record](builds/0.0.5-runtime-integration.md). Its Thor runtime report remains
-the next device gate. The app
+[build record](builds/0.0.5-runtime-integration.md). Its Thor runtime report now
+passes. A 0.0.6 download must not be assumed available until its
+[build/release record](builds/0.0.6-interactive-homebrew.md) records verified
+publication. The app
 requires ARM64 Android 10/API 29 or newer. Passing the new graphics checks also
 requires the Vulkan 1.3 features listed below; a reported API version alone is
 insufficient. Unsupported capabilities are recorded as a failed qualification,
@@ -48,17 +56,18 @@ Public diagnostic builds use one-off CI signing keys. A new public diagnostic AP
 can have a different signer and therefore fail to update an earlier one in place. Save any report you
 still need, explicitly uninstall **DroidDS Probe** in Android Settings, then
 install the new APK if Android reports a signing conflict. This removes only
-that app's private probe data. The owner's 0.0.2–0.0.4 exports have already
+that app's private probe data. The owner's 0.0.2–0.0.5 exports have already
 been received and summarized above. Uberhar is a separate package and is
 unaffected. Automation never uninstalls an app to resolve a signing conflict.
 Stable product signing remains separate work.
 
-1. Open **DroidDS Probe**; the version's CPU, GPU and runtime checks start automatically.
+1. Open **DroidDS Probe**; the version's automatic checks start.
 2. Wait for the completed result. **Run again** repeats the checks.
 3. Tap **Save report**, choose a location such as Downloads and save
    `droidds-latest-probe.json`. Completed failure reports can also be saved.
-4. Attach that JSON when reporting results. No game file or visual judgment is
-   needed: the offscreen patterns are compared through GPU readback.
+4. Attach that JSON when reporting results. No game file is needed. The 0.0.5
+   offscreen checks need no visual judgment; **0.0.6 also needs the manual
+   interactive test below** before its visible/input/audio milestone can pass.
 
 The save action uses Android's `ACTION_CREATE_DOCUMENT` picker and writes only
 to your chosen document. It requires no broad storage permission, network
@@ -172,6 +181,82 @@ payload limits. Saturation preserves the accurate fallback and remains visible
 in diagnostics. These limits do not bound all driver/texture memory, establish
 leak freedom, or remove synchronous first-use generic-pipeline compilation.
 
+## 0.0.6 guest, presentation and audio contract
+
+<!-- CodexAstraUlt: Document actual guest/HLE work and the deliberate presentation
+and audio conversion boundaries before recording manual device qualification. -->
+
+The new fixture is `droidds-original-homebrew-v1`, packaged as generated native
+code in `libdroidds_fixture_homebrew.so` alongside the earlier runtime fixture.
+Its original ARM NCCH program obtains `hid:USER`, `gsp::Gpu` and `dsp::DSP`, reads
+mapped HID state, submits PICA draws/display transfers and drives the HLE DSP
+path with original PCM16 samples. The input and tone changes come from the guest,
+not a replacement Android animation or host-generated tone.
+
+Automatic `interactive_probe` checks run interpreter/software, native/software
+and native/Vulkan routes through idle, A + right + up, touch and released-input
+stages. Independent oracles compare every 400×240 top and 320×240 bottom pixel
+and the guest's PCM response. They require real consumed-input and native/fallback
+evidence, reject changed pixels/samples and insufficient dispatch budgets, and
+check pause/no-progress, resume and actual guest exit. All prior CPU, Vulkan,
+8×8 runtime, code-safety and memory-layout checks remain required.
+
+Manual presentation uses **CPU readback into Bitmap/Canvas**, with both guest
+views stacked on **one Android display**. PICA rasterization remains Vulkan;
+the CPU vertex path is reported independently. This is not direct Vulkan
+swapchain presentation, physical dual-display support or a performance design
+qualified for retail games. A working readback oracle does not prove that Android
+actually showed the images to the owner.
+
+The HLE DSP mixer produces stereo PCM at **32728.498046875 Hz**. Android's audio
+path performs stateful linear resampling to **48000 Hz** for playback rather
+than relabeling the guest samples with a new rate. Holding A changes the guest
+tone rate. Measured generated/converted/written/playback counters and user
+confirmation of audible sound answer different questions. This fixture does
+not qualify DSP firmware execution, arbitrary codecs or complete game audio.
+
+One session-owner thread performs native open/frame/pause/resume/report/close.
+The frontend releases held input and pauses audio/execution when backgrounded;
+Activity recreation reattaches to the process session instead of starting another
+runtime. A bounded `interactive_session` result is merged into the same
+`files/latest-probe.json`, bound to its latest automatic run. CPU, graphics,
+runtime and automatic homebrew evidence remain intact; manual observations do
+not turn an automated failure into a pass. Pending/interrupted manual sessions
+remain distinguishable from completed ones.
+
+## 0.0.6 manual Thor test
+
+<!-- CodexAstraUlt: Require explicit human observations alongside guest and
+Android counters; a checked box is a report of experience, not an automatic oracle. -->
+
+Run this after installing a verified 0.0.6 artifact. Its publication is currently
+pending; do not expect the 0.0.5 APK to expose these controls.
+
+1. Let the automatic checks finish, then tap **Test original homebrew**.
+2. Confirm both guest views appear. Use the Thor's physical D-pad and A button;
+   check that the guest image changes and A changes the audible tone. Try the
+   on-screen arrows/A separately; they do not establish physical-controller input.
+3. Touch different locations inside the lower guest view and release. Confirm
+   its marker responds and does not remain stuck after release or backgrounding.
+4. Briefly switch to another app and return. The guest should pause while away,
+   clear held input and recover its image, controls and audio on return. Rotate
+   and return if rotation is enabled, to exercise view replacement; otherwise
+   report that recreation was not tested rather than marking it passed.
+5. Check **I can see both guest screens** and **I heard the guest's tone** only
+   if those statements are true. Leave them unchecked for a missing/corrupt view
+   or inaudible tone; explain input, audio or lifecycle problems with the report.
+6. Tap **Stop and save session** and wait to return to the probe. This requests
+   normal session close and saves observations before returning. Select + Start
+   separately requests exit through the guest. Tap **Save report**,
+   save `droidds-latest-probe.json` and share it with the observed results.
+
+The report retains automatic and manual sections in one file. A failed or
+unfinished session is useful diagnostic evidence, not a passing manual gate.
+Visible output, hardware/touch response, audible audio, pause/resume, view
+replacement and normal exit must all be accounted for before 0.0.7 promotion;
+an automatic pass or a nonzero presentation/playback counter cannot replace
+missing observations.
+
 ## Build on Linux
 
 <!-- CodexAstraUlt: Keep portable SDK/JDK instructions and exact pins, with static
@@ -197,6 +282,13 @@ all packaged ELF dependencies, AArch64 identity, at least 16 KiB load alignment,
 absence of text relocations/writable-executable segments, APK signature,
 manifest/API identity and 16 KiB ZIP alignment. The Vulkan loader is supplied by
 Android rather than bundled.
+
+<!-- CodexAstraUlt: Preserve the earlier libraries and audit the new guest
+library explicitly rather than accepting an arbitrary APK native inventory. -->
+Version 0.0.6 requires exactly **twelve ARM64 libraries**: eight CPU fixture
+libraries, the previous runtime fixture, the new homebrew fixture, the Rust
+runtime and the JNI bridge. Existing report and library gates are not replaced
+by the interactive frontend.
 
 Outputs include `droidds-android-probe-debug.apk`, `build-report.json` and logs.
 A completed cross-build records `status: built`, **`runtime_status: not_run`**.
@@ -264,7 +356,10 @@ historical 0.0.2/0.0.3 contracts. For 0.0.4 it requires eight CPU cases, three
 code-safety controls, all baseline Vulkan checks and the complete capability,
 graphics and compute fixture. Version 0.0.5 retains those checks and additionally
 requires the actual runtime's three routes, service/native/fallback evidence,
-pixels, code-safety controls and loader memory cases. A hang, crash, missing/stale result, wrong
+pixels, code-safety controls and loader memory cases. Version 0.0.6 also requires
+the three-route automatic homebrew image/input/PCM and lifecycle contract. A
+passing automatic ADB run does not establish human-visible or audible behavior;
+complete and record the manual device checklist separately. A hang, crash, missing/stale result, wrong
 version or unavailable Vulkan fails the run.
 
 Only `org.droidds.probe` is installed/updated and stopped. Its latest report is
@@ -272,8 +367,9 @@ replaced; no automatic uninstall, app-data clearing, Uberhar changes or uploads
 occur. A manually saved report is useful but lacks the external request/APK
 binding of a full ADB run.
 
-One worker serializes native execution and file IO off the UI thread. Activity
-recreation observes the existing run. The app atomically replaces one private
+One worker serializes automatic native execution and report IO off the UI thread;
+the manual session has one separate runtime-owner thread and cannot overlap an
+automatic rerun. Activity recreation observes the existing run/session. The app atomically replaces one private
 report, writes a running marker before native loading and checks saved bytes
 before displaying success. Native crashes/hangs can leave incomplete evidence;
 the ADB runner supplies the external deadline. This is not a native sandbox.
@@ -283,13 +379,13 @@ the ADB runner supplies the external deadline. This is not a native sandbox.
 <!-- CodexAstraUlt: Retain full renderer, lifecycle, memory and game acceptance
 criteria beyond the bounded CPU and offscreen output fixture. -->
 
-The owner's 0.0.4 report qualifies its expanded diagnostic scope. The next device
-report must establish the added 0.0.5 runtime checks. The implemented New 3DS
-loader/memory corrections do not establish Xenoblade boot compatibility. Android
-picker behavior, lifecycle, presentation and 16 KiB-page execution remain separate
-device gates. Broader CPU/VFP/module tests, first-use compilation, long-run memory
-stability, controls/audio and games remain open. No private retail inputs are
-present in this environment, so Dark Moon, Xenoblade and Sonic baselines remain
-explicitly untested. This probe establishes no Dark Moon visual correction or
-game-performance improvement. After a passing 0.0.5 Thor report, the next target
-is 0.0.6: visible interactive original 3DS homebrew and Android lifecycle work.
+The owner's 0.0.5 report qualifies its bounded actual-runtime scope. The next
+device gate is 0.0.6's **automatic checks plus manual visible/input/audio/lifecycle
+observations**, required before 0.0.7 promotion. Build verification and publication
+are pending; no Thor result is claimed for the new frontend. Android picker and
+16 KiB-page execution remain separate checks. The implemented New 3DS layouts
+do not establish Xenoblade boot compatibility, and the HLE tone does not qualify
+all audio behavior. Broader CPU/VFP/modules, first-use compilation, long-run
+memory and retail games remain open. Private Dark Moon, Xenoblade and Sonic
+inputs are absent here. No Dark Moon visual correction or game-performance
+improvement is established by this diagnostic.

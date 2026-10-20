@@ -95,13 +95,28 @@ class AndroidRuntimePayloadTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unexpected artifact"):
             build.runtime_fixture_sources(self.manifest, self.directory)
 
-    def test_exact_eleven_library_inventory(self):
-        self.assertEqual(len(build.PACKAGED_LIBRARIES), 11)
+    # CodexAstraUlt: Both independent original guests are mandatory in .6;
+    # neither omission nor an extra unreviewed native payload may publish.
+    def test_exact_twelve_library_inventory(self):
+        self.assertEqual(len(build.PACKAGED_LIBRARIES), 12)
         build.validate_packaged_libraries(build.PACKAGED_LIBRARIES)
         for inventory in (build.PACKAGED_LIBRARIES - {build.RUNTIME_LIBRARY},
+                          build.PACKAGED_LIBRARIES - {build.HOMEBREW_LIBRARY},
                           build.PACKAGED_LIBRARIES | {"libforeign.so"}):
             with self.assertRaisesRegex(ValueError, "exactly"):
                 build.validate_packaged_libraries(inventory)
+
+    def test_homebrew_cannot_reuse_the_earlier_runtime_identity(self):
+        with self.assertRaisesRegex(ValueError, "identity mismatch"):
+            build.runtime_fixture_sources(self.manifest, self.directory, homebrew=True)
+        manifest = {**self.manifest, "kind": "droidds-homebrew-fixture-sources",
+                    "fixture": "droidds-original-homebrew-v1", "library": build.HOMEBREW_LIBRARY}
+        with self.assertRaisesRegex(ValueError, "NCCH fixture"):
+            build.runtime_fixture_sources(manifest, self.directory, homebrew=True)
+        (self.directory / "runtime-fixture.cxi").rename(self.directory / "homebrew-fixture.cxi")
+        paths, report = build.runtime_fixture_sources(manifest, self.directory, homebrew=True)
+        self.assertEqual(paths, [self.directory / "guest.c"])
+        self.assertIn("homebrew-fixture.cxi", report["inputs_sha256"])
 
 
 if __name__ == "__main__":

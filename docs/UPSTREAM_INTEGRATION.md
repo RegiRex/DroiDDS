@@ -7,7 +7,7 @@ selected existing components. It does not rewrite their CPU interpreter,
 recompiler or ABI. This document records source selection and integration
 decisions; exact final execution/publication results belong in build evidence.
 
-## Current 0.0.5 integration
+## Runtime integration and 0.0.6 development
 
 <!-- CodexAstraUlt: Replace the no-vendor/no-runtime summary with the maintained
 source boundary, real guest proof and measured reason for the compiler patch. -->
@@ -39,8 +39,9 @@ interpreter/software, native/software and native/Vulkan execution against exact
 pixels and required route/service evidence. A deliberate helper remains in the
 CPU interpreter. Required GPU tests cannot silently pass after initialization
 failure; host qualification runs both normal and forced static blend/logic state.
-Vulkan rasterization is distinguished from GPU vertex execution: the Thor may
-use the accurate CPU PICA vertex interpreter with Vulkan rasterization.
+Vulkan rasterization is distinguished from GPU vertex execution: the owner's
+0.0.5 Thor report uses the accurate CPU PICA vertex interpreter with Vulkan
+rasterization and no software raster fallback.
 
 The maintained loader resolves complete Old/New physical layouts and separate
 legacy commitment caps before construction. It corrects header fields and config
@@ -65,18 +66,38 @@ source-archive availability. Registry/target/feature identity changes invalidate
 the reviewed inventory rather than silently omitting notices. This review does
 not authorize copying arbitrary GPL components from Azahar, MMJ or Uberhar.
 
-<!-- CodexAstraUlt: Record verified publication separately from the still-open
-Thor runtime and private-title gates; retain the fixture's precise scope. -->
+<!-- CodexAstraUlt: Advance the actual device runtime result while retaining
+the original fixtures' narrow scope and separate interactive/retail gates. -->
 The 0.0.4 Thor report passes its original diagnostic scope. The
 [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
 is published with verified public downloads and passing required host/CI gates
 in [run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818).
-See the [build record](builds/0.0.5-runtime-integration.md). Its Thor runtime report
-remains pending. The public fixture is NCCH; no 3DSX loader, game presentation/
-input/audio qualification or retail baseline is claimed. Exact private Dark Moon,
-Xenoblade and Sonic inputs are absent from this environment, so their M3 baselines
-remain open. Obtain the 0.0.5 Thor report, correct any failures, then proceed to
-0.0.6 visible original homebrew and lifecycle integration.
+See the [build record](builds/0.0.5-runtime-integration.md) and the passing
+[0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md). The public fixture is NCCH;
+no 3DSX loader or retail baseline is claimed. Exact private Dark Moon, Xenoblade
+and Sonic inputs are absent here, so their M3 baselines remain open.
+
+<!-- CodexAstraUlt: Identify new original frontend/guest code and reused HLE
+paths without suggesting a desktop frontend or DSP firmware was imported. -->
+The [0.0.6 implementation](builds/0.0.6-interactive-homebrew.md) adds original
+NCCH guest instructions and data, using the selected runtime's `hid:USER`,
+`gsp::Gpu` and `dsp::DSP` paths. The guest consumes mapped HID state, submits
+PICA draws and display transfers, and writes original PCM into the HLE DSP path.
+Three automatic CPU/rendering routes compare exact images and PCM, including
+input changes, pause/resume, normal guest exit and deliberate corruption controls.
+The guest's HLE PCM rate is **32728.498046875 Hz**; Android playback resamples it
+to **48000 Hz**. This is not imported DSP firmware or qualification of arbitrary
+DSP programs, ADPCM/AAC decoding or all title audio behavior.
+
+The platform-only Android frontend and bounded JNI/Rust session boundary are
+original DroidDS code. One owner thread controls the live runtime and lifecycle.
+400×240 and 320×240 guest readbacks are presented with Bitmap/Canvas on one
+Android display. Actual PICA rasterization remains Vulkan; direct Vulkan
+presentation and the Thor's two physical displays are separate future work.
+No upstream desktop frontend or additional emulator codebase is imported for
+this step. Build verification, publication and actual Thor visible/input/audio/
+lifecycle qualification are pending. The manual device gate is required before
+0.0.7 promotion even if the automatic guest oracle passes.
 
 ## Initial 0.0.1 inventory (historical)
 

@@ -45,6 +45,7 @@ final class ProbeController {
         final String details;
         final boolean canExport;
         final String exportStatus;
+        final boolean canHomebrew;
 
         Snapshot(boolean running, String status, String details) {
             this(running, status, details, false, "");
@@ -58,6 +59,7 @@ final class ProbeController {
                     ? details : details.substring(0, 32768) + "\n[Display truncated]";
             this.canExport = canExport;
             this.exportStatus = exportStatus;
+            this.canHomebrew = !running && canExport;
         }
     }
 
@@ -66,8 +68,11 @@ final class ProbeController {
     // CodexAstraUlt: Bound the independent full-runtime evidence without changing
     // the one-file report policy or allowing arbitrary native output growth.
     private static final int RUNTIME_REPORT_LIMIT = 256 * 1024;
+    // CodexAstraUlt: Automatic homebrew and manual observations remain separate,
+    // bounded sections in the existing one-file report, never new log bundles.
+    static final int HOMEBREW_REPORT_LIMIT = 256 * 1024;
     private static final int REPORT_LIMIT = CPU_REPORT_LIMIT + GRAPHICS_REPORT_LIMIT
-            + RUNTIME_REPORT_LIMIT + 16384;
+            + RUNTIME_REPORT_LIMIT + 2 * HOMEBREW_REPORT_LIMIT + 16384;
     private static ProbeController instance;
     private final Context application;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -80,6 +85,10 @@ final class ProbeController {
     private Snapshot snapshot = new Snapshot(false, "Ready", "");
     private boolean started;
     private boolean active;
+    private String currentRunId;
+    private String homebrewToken;
+    private byte[] homebrewBase;
+    private byte[] homebrewRunningReport;
 
     // CodexAstraUlt: These immutable byte arrays are the exact successfully
     // persisted content, not freshly serialized UI text. A picker pins one run;
@@ -133,6 +142,118 @@ final class ProbeController {
         if (observer.get() == target) {
             observer.clear();
         }
+    }
+
+    // CodexAstraUlt: Reserve the latest completed run before opening a manual
+    // session. Export/rerun cannot overlap; Activity rotation keeps this token.
+    String beginHomebrew() {
+        requireMainThread();
+        if (active || latestReport == null || exportToken != null || currentRunId == null) {
+            return null;
+        }
+        final String token = UUID.randomUUID().toString();
+        final String runId = currentRunId;
+        final byte[] base = latestReport;
+        homebrewToken = token;
+        homebrewBase = base;
+        homebrewRunningReport = null;
+        active = true;
+        latestReport = null;
+        HomebrewController.get(application).reserve(token);
+        publish(new Snapshot(true, "Preparing original homebrew", snapshot.details));
+        worker.execute(() -> {
+            try {
+                JSONObject report = parseReport(base, REPORT_LIMIT);
+                JSONObject pending = new JSONObject();
+                pending.put("schema", 1);
+                pending.put("kind", "droidds-android-interactive-session");
+                pending.put("status", "running");
+                pending.put("session_id", token);
+                pending.put("bound_run_id", runId);
+                report.put("interactive_session", pending);
+                byte[] written = persist(new AtomicFile(new File(application.getFilesDir(),
+                        "latest-probe.json")), report);
+                main.post(() -> {
+                    if (token.equals(homebrewToken) && runId.equals(currentRunId)) {
+                        homebrewRunningReport = written;
+                        HomebrewController.get(application).startPrepared(token);
+                    }
+                });
+            } catch (Exception failure) {
+                main.post(() -> {
+                    if (token.equals(homebrewToken) && runId.equals(currentRunId)) {
+                        homebrewToken = null;
+                        homebrewBase = null;
+                        active = false;
+                        latestReport = base;
+                        HomebrewController.get(application).preparationFailed(token);
+                        publish(new Snapshot(false, "Could not save the session marker. Try again.",
+                                snapshot.details));
+                    }
+                });
+            }
+        });
+        return token;
+    }
+
+    // CodexAstraUlt: Only this controller merges manual results into its captured
+    // automated report. A stale session never supplies or replaces the base/run ID.
+    void finishHomebrew(String token, byte[] nativeResult, JSONObject observations,
+                        String outcome, Runnable saved) {
+        requireMainThread();
+        if (!token.equals(homebrewToken) || homebrewBase == null) return;
+        final byte[] base = homebrewBase;
+        final String runId = currentRunId;
+        final byte[] fallback = homebrewRunningReport;
+        worker.execute(() -> {
+            byte[] persisted;
+            Snapshot result;
+            try {
+                JSONObject report = parseReport(base, REPORT_LIMIT);
+                JSONObject manual = new JSONObject();
+                manual.put("schema", 1);
+                manual.put("kind", "droidds-android-interactive-session");
+                manual.put("status", outcome);
+                manual.put("session_id", token);
+                manual.put("bound_run_id", runId);
+                try {
+                    manual.put("native", parseReport(nativeResult, HOMEBREW_REPORT_LIMIT));
+                } catch (Exception invalid) {
+                    manual.put("status", "failed");
+                    manual.put("native", new JSONObject().put("status", "failed")
+                            .put("error", "Manual native report was missing or invalid"));
+                }
+                manual.put("android", observations);
+                if (manual.toString().getBytes(StandardCharsets.UTF_8).length > HOMEBREW_REPORT_LIMIT) {
+                    throw new IOException("Manual session evidence exceeds its bound");
+                }
+                report.put("interactive_session", manual);
+                // CodexAstraUlt: Overall status continues to describe automated
+                // checks. Manual observations cannot turn a failure into a pass.
+                persisted = persist(new AtomicFile(new File(application.getFilesDir(),
+                        "latest-probe.json")), report);
+                result = new Snapshot(false, "Automated checks: " + report.optString("status")
+                        + ". Manual session: " + manual.optString("status")
+                        + ". Qualification pending review. Save report to share it.",
+                        report.toString(2));
+            } catch (Exception failed) {
+                persisted = fallback;
+                result = new Snapshot(false, "Session save failed; retained report is incomplete.",
+                        "Automated results were retained. Repeat the homebrew test before qualification.");
+            }
+            final byte[] written = persisted;
+            final Snapshot terminal = result;
+            main.post(() -> {
+                if (!token.equals(homebrewToken) || !runId.equals(currentRunId)) return;
+                homebrewToken = null;
+                homebrewBase = null;
+                homebrewRunningReport = null;
+                active = false;
+                latestReport = written;
+                publish(terminal);
+                saved.run();
+            });
+        });
     }
 
     // CodexAstraUlt: Preparing the document picker performs no IO and copies no
@@ -220,6 +341,7 @@ final class ProbeController {
             exportMessage = "";
         }
         String runId = UUID.randomUUID().toString();
+        currentRunId = runId;
         String requestId = requestedId == null || requestedId.isEmpty() ? runId : requestedId;
         long startedAt = System.currentTimeMillis();
         long startedElapsed = SystemClock.elapsedRealtime();
@@ -315,6 +437,25 @@ final class ProbeController {
                 runtime.put("error", errorDetails(failure));
             }
             report.put("runtime_probe", runtime);
+            // CodexAstraUlt: Qualify the original interactive guest automatically
+            // before offering a manual session. A crash preserves earlier stages.
+            JSONObject homebrew = new JSONObject().put("status", "running");
+            report.put("interactive_probe", homebrew);
+            persist(reportFile, report);
+            try {
+                File scratch = new File(application.getCacheDir(), "homebrew-probe");
+                homebrew = parseReport(nativeHomebrewProbe(
+                        application.getApplicationInfo().nativeLibraryDir, scratch.getAbsolutePath()),
+                        HOMEBREW_REPORT_LIMIT);
+                String state = homebrew.optString("status", "");
+                if (!("passed".equals(state) || "failed".equals(state))) {
+                    throw new IOException("Homebrew report has no valid terminal status");
+                }
+            } catch (Exception | LinkageError failure) {
+                homebrew = new JSONObject().put("status", "failed")
+                        .put("error", errorDetails(failure));
+            }
+            report.put("interactive_probe", homebrew);
             // CodexAstraUlt: The platform baseline alone cannot satisfy 0.0.5. A
             // missing renderer section stays a failed, exportable diagnostic.
             JSONObject renderer = graphics.optJSONObject("renderer_probe");
@@ -324,7 +465,8 @@ final class ProbeController {
                     && "passed".equals(graphics.optString("status"))
                     && graphics.optInt("schema", -1) == 2
                     && "passed".equals(rendererStatus)
-                    && "passed".equals(runtime.optString("status"));
+                    && "passed".equals(runtime.optString("status"))
+                    && "passed".equals(homebrew.optString("status"));
             report.put("status", passed ? "passed" : "failed");
             finishShell(shell, startedElapsed);
             report.put("android_shell", shell);
@@ -334,8 +476,9 @@ final class ProbeController {
             // and requiring actual renderer success for an overall pass.
             String summary = "CPU: " + cpuStatus + " · Vulkan: " + graphics.optString("status")
                     + " · Renderer checks: " + rendererStatus
-                    + " · 3DS runtime: " + runtime.optString("status");
-            String outcome = passed ? "Passed — " : "Checks did not pass — ";
+                    + " · 3DS runtime: " + runtime.optString("status")
+                    + " · Homebrew checks: " + homebrew.optString("status");
+            String outcome = passed ? "Automated checks passed — test homebrew next. " : "Checks did not pass — ";
             complete(new Snapshot(false, outcome + summary,
                     report.toString(2)), persisted);
         } catch (Exception | LinkageError failure) {
@@ -376,7 +519,7 @@ final class ProbeController {
         shell.put("elapsed_realtime_ms", SystemClock.elapsedRealtime() - startedElapsed);
     }
 
-    private static JSONObject parseReport(byte[] bytes, int limit)
+    static JSONObject parseReport(byte[] bytes, int limit)
             throws IOException, JSONException {
         // CodexAstraUlt: Reject malformed UTF-8 rather than replacing bytes and
         // silently changing the native evidence returned through JNI.
@@ -467,4 +610,6 @@ final class ProbeController {
     // CodexAstraUlt: Run only the packaged original guest in private scratch space.
     private static native byte[] nativeRuntime(String libraryDirectory, String scratchDirectory);
     private static native byte[] nativeVulkan();
+    // CodexAstraUlt: The scripted guest suite is independent of manual Android observations.
+    private static native byte[] nativeHomebrewProbe(String libraryDirectory, String scratchDirectory);
 }

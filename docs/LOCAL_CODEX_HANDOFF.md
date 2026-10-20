@@ -2,17 +2,19 @@
 
 <!-- CodexAstraUlt: Supply an executable project direction without silently starting implementation or requiring a cloud-to-local session bridge. -->
 
-<!-- CodexAstraUlt: Continue from verified 0.0.5 publication and the validated
-earlier Thor report; actual 0.0.5 device qualification is the next local task. -->
+<!-- CodexAstraUlt: Continue from the passed bounded runtime report into
+interactive-device qualification without claiming a cloud/local session bridge. -->
 As of 2026-10-19, the owner's
-[0.0.4 Thor report](device-tests/0.0.4-thor-runtime-probe.md) passes all required
-CPU/code-safety and Vulkan checks. The
+[0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) passes all required
+CPU/Vulkan/runtime, five memory-layout and code-safety checks. The
 [0.0.5 runtime integration](builds/0.0.5-runtime-integration.md) is published in
 [prerelease v0.0.5-probe.1](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1).
 All required host/CI gates pass in
 [run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
-and public downloads are verified. **The 0.0.5 Thor report remains pending; no
-retail title is qualified.** Read [build instructions](BUILDING.md) and
+and public downloads are verified. **0.0.6 interactive homebrew is in development;
+build verification, publication and manual Thor qualification are pending. No
+retail title is qualified.** Read [build instructions](BUILDING.md),
+[0.0.6 scope](builds/0.0.6-interactive-homebrew.md) and
 [Android probe instructions](ANDROID_PROBE.md) for the current gate and artifact.
 The existing Nobara laptop and USB-connected Thor can host the private
 development/test loop once their current readiness is checked. This cloud chat
@@ -24,23 +26,29 @@ Work in a separate DroidDS checkout. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`
 `docs/ARCHITECTURE.md` and `docs/BACKLOG.md`. Keep Uberhar files, APK and saves intact.
 Check branch and local changes before fetching; do not reset another session's work.
 
-<!-- CodexAstraUlt: The next local task is qualification of the published runtime;
-the owner's standing authorization covers subsequent roadmap builds. -->
-Do not repeat 0.0.4 routinely. Its Thor report also shows that optional dynamic
+<!-- CodexAstraUlt: The next device task is visible original-guest qualification;
+retain existing reports and the owner's report-driven continuation instruction. -->
+Do not repeat 0.0.4/0.0.5 manually without a relevant change. Their Thor reports show optional dynamic
 blend/logic state is absent; retain the forced-static renderer gate. Version 0.0.5
 uses selected Zakuro loader/core/GPU sources and the corrected
 3dsrecomp compiler to execute an original guest through real SVC/service IPC and
 two PICA draws. Three CPU/rendering routes must match an independently decoded
 asymmetric 8×8 image. This is bounded public-fixture evidence, not retail support
-or complete PICA coverage. GPU rasterization may use CPU vertex shading on
-integrated devices; the report records that mode explicitly.
+or complete PICA coverage. The actual Thor result uses CPU vertex shading with
+Vulkan rasterization; retain that distinction in future reports.
 
-Use the verified public 0.0.5 diagnostic artifact and obtain the owner's actual
-Thor runtime report, recording the installed APK identity. Save failures and
-partial reports too. After a validated report, proceed directly into fixes and
-the next roadmap build through 0.1.0 under the owner's standing instruction;
-a failed gate requires a corrective build before promotion. The next planned
-0.0.6 work is visible interactive 3DS homebrew and Android lifecycle behavior.
+Complete the 0.0.6 host/package gates and verified prerelease before using it for
+the manual Thor test. The original NCCH guest must visibly display its 400×240
+and 320×240 images, respond to D-pad/A/touch and produce audible guest audio.
+Both views use CPU readback/Bitmap/Canvas on one Android display while PICA
+rasterization remains Vulkan. Do not claim Thor physical dual-display support.
+Guest PCM is resampled from 32728.498046875 Hz to Android 48000 Hz; a tone is not
+DSP firmware compatibility. Verify pause/resume, view replacement and normal exit.
+Automatic image/PCM success alone cannot qualify these human observations or
+permit 0.0.7 promotion. Record installed artifact identity where ADB is available.
+Save failed/partial reports too. After the required gate passes, proceed directly
+into fixes and the next roadmap build through 0.1.0 under the owner's standing
+instruction; failed gates require correction before promotion.
 Do not attempt all archive prompts or claim a background device/session bridge.
 Public fixture work needs no game upload or retail APK.
 
@@ -106,17 +114,19 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 
 ## Suggested task to give local Codex when ready
 
-> Continue DroidDS from its published 0.0.5 runtime integration. Read AGENTS.md,
-> docs/builds/0.0.5-runtime-integration.md,
-> docs/device-tests/0.0.4-thor-runtime-probe.md and docs/ANDROID_PROBE.md.
-> The owner's 0.0.4 required checks pass. Version 0.0.5 is published with verified
-> downloads and passing host/CI gates; its Thor report remains pending. Run the
-> published diagnostic on the authorized Thor's explicit ADB serial and record
-> installed artifact identity. Preserve a failed/partial report and record actual execution
-> separately from compilation. After the report passes, continue into 0.0.6
-> visible original homebrew and lifecycle work under the standing authorization
-> through 0.1.0; do not bypass
-> failed gates. Keep private-title, scheduler, CRO and sustained-memory gates open.
+> Continue DroidDS from the passing 0.0.5 Thor runtime report. Read AGENTS.md,
+> docs/device-tests/0.0.5-thor-runtime.md,
+> docs/builds/0.0.6-interactive-homebrew.md and docs/ANDROID_PROBE.md.
+> Version 0.0.6 is in development; verify current build/publication status rather
+> than assuming the artifact is available. Retain all prior regressions. Once its
+> prerelease gates pass, run the automatic probe and manual original-homebrew test
+> on the authorized Thor's explicit ADB serial and record installed APK identity.
+> Verify visible guest screens, D-pad/A/touch, audible tone, pause/resume, view
+> replacement and normal exit. A passing automatic JSON does not replace these
+> observations. Preserve failed/partial evidence and distinguish CPU vertex
+> shading, Vulkan rasterization and CPU-readback presentation. Continue through
+> 0.1.0 under the standing instruction, but do not promote to 0.0.7 before this
+> manual device gate passes. Keep private-title, scheduler, CRO and sustained-memory gates open.
 > Use CodexAstraUlt comments, preserve local
 > changes, keep all retail inputs/derived outputs private, and leave Uberhar intact.
 > Do not execute the archive's entire prompt pack or claim Android/game readiness

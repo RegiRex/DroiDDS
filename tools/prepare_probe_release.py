@@ -24,10 +24,12 @@ def libraries_for_version(version: str) -> set[str]:
     """CodexAstraUlt: Bind every release's packaged code to its exact fixture set."""
     libraries = {"libdroidds_android_probe.so", "libdroidds_probe_jni.so"} | {
         "libdds_fixture_" + name + ".so" for name in cases_for_version(version)}
-    # CodexAstraUlt: Only the original runtime guest's generated library joins
-    # version 0.0.5; historical releases retain their exact inventories.
-    if version == "0.0.5":
+    # CodexAstraUlt: The .6 visible guest supplements the .5 runtime regression;
+    # historical releases retain their exact executable inventories.
+    if version in ("0.0.5", "0.0.6"):
         libraries.add("libdroidds_fixture_runtime.so")
+    if version == "0.0.6":
+        libraries.add("libdroidds_fixture_homebrew.so")
     return libraries
 
 
@@ -79,8 +81,8 @@ def checked_sha256(value: object, label: str) -> str:
 
 
 def runtime_metadata(report: dict, version: str) -> dict:
-    """CodexAstraUlt: Bind the .5 runtime evidence to reviewed sources and audited ELF hashes."""
-    if version != "0.0.5":
+    """CodexAstraUlt: Preserve mandatory .5 runtime provenance in both .5 and .6."""
+    if version not in ("0.0.5", "0.0.6"):
         return {}
     fixture = exact_fields(report.get("runtime_fixture"),
                            {"manifest", "inputs_sha256", "library_sha256"}, "runtime_fixture")
@@ -147,6 +149,43 @@ def runtime_metadata(report: dict, version: str) -> dict:
     }
 
 
+def homebrew_metadata(report: dict, version: str) -> dict:
+    """CodexAstraUlt: Admit only the reviewed .6 guest's source and ELF evidence."""
+    if version != "0.0.6":
+        return {}
+    fixture = exact_fields(report.get("homebrew_fixture"),
+                           {"manifest", "inputs_sha256", "library_sha256"}, "homebrew_fixture")
+    expected = {
+        "schema": 1, "kind": "droidds-homebrew-fixture-sources",
+        "fixture": "droidds-original-homebrew-v1", "library": "libdroidds_fixture_homebrew.so",
+        "abi": 4, "generation": 3, "fallback_entry": 0x101FF0,
+        "sources": ["code000.c", "entries.c"],
+    }
+    manifest = exact_fields(fixture["manifest"], set(expected) | {"native_text_bytes"},
+                            "homebrew fixture manifest")
+    require_values(manifest, expected)
+    # CodexAstraUlt: Native ARM text occupies two reviewed RX pages but must
+    # stop before the deliberately interpreted helper at TEXT+0x1FF0.
+    text_bytes = manifest["native_text_bytes"]
+    if type(text_bytes) is not int or not 0 < text_bytes < 0x1FF0 or text_bytes % 4:
+        raise ValueError("Invalid homebrew native text byte count")
+    # CodexAstraUlt: The reviewed .6 producer emits exactly 3152 ARM bytes.
+    # Changing this original guest requires an intentional release-contract edit,
+    # not accepting any different program that happens to fit the mapped pages.
+    require_values(manifest, {"native_text_bytes": 3152})
+    hashes = exact_fields(fixture["inputs_sha256"],
+                         {"code000.c", "entries.c", "functions.h", "recomp.h", "homebrew-fixture.cxi"},
+                         "homebrew fixture inputs")
+    hashes = {name: checked_sha256(value, name) for name, value in hashes.items()}
+    fixture_hash = checked_sha256(fixture["library_sha256"], "homebrew fixture library")
+    if fixture_hash != report["elf"][expected["library"]].get("sha256"):
+        raise ValueError("Homebrew fixture hash differs from audited ELF")
+    return {"homebrew_fixture": {
+        "manifest": expected | {"native_text_bytes": text_bytes},
+        "inputs_sha256": hashes, "library_sha256": fixture_hash,
+    }}
+
+
 def inspect_apk(apk: Path, report: dict, version: str, notices: bytes) -> dict:
     """CodexAstraUlt: Read actual APK identity and contents, not only builder labels."""
     manifest = apk_manifest(apk, allow_prerelease=True)
@@ -157,6 +196,9 @@ def inspect_apk(apk: Path, report: dict, version: str, notices: bytes) -> dict:
     if not isinstance(elf, dict) or set(elf) != libraries:
         raise ValueError("Release report must audit exactly the version's known ARM64 libraries")
     runtime = runtime_metadata(report, version)
+    # CodexAstraUlt: Both preparation and downloaded-bundle verification enter
+    # here; neither may accept a .6 APK with missing or unreviewed guest evidence.
+    homebrew_metadata(report, version)
     with zipfile.ZipFile(apk) as archive:
         names = archive.namelist()
         if len(names) != len(set(names)) or any(
@@ -238,16 +280,19 @@ def prepare(build: Path, output: Path, sdk: Path, tag: str, commit: str) -> None
         "third_party_notices")}
     public.update(tag=tag, source_commit=commit, version=version, apk=apk_name,
                   apk_manifest=manifest, device_execution="not_run", graphics_execution="not_run",
-                  scope=("Original CPU, Vulkan and 3DS runtime diagnostic; no retail game support"
+                  scope=("Original CPU, Vulkan, 3DS runtime and interactive homebrew; no retail game support"
+                         if version == "0.0.6" else
+                         "Original CPU, Vulkan and 3DS runtime diagnostic; no retail game support"
                          if version == "0.0.5" else
                          "Original synthetic CPU/Vulkan diagnostic probe; no retail game support"))
     # CodexAstraUlt: Preserve offline shader provenance when the build includes
     # Vulkan. Android execution remains untested even after host readback passes.
     if "vulkan_shaders" in report:
         public["vulkan_shaders"] = report["vulkan_shaders"]
-    # CodexAstraUlt: Replace unchecked optional nested copying with mandatory .5
-    # validation/projection, so missing evidence and private extra fields fail.
+    # CodexAstraUlt: Project reviewed .5/.6 evidence only after validation;
+    # missing metadata and private nested fields fail before staging assets.
     public.update(runtime_metadata(report, version))
+    public.update(homebrew_metadata(report, version))
     output.mkdir(parents=True, exist_ok=False)
     (output / apk_name).write_bytes(apk_bytes)
     (output / NOTICE_FILE).write_bytes(notices)

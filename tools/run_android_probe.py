@@ -22,9 +22,9 @@ import zipfile
 
 PACKAGE = "org.droidds.probe"
 REPORT_PATH = "files/latest-probe.json"
-# CodexAstraUlt: Keep the CPU, Vulkan, integrated runtime and Android shell
-# reports within their separate producer caps when retrieving one combined file.
-MAX_REPORT_BYTES = 1024 * 1024 + 64 * 1024 + 256 * 1024 + 16 * 1024
+# CodexAstraUlt: Keep CPU, Vulkan, runtime, automatic homebrew, optional manual
+# session and shell evidence within their separate producer/report caps.
+MAX_REPORT_BYTES = 1024 * 1024 + 64 * 1024 + 3 * 256 * 1024 + 16 * 1024
 CASES = {
     "arm_integer_memory": (11, 0, 0, 11),
     "thumb_integer_memory": (7, 0, 0, 7),
@@ -58,7 +58,7 @@ def cases_for_version(version: str) -> dict[str, dict[str, int]]:
     """CodexAstraUlt: Future APKs cannot silently inherit historical proof requirements."""
     # CodexAstraUlt: Runtime integration retains the complete measured CPU suite;
     # its additional proof is required separately instead of replacing CPU gates.
-    if version in ("0.0.4", "0.0.5"):
+    if version in ("0.0.4", "0.0.5", "0.0.6"):
         return {name: dict(counters) for name, counters in CASES_004.items()}
     if version in ("0.0.2", "0.0.3"):
         return {name: case_counters(*counts) for name, counts in CASES.items()}
@@ -401,6 +401,286 @@ def validate_runtime_report(report: object) -> None:
         raise ValueError("Runtime proof must state its bounded fixture limitations")
 
 
+def _proof_fields(report: object, expected: dict, label: str) -> dict:
+    """CodexAstraUlt: New homebrew sections use exact types, including JSON booleans."""
+    if not isinstance(report, dict):
+        raise ValueError(f"Missing {label} report")
+    for key, value in expected.items():
+        if key not in report or type(report[key]) is not type(value) or report[key] != value:
+            raise ValueError(f"Missing or incorrect {label} proof: {key}")
+    return report
+
+
+def _proof_count(report: dict, key: str, label: str, minimum: int = 0,
+                 maximum: int = (1 << 53) - 1) -> int:
+    """CodexAstraUlt: Bound counters to exact portable JSON integers, never booleans."""
+    value = report.get(key)
+    if not integer(value, minimum) or value > maximum:
+        raise ValueError(f"Missing or invalid {label} counter: {key}")
+    return value
+
+
+def validate_homebrew_session(report: object, *, native: bool, hardware: bool,
+                              automatic: bool = False) -> None:
+    """CodexAstraUlt: Require actual loader/HID/DSP/PICA routes independently of UI events."""
+    session = _proof_fields(report, {
+        "schema": 1, "kind": "droidds-homebrew-session",
+        "fixture": "droidds-original-homebrew-v1", "error": None,
+        "native": native, "renderer": "vulkan" if hardware else "software",
+        "presentation": "rgba_readback", "audio_sample_rate": 32728.498046875,
+        "native_fallback_instructions": 0, "svc_unimplemented": 0,
+        "service_unimplemented": 0, "memory_faults": 0}, "homebrew session")
+    status = session.get("status")
+    if status not in ("running", "paused", "exited"):
+        raise ValueError("Homebrew session has not completed usable guest execution")
+    _proof_fields(session, {"guest_exited": status == "exited", "dsp_running": status != "exited"},
+                  "homebrew session lifecycle")
+    for key in ("frames", "frames_delivered", "steps", "cycles", "interpreted_instructions",
+                "pcm_samples", "command_lists", "draw_calls", "vertices_drawn"):
+        _proof_count(session, key, "homebrew session", 1)
+    _proof_count(session, "recompiled_instructions", "homebrew session", 1 if native else 0)
+    if not native and session["recompiled_instructions"] != 0:
+        raise ValueError("Homebrew interpreter session unexpectedly executed native code")
+    for key in ("pause_count", "resume_count"):
+        _proof_count(session, key, "homebrew session")
+    _proof_count(session, "guest_observed_buttons", "homebrew consumed input", 0, 0xffffffff)
+    _proof_count(session, "guest_observed_touch_updates", "homebrew consumed input")
+    _proof_count(session, "pcm_nonzero_samples", "homebrew PCM", 1, session["pcm_samples"])
+    _proof_count(session, "pcm_peak", "homebrew PCM", 1, 32768)
+    if session["pcm_samples"] > session["frames_delivered"] * 1280:
+        raise ValueError("Homebrew session audio exceeds its per-frame drain bound")
+    services = session.get("services_seen")
+    if (not isinstance(services, list) or len(services) != 3 or
+            any(not isinstance(value, str) for value in services) or
+            set(services) != {"dsp::DSP", "gsp::Gpu", "hid:USER"}):
+        raise ValueError("Homebrew session did not obtain its actual guest services")
+    guest = _proof_fields(session.get("guest"), {
+        "checkpoint": 0x44534436, "service_error_stage": 0}, "homebrew session guest")
+    serial = _proof_count(guest, "serial", "homebrew session guest", 1, 0xffffffff)
+    _proof_fields(guest, {"fallback_count": serial}, "homebrew session helper")
+    if hardware:
+        validate_runtime_hardware(session.get("hardware"))
+        device = session.get("hardware_device")
+        if not isinstance(device, str) or not device.strip() or len(device.encode("utf-8")) >= 1024:
+            raise ValueError("Missing homebrew Vulkan device identity")
+    else:
+        _proof_fields(session, {"hardware": None, "hardware_device": None}, "homebrew software route")
+    if automatic:
+        _proof_fields(session, {"status": "exited", "guest_exited": True, "dsp_running": False,
+            "pause_count": 1, "resume_count": 1, "frames": 17, "frames_delivered": 18,
+            "cycles": 80442631, "steps": 19851 if native else 28728,
+            "interpreted_instructions": 36 if native else 9073,
+            "recompiled_instructions": 9037 if native else 0,
+            "pcm_samples": 9760, "pcm_nonzero_samples": 9600, "pcm_peak": 2000,
+            "command_lists": 36, "draw_calls": 108, "vertices_drawn": 324,
+            "guest_observed_buttons": 81, "guest_observed_touch_updates": 4},
+            "homebrew automatic route")
+        # CodexAstraUlt: Sleep advances guest time without executing instructions;
+        # preserve distinct exact cycle, CPU, dispatch and delivered-frame totals.
+        _proof_fields(guest, {"exit_requested": 1, "serial": 18, "fallback_count": 18,
+            "buttons": 12, "touch_x": 0, "touch_y": 0, "touch_valid": 0,
+            "top_x": 184, "top_y": 104, "bottom_x": 144, "bottom_y": 104,
+            "tone_rate_bits": 0x3f800000, "progress_stage": 9, "dsp_enabled": 1,
+            "dsp_position": 0, "dsp_buffer_id": 0}, "homebrew guest exit")
+        if hardware:
+            _proof_fields(session["hardware"], {"recorded_draws": 108, "submissions": 36},
+                          "homebrew actual Vulkan draws")
+
+
+def validate_interactive_report(report: object) -> None:
+    """CodexAstraUlt: Automatic homebrew pixels/PCM cannot qualify visible or audible output."""
+    result = _proof_fields(report, {
+        "schema": 1, "kind": "droidds-homebrew-probe", "fixture": "droidds-original-homebrew-v1",
+        "status": "passed", "error": None, "audio_sample_rate": 32728.498046875,
+        "presentation": "rgba_readback", "route_comparisons": 2}, "homebrew automatic")
+    cases = result.get("cases")
+    names = ("interpreter_software", "native_software", "native_vulkan")
+    if (not isinstance(cases, list) or len(cases) != 3 or
+            [case.get("name") if isinstance(case, dict) else None for case in cases] != list(names)):
+        raise ValueError("Missing, reordered, duplicate or unknown homebrew execution routes")
+    expected_stages = {
+        "idle": (0, 0, 0, 0, 184, 104, 144, 104, 1),
+        "buttons": (81, 0, 0, 0, 328, 24, 144, 104, 2),
+        "touch": (0, 247, 181, 1, 184, 104, 231, 165, 1),
+        "release": (0, 0, 0, 0, 184, 104, 144, 104, 1),
+    }
+    for case in cases:
+        _proof_fields(case, {"status": "passed", "error": None}, "homebrew execution route")
+        stages = case.get("stages")
+        if (not isinstance(stages, list) or len(stages) != 4 or
+                [stage.get("name") if isinstance(stage, dict) else None for stage in stages] != list(expected_stages)):
+            raise ValueError("Missing, reordered, duplicate or unknown homebrew input stages")
+        for index, stage in enumerate(stages):
+            _proof_fields(stage, {"status": "passed", "frames": (index + 1) * 4}, "homebrew stage")
+            buttons, x, y, valid, top_x, top_y, bottom_x, bottom_y, rate = expected_stages[stage["name"]]
+            guest = _proof_fields(stage.get("guest"), {
+                "checkpoint": 0x44534436, "buttons": buttons, "touch_x": x, "touch_y": y,
+                "touch_valid": valid, "top_x": top_x, "top_y": top_y, "bottom_x": bottom_x,
+                "bottom_y": bottom_y, "tone_rate_bits": 0x40000000 if rate == 2 else 0x3f800000,
+                "service_error_stage": 0, "exit_requested": 0,
+                "serial": (index + 1) * 4 + 1, "fallback_count": (index + 1) * 4 + 1,
+                "progress_stage": 8, "dsp_enabled": 1, "dsp_position": 0,
+                "dsp_buffer_id": 0}, "homebrew consumed input")
+            for panel, width in (("top", 400), ("bottom", 320)):
+                pixels = _proof_fields(stage.get(panel), {"width": width, "height": 240,
+                    "pixels_checked": width * 240, "mismatched_pixels": 0}, "homebrew " + panel)
+                if type(pixels.get("first_mismatches")) is not list or pixels["first_mismatches"]:
+                    raise ValueError("Homebrew passing frame contains missing or nonempty pixel differences")
+            audio = _proof_fields(stage.get("audio"), {"mismatched_samples": 0, "channels": 2,
+                "rate_multiplier": rate, "samples_checked": (480, 640, 640, 480)[index]}, "homebrew PCM")
+            samples = audio.get("first_samples")
+            if (not isinstance(samples, list) or len(samples) != 4 or
+                    any(not isinstance(sample, list) or len(sample) != 2 or
+                        any(type(channel) is not int or channel != 2000 for channel in sample)
+                        for sample in samples)):
+                raise ValueError("Homebrew original PCM sample oracle differs")
+        _proof_fields(case.get("lifecycle"), {"pause_rejected_frame": True, "pause_no_progress": True,
+            "resume_progress": True, "guest_exit": True}, "homebrew lifecycle")
+        validate_homebrew_session(case.get("session"), native=case["name"] != "interpreter_software",
+                                  hardware=case["name"] == "native_vulkan", automatic=True)
+    expected_controls = {
+        "pixel_mutation_rejected": {"mismatches": 1},
+        "audio_mutation_rejected": {"mismatches": 1},
+        "frame_budget_rejected": {"steps": 1},
+        "recreate_starts_clean": {"initial_cycles": 0, "initial_guest_serial": 0},
+        "changed_code_before_dispatch_rejected": {"steps": 0, "cycles": 0,
+            "native_instructions": 0, "interpreted_instructions": 0},
+    }
+    controls = result.get("controls")
+    if (not isinstance(controls, list) or len(controls) != len(expected_controls) or
+            [control.get("name") if isinstance(control, dict) else None for control in controls] != list(expected_controls)):
+        raise ValueError("Missing, duplicate or unknown homebrew controls")
+    for control in controls:
+        _proof_fields(control, {"status": "passed", **expected_controls[control["name"]]}, "homebrew control")
+        if control["name"] == "frame_budget_rejected":
+            rejection = control.get("rejection")
+            if not isinstance(rejection, str) or "dispatch budget" not in rejection:
+                raise ValueError("Homebrew frame budget control did not prove rejection")
+        elif control["name"] == "changed_code_before_dispatch_rejected":
+            _proof_fields(control, {"rejection": "homebrew immutable executable text changed"},
+                          "homebrew changed-code rejection")
+    limitations = result.get("limitations")
+    if (not isinstance(limitations, list) or not limitations or
+            any(not isinstance(value, str) or not value.strip() for value in limitations)):
+        raise ValueError("Homebrew proof must state its bounded fixture limitations")
+
+
+def validate_interactive_session(report: object, bound_run_id: str) -> None:
+    """CodexAstraUlt: Manual evidence has its own identity and never substitutes for automation."""
+    manual = _proof_fields(report, {"schema": 1, "kind": "droidds-android-interactive-session",
+                                   "bound_run_id": bound_run_id}, "manual homebrew")
+    try:
+        if str(uuid.UUID(manual.get("session_id", ""))) != manual["session_id"]:
+            raise ValueError("noncanonical UUID")
+    except (ValueError, AttributeError, TypeError) as error:
+        raise ValueError("Invalid manual homebrew session identity") from error
+    status = manual.get("status")
+    if status not in ("running", "completed", "failed", "interrupted"):
+        raise ValueError("Invalid manual homebrew session status")
+    if status == "running":
+        return
+    if not isinstance(manual.get("native"), dict) or not isinstance(manual.get("android"), dict):
+        raise ValueError("Missing terminal manual homebrew observations")
+    if status != "completed":
+        return  # CodexAstraUlt: Incomplete failure evidence is retained, never qualified.
+    android = _proof_fields(manual["android"], {"presentation": "android-canvas-rgba-readback",
+        "top_width": 400, "top_height": 240, "bottom_width": 320, "bottom_height": 240},
+        "manual Android presentation")
+    for key in ("frames_received", "presented_frames"):
+        _proof_count(android, key, "manual Android", 0, 6000)
+    _proof_count(android, "duration_foreground_ms", "manual Android", 0, 180000)
+    for key in ("pause_count", "resume_count", "foreground_frame_starts",
+                "background_frame_start_rejections", "in_flight_frames_completed_after_pause",
+                "native_step_errors", "hardware_button_events", "touch_events",
+                "virtual_button_events", "other_key_events", "input_queue_overflows",
+                "view_attachments", "view_replacements"):
+        _proof_count(android, key, "manual Android")
+    if android["view_replacements"] != max(0, android["view_attachments"] - 1):
+        raise ValueError("Manual view replacement count contradicts Activity attachments")
+    if android["presented_frames"] and not android["view_attachments"]:
+        raise ValueError("Manual presented frames have no attached Activity view")
+    if android["presented_frames"] > android["frames_received"]:
+        raise ValueError("Manual presentation count exceeds received guest frames")
+    if android["frames_received"] > android["foreground_frame_starts"]:
+        raise ValueError("Manual received frames exceed observed foreground frame starts")
+    if android["in_flight_frames_completed_after_pause"] > android["frames_received"]:
+        raise ValueError("Manual in-flight completions exceed received guest frames")
+    for key in ("display_seen_by_user", "heard_by_user"):
+        if android.get(key) not in ("not_confirmed", "yes", "no"):
+            raise ValueError(f"Missing explicit manual observation: {key}")
+    reason = android.get("stop_reason")
+    if not isinstance(reason, str) or not reason.strip() or len(reason.encode("utf-8")) > 8192:
+        raise ValueError("Missing or invalid manual stop reason")
+    audio = android.get("audio")
+    if not isinstance(audio, dict) or audio.get("status") not in ("measured", "failed", "not_started"):
+        raise ValueError("Missing manual audio output observations")
+    if audio["status"] != "not_started":
+        _proof_fields(audio, {"guest_sample_rate": 32728.498046875, "output_sample_rate": 48000,
+                              "resampler": "stateful-linear"}, "manual Android audio")
+        for key in ("generated_frames", "converted_frames", "written_frames", "playback_head_frames",
+                    "dropped_frames", "flushed_frames", "partial_writes", "underruns",
+                    "resampler_resets", "discarded_input_frames"):
+            _proof_count(audio, key, "manual Android audio")
+        _proof_count(audio, "queue_high_water_frames", "manual Android audio", 0, 8192)
+        if not audio["playback_head_frames"] <= audio["written_frames"] <= audio["converted_frames"]:
+            raise ValueError("Manual audio playback/write counts contradict conversion")
+        if audio["status"] == "failed":
+            if not isinstance(audio.get("error"), str) or not audio["error"].strip():
+                raise ValueError("Failed manual audio report has no failure detail")
+        elif audio.get("error") is not None:
+            raise ValueError("Measured manual audio report contains an error")
+
+
+def manual_qualification(report: object, bound_run_id: str) -> dict:
+    """CodexAstraUlt: Describe the separate device gate without inferring sight or hearing."""
+    if report is None:
+        return {"status": "pending", "reasons": ["The manual homebrew session has not been reported."]}
+    validate_interactive_session(report, bound_run_id)
+    if report["status"] != "completed":
+        return {"status": "failed" if report["status"] == "failed" else "pending",
+                "reasons": [f"The manual homebrew session is {report['status']}."]}
+    native, android = report["native"], report["android"]
+    try:
+        validate_homebrew_session(native, native=True, hardware=True)
+    except ValueError as error:
+        return {"status": "failed", "reasons": [str(error)]}
+    failures, pending, notes = [], [], []
+    if not android["view_replacements"]:
+        notes.append("Activity/view recreation was not exercised; pause/resume alone does not establish it.")
+    for key, label in (("display_seen_by_user", "The guest display"), ("heard_by_user", "Audible guest sound")):
+        if android[key] == "no":
+            failures.append(label + " was reported incorrect or absent.")
+        elif android[key] != "yes":
+            pending.append(label + " has not been confirmed by the tester.")
+    for key in ("native_step_errors", "input_queue_overflows"):
+        if android[key]:
+            failures.append(f"Manual Android execution reported {key}={android[key]}.")
+    if android["frames_received"] != native["frames_delivered"]:
+        failures.append("Android received-frame count differs from the native session.")
+    if not android["presented_frames"]:
+        pending.append("No guest frame was presented to the Android view.")
+    buttons = native["guest_observed_buttons"]
+    if not android["hardware_button_events"] or not buttons & 1 or not buttons & 0xf0:
+        pending.append("Physical controls and guest-observed A/direction input need testing.")
+    if not android["touch_events"] or not native["guest_observed_touch_updates"]:
+        pending.append("Bottom-screen touch and its guest consumption need testing.")
+    if any(not source[key] for source in (android, native) for key in ("pause_count", "resume_count")):
+        pending.append("Android background/pause and resumed guest progress need testing.")
+    audio = android["audio"]
+    if audio["status"] == "failed":
+        failures.append("Android audio output failed.")
+    elif audio["status"] != "measured" or not audio["written_frames"] or not audio["playback_head_frames"]:
+        pending.append("Measured Android audio playback needs testing.")
+    else:
+        if not audio["generated_frames"] or audio["generated_frames"] > native["pcm_samples"]:
+            failures.append("Android audio input counts contradict generated guest PCM.")
+        for key in ("dropped_frames", "underruns"):
+            if audio[key]:
+                notes.append(f"Audio {key}={audio[key]} requires quality review; this is not a game-performance result.")
+    return {"status": "failed" if failures else "pending" if pending else "passed",
+            "reasons": failures + pending, "notes": notes}
+
+
 def validate_report(report: object, request_id: str, manifest: dict) -> None:
     """CodexAstraUlt: Reject host/mock, stale, incomplete and unexercised execution proof."""
     if not isinstance(report, dict):
@@ -437,7 +717,7 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
     # CodexAstraUlt: Preserve historical CPU-only evidence without letting future
     # versions silently inherit an obsolete proof contract or omit the GPU run.
     expected_cases = cases_for_version(report["version"])
-    if report["version"] in ("0.0.3", "0.0.4", "0.0.5"):
+    if report["version"] in ("0.0.3", "0.0.4", "0.0.5", "0.0.6"):
         if report.get("cpu_status") != "passed":
             raise ValueError("Android CPU status did not pass")
         for key in ("manufacturer", "model", "android_release"):
@@ -471,12 +751,16 @@ def validate_report(report: object, request_id: str, manifest: dict) -> None:
         for key in ("strict_expected_match", "strict_interpreter_match", "route_counts_match"):
             if case.get(key) is not True:
                 raise ValueError(f"Missing strict CPU proof: {case['name']}/{key}")
-    if report["version"] in ("0.0.4", "0.0.5"):
+    if report["version"] in ("0.0.4", "0.0.5", "0.0.6"):
         validate_code_safety(report.get("code_safety"))
     # CodexAstraUlt: Earlier CPU/backend probes cannot qualify loader/HLE/PICA
     # integration; the current build must supply its own completed runtime run.
-    if report["version"] == "0.0.5":
+    if report["version"] in ("0.0.5", "0.0.6"):
         validate_runtime_report(report.get("runtime_probe"))
+    if report["version"] == "0.0.6":
+        validate_interactive_report(report.get("interactive_probe"))
+        if "interactive_session" in report:
+            validate_interactive_session(report["interactive_session"], shell["run_id"])
     controls = report.get("negative_controls")
     if not isinstance(controls, list) or len(controls) != len(CONTROLS):
         raise ValueError("Missing negative controls")

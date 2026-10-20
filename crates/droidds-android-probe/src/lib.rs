@@ -2,6 +2,10 @@
 //! recomp ABI. This is an Android loader/CPU probe, not a 3DS emulator or title
 //! importer. Known generated native code is trusted; this API is not a sandbox.
 
+// CodexAstraUlt: The persistent original guest has a separate bounded FFI API;
+// earlier one-shot probes and their owned-report/free contract remain intact.
+mod homebrew;
+
 use droidds_foundation::{fixtures, libraries, runner};
 use serde_json::{json, Value};
 use std::ffi::{CStr, CString};
@@ -86,12 +90,14 @@ fn negative_controls(
 }
 
 fn execute(directory: &Path) -> Result<Value, String> {
-    let _guard = RUN_LOCK
-        .lock()
-        .map_err(|_| "probe execution lock is poisoned")?;
     if !directory.is_absolute() || !directory.is_dir() {
         return Err("library directory must be an existing absolute directory".to_owned());
     }
+    // CodexAstraUlt: A persistent homebrew session owns this lock across frames.
+    // Reject competing/reentrant probes instead of blocking its owner forever.
+    let _guard = RUN_LOCK
+        .try_lock()
+        .map_err(|_| "another native probe/session is active or its lock is poisoned")?;
     let mut report = envelope();
     if report["host_page_size"]
         .as_i64()
@@ -220,8 +226,9 @@ pub unsafe extern "C" fn droidds_runtime_run(
         let (Ok(libraries), Ok(scratch)) = directories else {
             return failed("runtime paths must be valid UTF-8");
         };
-        let Ok(_guard) = RUN_LOCK.lock() else {
-            return failed("runtime execution lock is poisoned");
+        // CodexAstraUlt: Never wait on the calling worker's persistent session.
+        let Ok(_guard) = RUN_LOCK.try_lock() else {
+            return failed("another native probe/session is active or its lock is poisoned");
         };
         droidds_runtime_probe::run(Path::new(libraries), Path::new(scratch))
     }));

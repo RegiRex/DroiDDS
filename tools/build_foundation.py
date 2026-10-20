@@ -217,6 +217,9 @@ def snapshot() -> dict:
     paths = [ROOT / name for name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml",
                                      "upstream.lock.toml")]
     paths.extend(sorted((ROOT / "tools").rglob("*.py")))
+    # CodexAstraUlt: The executed Java frontend-math oracle is a build input,
+    # even though its classes stay outside the shipped Android source tree.
+    paths.extend(sorted((ROOT / "tools/java-tests").rglob("*.java")))
     # CodexAstraUlt: Reviewed notice inventories and supplemental upstream license
     # texts are artifact inputs even though they are not executable Python.
     notice_inventory = ROOT / "tools/android_registry_notices.json"

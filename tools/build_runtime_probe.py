@@ -114,13 +114,18 @@ def validate_suite(output: str, required: set[str] | None = None,
     return {**counts, "ignored_benchmarks": sorted(ignored), "required_tests": sorted(required or set())}
 
 
-def generated_sources(manifest: object, directory: Path) -> list[Path]:
+def generated_sources(manifest: object, directory: Path, *, homebrew: bool = False) -> list[Path]:
     """CodexAstraUlt: Compile only the newly generated original fixture's local C sources."""
     if not isinstance(manifest, dict):
         raise ValueError("Runtime generator did not return a source manifest")
     expected = {"schema": 1, "kind": "droidds-runtime-fixture-sources",
                 "fixture": "droidds-original-pica-ipc-v1", "library": "libdroidds_fixture_runtime.so",
                 "abi": 4, "generation": 3}
+    # CodexAstraUlt: The interactive guest has its own identity and container;
+    # retaining the .5 gate prevents a new demo from replacing earlier proof.
+    if homebrew:
+        expected.update(kind="droidds-homebrew-fixture-sources", fixture="droidds-original-homebrew-v1",
+                        library="libdroidds_fixture_homebrew.so")
     for key, value in expected.items():
         if type(manifest.get(key)) is not type(value) or manifest[key] != value:
             raise ValueError(f"Runtime generator identity mismatch: {key}")
@@ -136,17 +141,19 @@ def generated_sources(manifest: object, directory: Path) -> list[Path]:
                 or path.is_symlink() or path.resolve().parent != directory.resolve()):
             raise ValueError("Runtime generator returned a nonlocal or missing C source")
         paths.append(path)
-    container = directory / "runtime-fixture.cxi"
+    container = directory / ("homebrew-fixture.cxi" if homebrew else "runtime-fixture.cxi")
     if not container.is_file() or container.is_symlink():
         raise ValueError("Runtime generator did not emit its original NCCH fixture")
     return paths
 
 
-def validate_static_runtime(report: dict) -> None:
+def validate_static_runtime(report: dict, *, homebrew: bool = False) -> None:
     """CodexAstraUlt: The host's forced static-state run must prove that path was selected."""
     cases = report.get("cases", [])
-    hardware = [case.get("hardware") for case in cases
-                if isinstance(case, dict) and case.get("name") == "native_vulkan"]
+    # CodexAstraUlt: Interactive cases retain their whole persistent-session
+    # report; select its actual diagnostics without weakening the .5 shape.
+    hardware = [(case.get("session", {}).get("hardware") if homebrew else case.get("hardware"))
+                for case in cases if isinstance(case, dict) and case.get("name") == "native_vulkan"]
     if (len(hardware) != 1 or not isinstance(hardware[0], dict)
             or any(hardware[0].get(key) is not False for key in ("dynamic_blend", "dynamic_logic_op"))):
         raise ValueError("Required static blend/logic-operation runtime path was not exercised")
@@ -176,7 +183,7 @@ def main() -> int:
     try:
         # CodexAstraUlt: Share the same strict runtime-result contract as the
         # Android runner, without duplicating or weakening its route counters.
-        from run_android_probe import validate_runtime_report
+        from run_android_probe import validate_runtime_report, validate_interactive_report
 
         cargo = shutil.which("cargo")
         compiler = shutil.which(os.environ.get("CC", "cc"))
@@ -262,6 +269,56 @@ def main() -> int:
                 "native_fixture": hashlib.sha256(library.read_bytes()).hexdigest(),
                 "original_ncch_fixture": hashlib.sha256((generated / "runtime-fixture.cxi").read_bytes()).hexdigest(),
             }
+            # CodexAstraUlt: Execute the actual interactive guest through all
+            # required CPU/rendering paths, real HID/DSP and scanout. The static
+            # Vulkan path matches the Thor's capability report, with validation.
+            homebrew = output / "homebrew-generated"
+            homebrew_manifest = json.loads(run("emit-homebrew", [executable, "emit-homebrew",
+                                         "--output", homebrew], machine=True))
+            homebrew_sources = generated_sources(homebrew_manifest, homebrew, homebrew=True)
+            homebrew_library = libraries / homebrew_manifest["library"]
+            run("compile-homebrew", [compiler, "-O2", "-ffp-contract=off", "-fno-math-errno",
+                    "-fPIC", "-fvisibility=hidden", "-shared", "-Wl,-z,relro", "-Wl,-z,now",
+                    "-Wl,--no-undefined", "-Wl,-soname," + homebrew_library.name, "-I", homebrew,
+                    *homebrew_sources, "-o", homebrew_library, "-lm"])
+            with command_environment({"ZAKURO_STATIC_BLEND": "1"}):
+                homebrew_raw = run("execute-homebrew", [executable, "run-homebrew", "--native-dir", libraries,
+                                   "--scratch-dir", output / "homebrew-scratch"], timeout=300, machine=True)
+            evidence["homebrew_validation"] = validate_diagnostics(homebrew_raw + "\n" +
+                (output / "execute-homebrew-stderr.log").read_text(errors="replace"))
+            homebrew_report = json.loads(homebrew_raw)
+            (output / "homebrew-report.json").write_text(json.dumps(homebrew_report, indent=2) + "\n")
+            validate_interactive_report(homebrew_report)
+            validate_static_runtime(homebrew_report, homebrew=True)
+            evidence["homebrew_report"] = homebrew_report
+            evidence["homebrew_manifest"] = homebrew_manifest
+            evidence["artifacts_sha256"].update(
+                homebrew_library=hashlib.sha256(homebrew_library.read_bytes()).hexdigest(),
+                homebrew_original_ncch=hashlib.sha256((homebrew / "homebrew-fixture.cxi").read_bytes()).hexdigest())
+            # CodexAstraUlt: A real exported session must reject reentrant,
+            # wrong-thread/stale-token and invalid-buffer calls, and remain
+            # resumable after a paused-frame rejection. Process timeout catches
+            # a regression to blocking on the session owner's own mutex.
+            run("build-host-ffi", [cargo, "build", "--locked", "--release", "-p",
+                                  "droidds-android-probe", "-j", args.jobs], timeout=1800)
+            host_ffi = Path(metadata["target_directory"]) / "release/libdroidds_android_probe.so"
+            with command_environment({"ZAKURO_STATIC_BLEND": "1"}):
+                ffi_raw = run("execute-homebrew-ffi", [sys.executable, ROOT / "tools/check_homebrew_ffi.py",
+                    "--library", host_ffi, "--native-dir", libraries,
+                    "--scratch-dir", output / "ffi-scratch"], timeout=120, machine=True)
+            evidence["ffi_validation"] = validate_diagnostics(ffi_raw + "\n" +
+                (output / "execute-homebrew-ffi-stderr.log").read_text(errors="replace"))
+            ffi_report = json.loads(ffi_raw)
+            required_ffi = ["actual_native_frame_and_metrics", "live_session_reentrant_probes_rejected",
+                "wrong_worker_preserves_live_session", "pause_rejection_preserves_resumability",
+                "stale_token_preserves_replacement", "invalid_capacity_preserves_output_and_fails_closed",
+                "normal_and_failed_teardown_release_ownership"]
+            if (ffi_report.get("status") != "passed" or ffi_report.get("schema") != 1
+                    or ffi_report.get("kind") != "droidds-homebrew-ffi-proof"
+                    or ffi_report.get("controls") != required_ffi):
+                raise ValueError("Required exported homebrew session controls did not pass")
+            evidence["ffi_report"] = ffi_report
+            evidence["artifacts_sha256"]["host_ffi"] = hashlib.sha256(host_ffi.read_bytes()).hexdigest()
         if snapshot() != evidence["inputs_sha256"]:
             raise RuntimeError("Runtime build inputs changed during validation; rerun after edits settle")
         evidence["status"] = "passed"

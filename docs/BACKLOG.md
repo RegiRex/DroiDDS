@@ -21,8 +21,8 @@ nine exact readbacks and nine pixel-mutation controls on Adreno 740/Android 13.
 Those reports do not qualify actual PICA, picker lifecycle, sustained memory or
 the remaining platform gates. Version 0.0.3's APK and host rendering checks also pass. See
 [the build evidence](builds/0.0.3-android-vulkan.md) and [the probe](ANDROID_PROBE.md).
-<!-- CodexAstraUlt: Record the validated 0.0.4 owner report and verified 0.0.5
-publication separately from its still-unperformed Thor runtime qualification. -->
+<!-- CodexAstraUlt: Advance the bounded runtime with the validated Thor report
+and keep upcoming interactive-device work distinct from automated evidence. -->
 Version 0.0.4 implements bounded subsets of DDS-004/005/010: eight CPU cases,
 code-origin/changed-code/write-protection controls, full-renderer capability
 queries and a representative Vulkan backend pipeline fixture. The owner's
@@ -42,9 +42,23 @@ resource-limit events. All required source-bound host and CI gates pass; the
 [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
 is published and its public downloads are verified after
 [run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818).
-The owner's actual 0.0.5 Thor execution remains pending. Obtain that report and
-address any failures before progressing to 0.0.6 visible original homebrew and
-lifecycle work. No retail title is qualified by this public fixture.
+The owner's [0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) now passes
+three actual guest routes, five memory layouts and runtime code guards. The
+hardware route uses CPU vertex shading and static-state Vulkan rasterization
+without software raster fallback. No retail title is qualified by this fixture.
+
+<!-- CodexAstraUlt: Scope the new DDS-012 work to original guest interaction and
+retain explicit pending build/publication and manual-device acceptance gates. -->
+[0.0.6](builds/0.0.6-interactive-homebrew.md) develops bounded DDS-012 integration:
+an original NCCH guest uses HID/GSP/DSP HLE, three automatic routes compare images
+and PCM, and an Android frontend presents 400×240/320×240 readbacks with
+Bitmap/Canvas, D-pad/A/touch input and resampled guest audio. A single session
+thread owns runtime pause/resume and exit. Both guest views share one Android
+display; physical dual-display output is not included. All 0.0.5 regressions
+remain required, with the package expanded to twelve native libraries.
+Build verification, publication and the Thor manual test are pending. Observed
+images, controls/touch, audible audio, lifecycle recovery and normal exit must
+pass before 0.0.7 promotion; an automatic probe pass alone is insufficient.
 
 The [New 3DS audit](NEW3DS_AUDIT.md) now leads to implemented loader/header,
 physical-region, commitment-limit and configuration/service corrections with
@@ -116,12 +130,12 @@ Version **0.0.5** ships the bounded
 [New 3DS integration work](builds/0.0.5-runtime-integration.md): corrected header
 bits, physical regions and title commitment limits resolved before construction,
 matching configuration/model data, allocation-boundary and reserved-mapping
-checks, and restore preflight. Host/CI and publication gates pass; obtain and
-validate the actual Thor report before promoting this Android runtime milestone.
-Scheduling, clocks/audio,
+checks, and restore preflight. Host/CI, publication and five bounded memory-layout
+cases in the owner's 0.0.5 Thor report pass. Scheduling, clocks/audio,
 remaining services and general module lifecycle need their own cases. Xenoblade's
 private header/boot baseline remains necessary; neither the public fixture nor
-the passing Thor 0.0.4 probe establishes title compatibility.
+the passing Thor fixture reports establish title compatibility. The 0.0.6 DSP
+HLE tone exercises a narrow audio path, not DSP firmware or complete title audio.
 
 ## Work to defer until evidence supports it
 

@@ -253,6 +253,155 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
             self.prepare(tag="v0.0.5-probe.1")
 
+    # CodexAstraUlt: The visible .6 guest is an additional original library;
+    # its evidence must not replace any earlier runtime regression or provenance.
+    def homebrew_build(self):
+        self.runtime_build()
+        self.contents["AndroidManifest.xml"] = FIXTURE.binary_manifest(
+            test_only=False, version_name="0.0.6", version_code=6)
+        self.report["manifest"].update(version_name="0.0.6", version_code=6)
+        name = "libdroidds_fixture_homebrew.so"
+        data = b"original-homebrew-test-library"
+        self.contents["lib/arm64-v8a/" + name] = data
+        self.elf[name] = {"machine": "AArch64", "text_relocations": False,
+                          "sha256": RELEASE.digest(data)}
+        self.report["homebrew_fixture"] = {
+            "manifest": {"schema": 1, "kind": "droidds-homebrew-fixture-sources",
+                "fixture": "droidds-original-homebrew-v1", "library": name,
+                "abi": 4, "generation": 3, "native_text_bytes": 3152,
+                "fallback_entry": 0x101FF0, "sources": ["code000.c", "entries.c"]},
+            "inputs_sha256": {item: "e" * 64 for item in (
+                "code000.c", "entries.c", "functions.h", "recomp.h", "homebrew-fixture.cxi")},
+            "library_sha256": self.elf[name]["sha256"],
+        }
+        self.save()
+
+    def test_homebrew_release_requires_twelve_libraries_and_both_runtime_contracts(self):
+        self.homebrew_build()
+        self.prepare(tag="v0.0.6-probe.1")
+        RELEASE.verify_bundle(self.out, "v0.0.6-probe.1", COMMIT)
+        public = json.loads((self.out / "BUILD_REPORT.json").read_text())
+        self.assertEqual(len(public["elf"]), 12)
+        self.assertEqual(public["apk_manifest"]["version_code"], 6)
+        self.assertEqual(len(list(self.out.iterdir())), 4)
+        self.assertIn("interactive homebrew", public["scope"])
+        for field in ("runtime_fixture", "runtime_shaders", "runtime_symbols", "homebrew_fixture"):
+            self.assertEqual(public[field], self.report[field])
+
+    def homebrew_metadata_mutations(self):
+        """CodexAstraUlt: Reject stale identities, private fields and malformed measurements."""
+        yield from self.runtime_metadata_mutations()
+        yield ("homebrew_fixture",), None
+        for field in ("manifest", "inputs_sha256", "library_sha256"):
+            yield ("homebrew_fixture", field), None
+        for location in (("homebrew_fixture",), ("homebrew_fixture", "manifest"),
+                         ("homebrew_fixture", "inputs_sha256")):
+            yield location + ("private_path",), "/private/must-not-publish"
+        for field, value in (("schema", True), ("kind", "droidds-runtime-fixture-sources"),
+                             ("fixture", "private-game"), ("library", "libdroidds_fixture_runtime.so"),
+                             ("abi", 3), ("generation", 2), ("fallback_entry", 0x100800),
+                             ("sources", ["../private.c", "entries.c"]),
+                             ("sources", ["code000.c", "entries.c", "unreviewed.c"])):
+            yield ("homebrew_fixture", "manifest", field), value
+        for value in (True, 0, -4, 3152.0, "3152", 3, 3156, 0x1FF0, 0x2000):
+            yield ("homebrew_fixture", "manifest", "native_text_bytes"), value
+        for name in ("code000.c", "entries.c", "functions.h", "recomp.h", "homebrew-fixture.cxi"):
+            yield ("homebrew_fixture", "inputs_sha256", name), None
+        for value in (True, 0, "A" * 64, "private bytes", "0" * 63):
+            yield ("homebrew_fixture", "inputs_sha256", "homebrew-fixture.cxi"), value
+            yield ("homebrew_fixture", "library_sha256"), value
+        yield ("homebrew_fixture", "library_sha256"), "0" * 64
+        yield ("homebrew_fixture", "inputs_sha256", "runtime-fixture.cxi"), "c" * 64
+
+    def test_homebrew_preparation_rejects_bad_new_and_legacy_evidence(self):
+        self.homebrew_build()
+        original = copy.deepcopy(self.report)
+        for path, value in self.homebrew_metadata_mutations():
+            self.report = copy.deepcopy(original)
+            self.mutate_runtime_metadata(self.report, path, value)
+            self.save()
+            with self.subTest(path=path, value=value), self.assertRaises(ValueError):
+                self.prepare(tag="v0.0.6-probe.1")
+            self.assertFalse(self.out.exists())
+
+    def rewrite_bundle_checksums(self):
+        """CodexAstraUlt: Rebound outer hashes expose deeper semantic verification."""
+        names = sorted(item.name for item in self.out.iterdir() if item.name != "SHA256SUMS")
+        (self.out / "SHA256SUMS").write_text("".join(
+            RELEASE.digest((self.out / name).read_bytes()) + "  " + name + "\n" for name in names))
+
+    def test_downloaded_homebrew_bundle_rechecks_both_nested_contracts(self):
+        self.homebrew_build()
+        tag = "v0.0.6-probe.1"
+        self.prepare(tag=tag)
+        path = self.out / "BUILD_REPORT.json"
+        original = json.loads(path.read_text())
+        for location, value in self.homebrew_metadata_mutations():
+            changed = copy.deepcopy(original)
+            self.mutate_runtime_metadata(changed, location, value)
+            path.write_text(json.dumps(changed))
+            self.rewrite_bundle_checksums()
+            with self.subTest(path=location, value=value), self.assertRaises(ValueError):
+                RELEASE.verify_bundle(self.out, tag, COMMIT)
+
+    def test_homebrew_release_rejects_missing_and_unreviewed_executables(self):
+        self.homebrew_build()
+        original_contents = dict(self.contents)
+        original_elf = dict(self.elf)
+        for name in ("libdroidds_fixture_runtime.so", "libdroidds_fixture_homebrew.so"):
+            del self.contents["lib/arm64-v8a/" + name]
+            del self.elf[name]
+            self.save()
+            with self.subTest(missing=name), self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
+                self.prepare(tag="v0.0.6-probe.1")
+            self.contents = dict(original_contents)
+            self.elf.update(original_elf)
+        name = "libunreviewed.so"
+        self.contents["lib/arm64-v8a/" + name] = b"private executable"
+        self.elf[name] = {"machine": "AArch64", "text_relocations": False,
+                          "sha256": RELEASE.digest(self.contents["lib/arm64-v8a/" + name])}
+        self.save()
+        with self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
+            self.prepare(tag="v0.0.6-probe.1")
+
+    def test_homebrew_library_hash_is_bound_to_actual_apk_in_both_stages(self):
+        self.homebrew_build()
+        key = "lib/arm64-v8a/libdroidds_fixture_homebrew.so"
+        original = self.contents[key]
+        self.contents[key] += b"tampered executable"
+        self.save()
+        with self.assertRaisesRegex(ValueError, "audited binary"):
+            self.prepare(tag="v0.0.6-probe.1")
+        self.contents[key] = original
+        self.save()
+        self.prepare(tag="v0.0.6-probe.1")
+        # CodexAstraUlt: Change the downloaded APK and every outer digest while
+        # retaining its audited ELF identity; metadata-only checks must not pass.
+        apk = self.out / "DroidDS-0.0.6-android-arm64.apk"
+        with zipfile.ZipFile(apk) as archive:
+            contents = {name: archive.read(name) for name in archive.namelist()}
+        contents[key] += b"tampered executable"
+        with zipfile.ZipFile(apk, "w") as archive:
+            for name, data in contents.items():
+                archive.writestr(name, data)
+        path = self.out / "BUILD_REPORT.json"
+        report = json.loads(path.read_text())
+        report["apk_sha256"] = RELEASE.digest(apk.read_bytes())
+        report["apk_bytes"] = apk.stat().st_size
+        path.write_text(json.dumps(report))
+        self.rewrite_bundle_checksums()
+        with self.assertRaisesRegex(ValueError, "audited binary"):
+            RELEASE.verify_bundle(self.out, "v0.0.6-probe.1", COMMIT)
+
+    def test_homebrew_library_cannot_be_published_as_the_historical_runtime_release(self):
+        self.homebrew_build()
+        self.contents["AndroidManifest.xml"] = FIXTURE.binary_manifest(
+            test_only=False, version_name="0.0.5", version_code=5)
+        self.report["manifest"].update(version_name="0.0.5", version_code=5)
+        self.save()
+        with self.assertRaisesRegex(ValueError, "known ARM64 libraries"):
+            self.prepare(tag="v0.0.5-probe.1")
+
     def test_historical_version_cannot_contain_new_fixture_libraries(self):
         self.current_build()
         self.contents["AndroidManifest.xml"] = FIXTURE.binary_manifest(test_only=False)

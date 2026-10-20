@@ -10,8 +10,8 @@ the application allocation. These are integration blockers, not evidence that
 Xenoblade was run or that a particular game crashed. **0.0.4 does not yet include
 the full loader, HLE kernel or these fixes in its Android APK.**
 
-<!-- CodexAstraUlt: Preserve the original audit as historical evidence while
-recording verified publication separately from unperformed device/retail tests. -->
+<!-- CodexAstraUlt: Preserve the upstream audit while recording corrected
+device layouts separately from unperformed New 3DS retail-title execution. -->
 **Current integration update:** the published
 [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
 includes the parser, resolved memory, configuration and commitment corrections
@@ -20,8 +20,11 @@ below, with real loader/kernel regressions. All required host/CI gates pass in
 and public downloads are verified; see the
 [build record](builds/0.0.5-runtime-integration.md) and
 [0.0.5 integration corrections](#005-integration-corrections).
-The Thor 0.0.5 report remains pending; Xenoblade has not been run. The original
-audit still describes the unchanged upstream revision.
+The [owner's 0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) now passes five
+actual loader/memory cases, including New 3DS legacy-64, 124 and 178 MiB modes.
+Xenoblade has not been run. The original audit still describes the unchanged
+upstream revision. Version 0.0.6 develops original interactive homebrew while
+retaining these regressions; its build and device qualification remain pending.
 
 The existing New 3DS model selection, 256 MiB physical RAM, model-reporting
 services and extra input service provide useful foundations. We should correct
@@ -299,10 +302,18 @@ cargo test --locked -p zakuro-core --test droidds_memory_layout -- --test-thread
 ```
 
 The integrated runtime report also executes original New/Old NCCH variants and
-checks actual memory boundaries and guest completion. Its Android result is a
-separate pending gate. These tests establish the corrected bounded contracts,
+checks actual memory boundaries and guest completion. The owner's 0.0.5 Android
+report passes all five cases, including the New 3DS legacy distinction between
+124 MiB physical application memory and a 64 MiB commitment limit. Boundary
+rejection, free/recovery, Base allocation and guest exit pass. These tests establish
+the corrected bounded contracts,
 not broad state-file hardening, long-run fragmentation/leak freedom, full
 multi-core scheduling, CRO lifecycle or Xenoblade boot. No private retail inputs
 are available in this environment; all primary-title baselines remain open.
-The next step is the actual Thor 0.0.5 runtime report, then 0.0.6 visible original
-guest and lifecycle work after its required checks pass.
+<!-- CodexAstraUlt: Carry the proven memory subset into interactive work without
+using one original HID/DSP guest to close scheduler or retail compatibility. -->
+The next step is 0.0.6 visible original guest and lifecycle qualification, with
+all existing layout regressions retained. Its HID and DSP HLE interactions and
+audio-rate conversion are bounded fixture work, not proof of New 3DS timing,
+DSP firmware compatibility or Xenoblade audio. Automatic output must be followed
+by the Thor manual screen/input/audio/lifecycle gate before 0.0.7 promotion.

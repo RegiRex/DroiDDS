@@ -752,9 +752,9 @@ class GraphicsReportTests(unittest.TestCase):
 
     def test_unknown_version_does_not_silently_reuse_historical_cpu_only_contract(self):
         changed = report()
-        changed["version"] = "0.0.6"
-        changed["android_shell"].update(app_version_name="0.0.6", app_version_code=6)
-        manifest = dict(MANIFEST, version_name="0.0.6", version_code=6)
+        changed["version"] = "0.0.7"
+        changed["android_shell"].update(app_version_name="0.0.7", app_version_code=7)
+        manifest = dict(MANIFEST, version_name="0.0.7", version_code=7)
         with self.assertRaisesRegex(ValueError, "Unsupported Android probe report version"):
             RUNNER.validate_report(changed, REQUEST, manifest)
 
@@ -971,7 +971,7 @@ class CurrentReportTests(unittest.TestCase):
         current["arm_tiny_budget_progress"]["native_calls"] = 99
         self.assertEqual(RUNNER.cases_for_version("0.0.4")["arm_tiny_budget_progress"]["native_calls"], 2)
         with self.assertRaisesRegex(ValueError, "Unsupported Android probe"):
-            RUNNER.cases_for_version("0.0.6")
+            RUNNER.cases_for_version("0.0.7")
 
     def test_missing_failed_or_unreviewed_code_policy_does_not_pass(self):
         value, _ = current_report()
@@ -1213,7 +1213,7 @@ class DeviceContractTests(unittest.TestCase):
             self.assertEqual(adb.commands[-1], ("stop-after-run", ["am", "force-stop", RUNNER.PACKAGE]))
             read = next(words for name, words in adb.commands if name == "read-report")
             self.assertEqual(read, ["run-as", RUNNER.PACKAGE, "head", "-c",
-                                    str(1024 * 1024 + 64 * 1024 + 256 * 1024 + 16 * 1024 + 1),
+                                    str(1024 * 1024 + 64 * 1024 + 3 * 256 * 1024 + 16 * 1024 + 1),
                                     RUNNER.REPORT_PATH])
 
     def test_apk_hash_mismatch_prevents_launch(self):

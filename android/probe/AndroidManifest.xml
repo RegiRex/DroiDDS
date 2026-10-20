@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- CodexAstraUlt: Version 0.0.5 integrates original guest execution through
-     the actual loader, services and PICA renderer. Reports use a user-selected document URI;
+<!-- CodexAstraUlt: Version 0.0.6 presents original guest screens, input and audio
+     through the actual runtime. Reports use a user-selected document URI;
      no network, broad storage or vendor-service permission is required. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.droidds.probe"
-    android:versionCode="5"
-    android:versionName="0.0.5">
+    android:versionCode="6"
+    android:versionName="0.0.6">
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
     <!-- CodexAstraUlt: Extraction makes installer-owned nativeLibraryDir the
          explicit loader input. Debuggable permits adb run-as to read one private report. -->
@@ -17,6 +17,10 @@
         android:extractNativeLibs="true"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <!-- CodexAstraUlt: Only the app can open the trusted original guest;
+             external intents cannot select native libraries or private paths. -->
+        <activity android:name=".HomebrewActivity" android:exported="false"
+            android:enableOnBackInvokedCallback="false" />
         <activity android:name=".ProbeActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

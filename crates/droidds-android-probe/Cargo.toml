@@ -3,7 +3,7 @@
 [package]
 name = "droidds-android-probe"
 # CodexAstraUlt: Keep the CPU report version aligned with its Vulkan-capable shell.
-version = "0.0.5"
+version = "0.0.6"
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true

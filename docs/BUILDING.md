@@ -150,16 +150,44 @@ fallbacks are tested, but total GPU/driver bytes, sustained memory recovery and
 zero-stall cold gameplay remain open. Private Dark Moon, Xenoblade and Sonic
 baselines require their exact local inputs, which are absent here.
 
-<!-- CodexAstraUlt: Link completed publication evidence separately from the
-physical-device qualification that a successful host build cannot establish. -->
+<!-- CodexAstraUlt: Link completed publication and the bounded uploaded device
+result without substituting host execution for later interactive testing. -->
 The [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
 is published, all required host/CI gates pass in
 [run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
 and public downloads are verified. Exact results are in the
-[build record](builds/0.0.5-runtime-integration.md). The actual Thor 0.0.5 report
-remains pending; running this host gate alone cannot establish it or retail
-qualification. Obtain that report, address any failures, then proceed to the
-0.0.6 visible original-guest and lifecycle milestone.
+[build record](builds/0.0.5-runtime-integration.md). The owner's
+[0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) now passes the runtime,
+memory and code-guard contract. It uses CPU vertex shading and Vulkan
+rasterization. The manual upload does not independently bind the installed APK;
+neither host nor device fixture success establishes retail qualification.
+
+## 0.0.6 interactive homebrew work
+
+<!-- CodexAstraUlt: Document the extended existing runner and its output while
+leaving exact build results to the coordinator's completed execution record. -->
+
+Version 0.0.6 extends the same runtime host command above. It generates the
+original `droidds-original-homebrew-v1` NCCH guest and
+`libdroidds_fixture_homebrew.so`, then checks interpreter/software,
+native/software and native/Vulkan execution. HID input must affect guest images
+and DSP HLE PCM; pixel/sample mutation controls, pause/resume and actual guest
+exit remain required. The existing CPU, Vulkan, runtime and memory-layout gates
+are retained. `homebrew-report.json` records the additional automatic guest
+evidence, separately from `runtime-report.json`; the source-bound
+`build-report.json` covers both.
+
+The Android builder in [Android instructions](ANDROID_PROBE.md) packages exactly
+twelve ARM64 libraries, including the new generated homebrew library. Its manual
+frontend presents readback pixels with Bitmap/Canvas and resamples guest PCM for
+Android playback. Compiling that frontend does not establish visible images,
+audible audio, input or lifecycle behavior on the Thor.
+
+Implementation is in progress. Final host/package/CI results, published assets
+and the Thor interactive test are **pending** in the
+[0.0.6 build record](builds/0.0.6-interactive-homebrew.md). Use fresh output
+directories and exact recorded commands; do not infer test counts, source hashes
+or successful publication from this planned gate.
 
 ## This prepared cloud workspace
 

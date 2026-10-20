@@ -28,6 +28,7 @@ public final class ProbeActivity extends Activity implements ProbeController.Obs
     private TextView exportStatus;
     private Button run;
     private Button save;
+    private Button homebrew;
     private String exportToken;
     private int exportRequest = -1;
 
@@ -76,6 +77,21 @@ public final class ProbeActivity extends Activity implements ProbeController.Obs
         run.setText("Run again");
         run.setOnClickListener(view -> controller.runAgain());
         content.addView(run);
+        // CodexAstraUlt: The visible guest has its own lifecycle and manual
+        // observations. It cannot overlap automated work or a pinned export.
+        homebrew = new Button(this);
+        homebrew.setText("Test original homebrew");
+        homebrew.setEnabled(false);
+        homebrew.setOnClickListener(view -> {
+            String token = controller.beginHomebrew();
+            if (token == null) return;
+            try {
+                startActivity(new Intent(this, HomebrewActivity.class).putExtra("session_id", token));
+            } catch (ActivityNotFoundException | SecurityException failure) {
+                HomebrewController.get(getApplicationContext()).stop(token, "activity_launch_failed");
+            }
+        });
+        content.addView(homebrew);
         save = new Button(this);
         save.setText("Save report");
         save.setEnabled(false);
@@ -191,6 +207,7 @@ public final class ProbeActivity extends Activity implements ProbeController.Obs
         details.setText(snapshot.details);
         run.setEnabled(!snapshot.running);
         save.setEnabled(snapshot.canExport);
+        homebrew.setEnabled(snapshot.canHomebrew);
         exportStatus.setText(snapshot.exportStatus);
     }
 }

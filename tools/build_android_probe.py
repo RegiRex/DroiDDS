@@ -30,9 +30,12 @@ TARGET = "aarch64-linux-android"
 PACKAGE = "org.droidds.probe"
 # CodexAstraUlt: Build exactly the current report contract's fixture inventory;
 # historical report validation retains its separate four-case requirements.
-CASES = set(cases_for_version("0.0.5"))
+CASES = set(cases_for_version("0.0.6"))
 RUNTIME_LIBRARY = "libdroidds_fixture_runtime.so"
-PACKAGED_LIBRARIES = {"libdroidds_android_probe.so", "libdroidds_probe_jni.so", RUNTIME_LIBRARY} | {
+# CodexAstraUlt: The visible original guest is additional to the earlier runtime
+# fixture; exactly twelve installer-owned libraries are permitted in this build.
+HOMEBREW_LIBRARY = "libdroidds_fixture_homebrew.so"
+PACKAGED_LIBRARIES = {"libdroidds_android_probe.so", "libdroidds_probe_jni.so", RUNTIME_LIBRARY, HOMEBREW_LIBRARY} | {
     "libdds_fixture_" + name + ".so" for name in CASES}
 
 
@@ -61,10 +64,10 @@ def validate_target_dependencies(tree: str) -> dict:
             "desktop_frontend": False, "host_compiler": False, "pica_cpu_jit": False}
 
 
-def runtime_fixture_sources(manifest: dict, directory: Path) -> tuple[list[Path], dict]:
+def runtime_fixture_sources(manifest: dict, directory: Path, *, homebrew: bool = False) -> tuple[list[Path], dict]:
     """CodexAstraUlt: Reuse the host emission gate and bind all generated inputs."""
-    sources = generated_sources(manifest, directory)
-    if manifest["library"] != RUNTIME_LIBRARY:
+    sources = generated_sources(manifest, directory, homebrew=homebrew)
+    if manifest["library"] != (HOMEBREW_LIBRARY if homebrew else RUNTIME_LIBRARY):
         raise ValueError("Runtime fixture library differs from the Android inventory")
     artifacts = {}
     for path in sorted(directory.iterdir()):
@@ -81,7 +84,7 @@ def runtime_fixture_sources(manifest: dict, directory: Path) -> tuple[list[Path]
 
 
 def validate_packaged_libraries(packaged: set[str]) -> None:
-    """CodexAstraUlt: A successful build includes exactly all eleven known libraries."""
+    """CodexAstraUlt: A successful build includes exactly all twelve known libraries."""
     if packaged != PACKAGED_LIBRARIES:
         raise ValueError("Android package does not contain exactly the CPU/runtime fixture inventory")
 
@@ -229,6 +232,12 @@ def main() -> int:
             raise RuntimeError(f"Pinned Rust 1.95.0 is required; observed {report['rustc']!r}")
         report["clang"] = run("clang-version", [cc, "--version"]).splitlines()[0]
         report["java"] = run("java-version", [java / "bin/java", "-version"]).strip()
+        # CodexAstraUlt: Test actual streaming resampling and screen-coordinate
+        # mapping on the host JVM. This does not claim Android audio/lifecycle
+        # execution; it catches math regressions before building that frontend.
+        report["java_homebrew_logic"] = json.loads(run("java-homebrew-logic", [
+            sys.executable, ROOT / "tools/check_java_homebrew.py", "--java-home", java,
+            "--output", out / "java-homebrew-logic"], json_stdout=True))
         metadata = json.loads(run("metadata", ["cargo", "metadata", "--locked", "--format-version", "1"],
                                   json_stdout=True))
         pins = tomllib.loads((ROOT / "upstream.lock.toml").read_text())
@@ -285,6 +294,18 @@ def main() -> int:
             "-Wl,-soname," + RUNTIME_LIBRARY, "-I", runtime_generated, *runtime_sources,
             "-o", libs / RUNTIME_LIBRARY, "-lm"])
         report["runtime_fixture"]["library_sha256"] = sha256(libs / RUNTIME_LIBRARY)
+        # CodexAstraUlt: Compile the separate original interactive NCCH's native
+        # code, preserving the .5 guest's exact bytes and independent evidence.
+        homebrew_generated = out / "homebrew-generated"
+        homebrew_manifest = json.loads(run("emit-homebrew-fixture", [
+            ROOT / "target/release/droidds-runtime-probe", "emit-homebrew", "--output", homebrew_generated],
+            json_stdout=True))
+        homebrew_sources, report["homebrew_fixture"] = runtime_fixture_sources(
+            homebrew_manifest, homebrew_generated, homebrew=True)
+        run("compile-homebrew-fixture", [cc, *c_flags, *link_flags,
+            "-Wl,-soname," + HOMEBREW_LIBRARY, "-I", homebrew_generated, *homebrew_sources,
+            "-o", libs / HOMEBREW_LIBRARY, "-lm"])
+        report["homebrew_fixture"]["library_sha256"] = sha256(libs / HOMEBREW_LIBRARY)
         cross_env = {"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER": str(cc),
                      "CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS":
                      "-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"}
@@ -315,6 +336,7 @@ def main() -> int:
         report["runtime_shaders"] = validate_runtime_shaders(ndk, out / "runtime-shaders", run)
         run("jni-bridge", [cc, *c_flags, *link_flags, "-std=c11", "-Wall", "-Wextra", "-Werror",
             "-Wl,-soname,libdroidds_probe_jni.so", ROOT / "android/probe/jni/probe_jni.c",
+            ROOT / "android/probe/jni/homebrew_jni.c",
             ROOT / "android/probe/jni/vulkan_probe.c", ROOT / "android/probe/jni/vulkan_renderer.c",
             "-I", out / "shaders",
             "-L", libs, "-ldroidds_android_probe", "-lvulkan", "-o", libs / "libdroidds_probe_jni.so"])

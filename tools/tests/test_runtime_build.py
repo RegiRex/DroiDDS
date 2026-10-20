@@ -131,6 +131,19 @@ class GeneratedFixtureTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "NCCH fixture"):
             build.generated_sources(self.manifest, self.directory)
 
+    # CodexAstraUlt: A stale .5 source manifest/container cannot accidentally
+    # satisfy the new interactive guest gate, even when its C paths are valid.
+    def test_homebrew_requires_distinct_identity_and_container(self):
+        with self.assertRaisesRegex(ValueError, "identity mismatch"):
+            build.generated_sources(self.manifest, self.directory, homebrew=True)
+        manifest = {**self.manifest, "kind": "droidds-homebrew-fixture-sources",
+                    "fixture": "droidds-original-homebrew-v1", "library": "libdroidds_fixture_homebrew.so"}
+        with self.assertRaisesRegex(ValueError, "NCCH fixture"):
+            build.generated_sources(manifest, self.directory, homebrew=True)
+        (self.directory / "runtime-fixture.cxi").rename(self.directory / "homebrew-fixture.cxi")
+        self.assertEqual(build.generated_sources(manifest, self.directory, homebrew=True),
+                         [self.directory / "original.c"])
+
 
 class StaticRuntimePathTests(unittest.TestCase):
     """CodexAstraUlt: Forcing an environment variable is not proof of the actual selected path."""
