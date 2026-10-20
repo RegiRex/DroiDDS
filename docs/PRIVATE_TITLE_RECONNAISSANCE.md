@@ -8,8 +8,9 @@ renderer. It uses the new `droidds-private-title` host worker. The purpose is to
 find the first reproducible loader, CPU or service blocker in an actual title,
 starting with Luigi's Mansion: Dark Moon. No private-title baseline has yet been
 established by this work. This does not generate native title code, produce a
-0.0.7 APK or measure Thor performance. The remaining Android observations in
-[the corrected 0.0.6 report](device-tests/0.0.6-correction2-thor.md) stay separate.
+0.0.7 APK or measure Thor performance. The combined Android evidence, including
+the owner's steady-tone confirmation, is recorded in
+[the corrected 0.0.6 report](device-tests/0.0.6-correction2-thor.md).
 
 ## Run it in the existing local Codex session
 

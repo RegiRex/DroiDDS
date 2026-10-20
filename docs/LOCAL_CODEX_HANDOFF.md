@@ -11,28 +11,30 @@ All required host/CI gates pass in
 [run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
 and public downloads are verified. **0.0.6 interactive homebrew is implemented
 and published. Local/main/tag CI gates and independent public-download
-verification pass; manual Thor qualification remains pending. No
-retail title is qualified.** Read [build instructions](BUILDING.md),
+verification pass; combined Thor evidence now supports the next development
+stage. No retail title is qualified.** Read [build instructions](BUILDING.md),
 [0.0.6 scope](builds/0.0.6-interactive-homebrew.md) and
 [Android probe instructions](ANDROID_PROBE.md) for the current gate and artifact.
 The existing Nobara laptop and USB-connected Thor can host the private
 development/test loop once their current readiness is checked. This cloud chat
 does not share a live session, device connection or private files with local Codex.
 
-<!-- CodexAstraUlt: Replace the pending touch/recreation retest with measured
-correction evidence, retaining missing A and unresolved sound-quality evidence. -->
+<!-- CodexAstraUlt: Carry forward the owner's steady-tone confirmation with
+corrected device evidence, preserving the standalone missing-A qualification. -->
 The [0.0.6 correction 2 report](device-tests/0.0.6-correction2-thor.md), reviewed
 2026-10-20, now passes every automatic check and records both views, audible
 sound, 42 guest-consumed touch frames, six view replacements and pause/resume.
 The standalone manual qualifier remains pending because A was not consumed in
-this run; unchanged-path historical evidence is recorded separately. Eleven
-audio underruns remain under quality review, with the tester's audible-continuity
-observation pending. Do not rewrite these gaps as a fresh passing observation.
+this run; unchanged-path historical evidence is recorded separately. The owner
+confirmed on 2026-10-20 that the tone “Sounded steady” between intentional pauses.
+This closes audible quality for this run; the eleven underruns remain recorded.
+Combined evidence supports 0.0.7 development without a new full .6 replay. Do not
+rewrite the latest JSON as a fresh A-button or zero-underrun observation.
 The [verified correction](builds/0.0.6-frontend-correction.md) remains version
 0.0.6 / install code 7. No private title or 0.0.7 APK is qualified.
 
 <!-- CodexAstraUlt: A bounded local host baseline can expose the next real-title
-blocker independently of finishing the Android manual observation. -->
+blocker after the combined Android evidence supports the next stage. -->
 The immediate development task is [private title reconnaissance](PRIVATE_TITLE_RECONNAISSANCE.md)
 on the owner's Nobara laptop. The implemented host worker uses the interpreter
 and software renderer in a fresh isolated run, without loading existing saves,
@@ -66,20 +68,21 @@ asymmetric 8×8 image. This is bounded public-fixture evidence, not retail suppo
 or complete PICA coverage. The actual Thor result uses CPU vertex shading with
 Vulkan rasterization; retain that distinction in future reports.
 
-<!-- CodexAstraUlt: Carry the corrected device result forward without asking
-for unrelated replay or closing remaining manual and private-title gates. -->
+<!-- CodexAstraUlt: Carry combined device evidence forward without asking for
+unrelated replay or claiming the separate private-title gate has passed. -->
 The 0.0.6 local/main/tag CI gates and public-download verification pass.
 The [published correction](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2)
 now has the device evidence summarized above. Keep its 400×240 and 320×240
 Bitmap/Canvas views on one Android display distinct from physical dual-display
 support. Guest PICA rasterization uses Vulkan; guest PCM is resampled from
 32728.498046875 Hz to 48000 Hz, without qualifying DSP firmware.
-Retain the unresolved observation and control-attribution limits. A targeted
-follow-up can account for them; do not require another full earlier-version
-replay without a relevant change. Record installed artifact identity where ADB
+Retain the steady-tone observation and the control-attribution limits. No new
+full .6 replay is needed solely for the closed audio question or omitted A.
+Record installed artifact identity where ADB
 is available and preserve failed/partial reports. The bounded host
-reconnaissance below may proceed independently, but neither it nor automatic
-image/PCM success completes the Android manual or 0.0.7 private-boot gate.
+reconnaissance below is the next local step. The combined .6 evidence is enough
+to proceed; neither it nor a host diagnostic outcome completes the 0.0.7
+private-boot gate.
 Continue necessary fixes and the next qualified build through 0.1.0 under the
 owner's standing instruction. Do not execute all archive prompts or claim a
 background device/session bridge. No cloud game upload is needed.
@@ -171,8 +174,8 @@ its filesystem knowledge and avoiding unnecessary manual command transcription. 
 > next concrete fix; keep raw inputs, snapshots and private runtime data local.
 > Run other selected titles separately only when their local paths are authorized.
 > This is host reconnaissance, not a 0.0.7 APK or native-performance result.
-> Continue independent implementation work while preserving the remaining
-> Android audio-quality/control evidence and private-boot gates. Use
+> Continue independent implementation work while preserving the recorded
+> Android audio/control evidence and the unperformed private-boot gates. Use
 > CodexAstraUlt comments and stop only for missing input or a concrete blocker.
 
 The owner can paste this task into local Codex; they do not need to transcribe

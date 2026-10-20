@@ -4,8 +4,9 @@
 contracts without treating planning or public fixtures as private-title proof. -->
 
 Design prepared **2026-10-20** (America/New_York). This is implementation planning,
-not a completed 0.0.7 build or acceptance result. Promotion remains blocked on the
-[0.0.6 interactive gate](device-tests/0.0.6-thor-homebrew.md). The intended result
+not a completed 0.0.7 build or acceptance result. The
+[combined 0.0.6 evidence](device-tests/0.0.6-correction2-thor.md), including the
+owner's steady-tone confirmation, now supports this development. The intended result
 is a reproducible, locally signed APK that boots one exact owned title into an
 interactive menu or identified opening scene on the Thor. It does not establish
 sustained playability, Dark Moon correctness or universal ROM loading.
@@ -149,7 +150,7 @@ the latter needs its New 3DS configuration and service/scheduler path checked.
 Select the first control title from actual host boot evidence. Another title's
 success cannot clear a Dark Moon blocker or imply New 3DS compatibility.
 
-When the 0.0.6 gate passes, local Codex needs the current DroidDS checkout/commit
+For the next private baseline, local Codex needs the current DroidDS checkout/commit
 and local changes; authorized local paths to the exact decrypted title inputs
 and any separate updates; title/region/revision metadata derived locally; the
 available Linux toolchain, disk space and memory; the owner-local signing

@@ -18,8 +18,8 @@ vertex shading and static-state Vulkan rasterization with no software raster
 fallback. The uploaded JSON does not independently verify the installed APK.
 
 **[0.0.6 correction 2 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2); local/main/tag CI gates pass and its four
-public assets are independently verified. Thor interactive qualification
-remains pending.** It retains every
+public assets are independently verified. Combined Thor evidence now supports
+progression into 0.0.7 development.** It retains every
 previous gate and adds an original interactive NCCH guest, automatic image/PCM
 checks, and an Android screen/input/audio frontend. No retail game or 3DSX loader
 is included. Automatic success alone cannot qualify visible or audible output.
@@ -30,7 +30,13 @@ The [first 0.0.6 Thor report](device-tests/0.0.6-thor-homebrew.md) now passes al
 automatic gates. The owner confirms both guest views were visible on the top
 physical display. The report records 197 audio underruns, zero guest-consumed
 touch and no view recreation. The [0.0.6 correction](builds/0.0.6-frontend-correction.md)
-addresses pacing and test clarity; its focused device gate is still required.
+addresses pacing and test clarity. The [corrected result](device-tests/0.0.6-correction2-thor.md)
+now records 42 guest-consumed touch frames and six view replacements. On
+2026-10-20 the owner confirmed the tone “Sounded steady” between intentional
+pauses, closing the audible-quality observation for that run. Eleven underruns
+remain recorded. Historical unchanged-path A evidence is retained separately;
+the latest JSON's standalone qualifier still lacks A. This combined evidence
+supports the next development stage without another full .6 replay.
 
 The [owner-supplied 0.0.2 Thor report](device-tests/0.0.2-thor-cpu.md) passes all
 four CPU cases and both corruption controls on reported Android ARM64 with 4 KiB
@@ -53,7 +59,8 @@ the public APK, `BUILD_REPORT.json`, `SHA256SUMS` and
 `THIRD_PARTY_NOTICES.txt` are independently verified. See the
 [correction/release record](builds/0.0.6-frontend-correction.md) for source,
 signature, alignment and download evidence. The 0.0.5 Thor runtime report
-passes; the new 0.0.6 interactive test below remains pending. The app
+passes; the combined 0.0.6 evidence is summarized above. The test below remains
+the procedure for future relevant regressions, not a new replay request. The app
 requires ARM64 Android 10/API 29 or newer. Passing the new graphics checks also
 requires the Vulkan 1.3 features listed below; a reported API version alone is
 insufficient. Unsupported capabilities are recorded as a failed qualification,
@@ -399,11 +406,12 @@ the ADB runner supplies the external deadline. This is not a native sandbox.
 <!-- CodexAstraUlt: Retain full renderer, lifecycle, memory and game acceptance
 criteria beyond the bounded CPU and offscreen output fixture. -->
 
-The owner's 0.0.5 report qualifies its bounded actual-runtime scope. The next
-device gate is 0.0.6's **automatic checks plus manual visible/input/audio/lifecycle
-observations**, required before 0.0.7 promotion. Local/main/tag CI gates and
-public-download verification pass; the new frontend's Thor result remains
-pending. Android picker and
+The owner's 0.0.5 report qualifies its bounded actual-runtime scope. The combined
+0.0.6 evidence now supports the next development stage: automatic checks,
+visible output, historical unchanged-path controls, corrected touch/lifecycle
+measurements and the owner's steady-tone confirmation. The latest report's
+standalone qualifier still lacks A; preserve that distinction. Local/main/tag CI
+and public-download verification pass. Android picker and
 16 KiB-page execution remain separate checks. The implemented New 3DS layouts
 do not establish Xenoblade boot compatibility, and the HLE tone does not qualify
 all audio behavior. Broader CPU/VFP/modules, first-use compilation, long-run

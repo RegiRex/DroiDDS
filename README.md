@@ -61,8 +61,8 @@ pipeline stall.
 <!-- CodexAstraUlt: Record verified publication after local and CI gates
 while retaining the unperformed manual Thor qualification. -->
 **[0.0.6 correction 2 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2); local and CI gates pass, and all four public
-downloads are independently verified. Thor interactive qualification remains
-pending.** [Download the Android ARM64 APK](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk).
+downloads are independently verified. Combined Thor evidence now supports
+0.0.7 development.** [Download the Android ARM64 APK](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk).
 Read the [correction and verification record](docs/builds/0.0.6-frontend-correction.md).
 It adds an original NCCH guest that uses real HID, GSP/PICA and DSP HLE paths for
 two images, D-pad/A/touch interaction and a tone. Automated native/interpreter
@@ -71,13 +71,14 @@ checks compare image and PCM output; the Android frontend presents 400×240 and
 Bitmap/Canvas. PICA rasterization remains Vulkan; this is not direct Vulkan
 presentation or Thor physical dual-display support.
 
-<!-- CodexAstraUlt: Replace the pending touch/recreation retest with measured
-correction evidence, while preserving the unresolved audio quality observation. -->
+<!-- CodexAstraUlt: Combine corrected device measurements with the owner's
+steady-tone confirmation without rewriting the original missing A observation. -->
 The [corrected 0.0.6 Thor report](docs/device-tests/0.0.6-correction2-thor.md)
 passes every automatic check and records 42 submitted/consumed touch frames,
 six view replacements and working pause/resume. Both guest views and sound are
 confirmed. Audio underruns fell from 197 to 11 across different-duration runs;
-audible continuity still needs the owner's observation. This run omitted A;
+the owner confirmed on 2026-10-20 that the tone “Sounded steady.” The combined
+0.0.6 evidence supports 0.0.7 development. This run omitted A;
 unchanged-path evidence from the earlier run is retained separately. No new
 full test is required solely because A was omitted.
 
@@ -87,8 +88,8 @@ It identifies an owned game's first observed runtime blocker. This
 interpreter/software host tool does not promote milestone 0.0.7 or produce a
 game-playing Android APK.
 
-The corrected-device gate now has measured touch and view-recreation evidence;
-audio quality remains under review. Automated success alone cannot qualify
+The corrected-device evidence now includes measured touch and view recreation
+plus the owner's steady-tone confirmation. Automated success alone cannot qualify
 human observations. Original NCCH fixtures
 do not establish a 3DSX loader or retail-title support. Private Dark Moon,
 Xenoblade and Sonic baselines remain open because their inputs are not present
@@ -111,7 +112,7 @@ explicit.
 | [0.0.5 build and release evidence](docs/builds/0.0.5-runtime-integration.md) | Actual runtime integration, fixes, host tests and verified public APK |
 | [Thor integrated runtime result](docs/device-tests/0.0.5-thor-runtime.md) | Passing 0.0.5 guest/PICA/memory evidence and its limits |
 | [0.0.6 interactive homebrew](docs/builds/0.0.6-interactive-homebrew.md) | Passing local/CI gates, verified public assets and required device observations |
-| [Corrected Thor result](docs/device-tests/0.0.6-correction2-thor.md) | Measured touch and view recreation; remaining audio quality observation |
+| [Corrected Thor result](docs/device-tests/0.0.6-correction2-thor.md) | Measured touch and view recreation; owner confirms steady audio |
 | [Local title reconnaissance](docs/PRIVATE_TITLE_RECONNAISSANCE.md) | Bounded interpreter/software baseline for owned decrypted inputs on the laptop |
 | [0.0.4 build evidence](docs/builds/0.0.4-runtime-probe.md) | Expanded CPU, renderer operations and packaging checks |
 | [New 3DS audit and corrections](docs/NEW3DS_AUDIT.md) | Reproduced defects, implemented runtime fixes and remaining title gates |

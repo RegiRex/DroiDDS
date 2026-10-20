@@ -57,18 +57,19 @@ thread owns runtime pause/resume and exit. Both guest views share one Android
 display; physical dual-display output is not included. All 0.0.5 regressions
 remain required, with the package expanded to twelve native libraries.
 Implementation, final local/main/tag CI gates and independent public-download
-verification pass; the prerelease is published. The Thor manual test remains
-pending. Observed
-images, controls/touch, audible audio, lifecycle recovery and normal exit must
-pass before 0.0.7 promotion; an automatic probe pass alone is insufficient.
+verification pass; the prerelease is published. The combined Thor evidence
+below now covers images, controls/touch, audible audio, lifecycle recovery and
+normal exit sufficiently to proceed into 0.0.7 development. The latest report's
+standalone missing-A result remains separate; automatic success alone is insufficient.
 
-<!-- CodexAstraUlt: Replace the pending touch/recreation retest with measured
-correction evidence, while preserving the unresolved audio quality observation. -->
+<!-- CodexAstraUlt: Combine corrected device measurements with the owner's
+steady-tone confirmation without rewriting the original missing A observation. -->
 The [corrected 0.0.6 Thor report](device-tests/0.0.6-correction2-thor.md)
 passes every automatic check and records 42 submitted/consumed touch frames,
 six view replacements and working pause/resume. Both guest views and sound are
 confirmed. Audio underruns fell from 197 to 11 across different-duration runs;
-audible continuity still needs the owner's observation. This run omitted A;
+the owner confirmed on 2026-10-20 that the tone “Sounded steady.” The combined
+0.0.6 evidence supports 0.0.7 development. This run omitted A;
 unchanged-path evidence from the earlier run is retained separately. No new
 full test is required solely because A was omitted.
 

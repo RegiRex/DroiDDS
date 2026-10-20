@@ -50,9 +50,9 @@ retaining separate interactive-device, lifecycle and retail-title gates. -->
 Android qualification that must precede promotion to private-game boot work. -->
 - Version 0.0.6 is published with passing local/main/tag CI gates and
   independently verified public assets; read
-  docs/builds/0.0.6-interactive-homebrew.md. Thor interactive qualification
-  remains pending; do not promote to 0.0.7 before its manual gate. It adds an
-  original NCCH guest using HID/GSP/PICA/DSP HLE and three-route image/PCM oracles,
+  docs/builds/0.0.6-interactive-homebrew.md. The combined Thor evidence below
+  now supports 0.0.7 development; a private-game milestone needs its own gate.
+  It adds an original NCCH guest using HID/GSP/PICA/DSP HLE and three-route image/PCM oracles,
   plus a manual two-view Android frontend. Retain every 0.0.5 regression and the
   exact twelve-library package inventory. Presentation uses CPU readback and
   Bitmap/Canvas on one Android display; do not claim direct Vulkan presentation
@@ -80,8 +80,11 @@ rewriting its missing A observation or qualifying private games from a fixture. 
   six view replacements succeed, and both views/sound are confirmed. The new
   standalone manual qualifier is pending for omitted A; carry historical A
   evidence only as an explicit unchanged-path assessment. Audio has 11
-  underruns and its audible continuity question remains open. Do not require
-  another full run solely for omitted A, or call this report a private-title pass.
+  underruns; on 2026-10-20 the owner confirmed the tone “Sounded steady” between
+  intentional pauses. This closes the audible-quality observation for this run.
+  The combined .6 evidence supports .7 development without rewriting the JSON
+  or claiming zero underruns or a fresh A observation. Do not require another
+  full run solely for omitted A, or call this report a private-title pass.
 - Generic bounded local title reconnaissance is independent preparatory work;
   read docs/PRIVATE_TITLE_RECONNAISSANCE.md. Keep its inputs, fresh snapshots,
   saves and reports outside Git. A host interpreter/software outcome is neither
