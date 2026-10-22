@@ -7,7 +7,11 @@ decrypted base title through the selected loader, interpreter and software
 renderer. It uses the new `droidds-private-title` host worker. The purpose is to
 find the first reproducible loader, CPU or service blocker in an actual title,
 starting with Luigi's Mansion: Dark Moon. No private-title baseline has yet been
-established by this work. This does not generate native title code, produce a
+independently validated by this cloud work. The owner subsequently supplied a
+[first local execution summary](host-tests/dark-moon-2026-10-22.md): the default
+cycle budget was reached with 316,366 interpreted instructions, 59 frame events
+and zero draws. Read that record for the single controlled follow-up and its
+evidence limits. This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in
 [the corrected 0.0.6 report](device-tests/0.0.6-correction2-thor.md).

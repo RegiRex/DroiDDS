@@ -42,6 +42,15 @@ updates, DLC or user configuration. It does not compile a title, build an APK,
 run Vulkan or establish playable speed. Use it to identify the first actual
 loader/service/CPU blocker from an authorized local decrypted game file.
 
+<!-- CodexAstraUlt: Advance from the owner's first bounded execution report
+without promoting a timer event to a rendered frame or repeating setup. -->
+The owner has now reported a [first local run](host-tests/dark-moon-2026-10-22.md)
+that reached the default cycle budget with 316,366 interpreted instructions,
+59 frame events and zero draws. The next local task is the single controlled
+longer run documented there, reusing the existing worker and comparing both
+reports. No additional installation is needed for that budget change. The
+cloud record is based on the owner's text, not independent JSON validation.
+
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->
 The [0.0.7 private title build plan](PRIVATE_TITLE_BUILD_PLAN.md) specifies the
@@ -56,6 +65,14 @@ separate Uberhar project and other local sessions' uncommitted work. -->
 Work in the existing DroidDS checkout, separate from Uberhar. Read `AGENTS.md`, `docs/RESEARCH_REVIEW.md`,
 `docs/ARCHITECTURE.md` and `docs/BACKLOG.md`. Keep Uberhar files, APK and saves intact.
 Check branch and local changes before fetching; do not reset another session's work.
+
+<!-- CodexAstraUlt: Carry the owner's laptop-cleanup preference into local work
+without deleting preexisting software or requesting unnecessary new tooling. -->
+The owner requests exact selective cleanup commands when testing/development is
+finished. Follow [host setup cleanup](HOST_SETUP_CLEANUP.md): record the actual
+DNF transaction, Rust ownership and project output paths now using read-only
+checks; preserve uncertain or shared items. Install additional tools only for a
+concrete need. Prepare cleanup for review later, without automatic removals.
 
 <!-- CodexAstraUlt: The next device task is visible original-guest qualification;
 retain existing reports and the owner's report-driven continuation instruction. -->
@@ -160,8 +177,10 @@ its filesystem knowledge and avoiding unnecessary manual command transcription. 
 
 > Continue DroidDS on this Nobara laptop. Read AGENTS.md,
 > docs/PRIVATE_TITLE_RECONNAISSANCE.md and
-> docs/device-tests/0.0.6-correction2-thor.md. Preserve local changes and Uberhar.
-> Build the host reconnaissance worker with the pinned toolchain, then use
+> docs/device-tests/0.0.6-correction2-thor.md. Preserve local changes.
+> Read docs/host-tests/dark-moon-2026-10-22.md and docs/HOST_SETUP_CLEANUP.md.
+> Reuse the existing built worker for the documented single longer follow-up,
+> record cleanup inventory without removals, and compare the two local runs. Use
 > tools/run_private_title.py against an already authorized local decrypted copy
 > of Luigi's Mansion: Dark Moon, with a fresh output directory outside every
 > Git checkout. If its exact path is unknown, ask me for the local path; do not
