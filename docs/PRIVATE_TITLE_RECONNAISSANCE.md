@@ -11,10 +11,11 @@ independently validated by this cloud work. The owner subsequently supplied a
 [paired local execution summary](host-tests/dark-moon-2026-10-22.md): the default
 and ten-second emulated-time runs both ended at `0x004B23A8` with zero draws.
 Run-004's bounded trace identifies repeated one-millisecond sleeps with working
-wake deadlines. The next measurement reruns those same limits after the
-[shared-page readiness correction](builds/0.0.7-shared-page-ready.md), retaining
-the existing trace to identify progress or the next blocker. This does not
-generate native title code, produce a
+wake deadlines. Run-005 clears that wait after the
+[shared-page readiness correction](builds/0.0.7-shared-page-ready.md), reaches
+five services and 80 IPC calls, then exhausts its dispatch budget at `0x003B4FD8`.
+The next measurement adds bounded CPU progress sampling with unchanged limits.
+This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in
 [the corrected 0.0.6 report](device-tests/0.0.6-correction2-thor.md).
@@ -154,26 +155,25 @@ Native generation, private APK packaging and hardware validation remain in
 
 <!-- CodexAstraUlt: Collect bounded early-startup evidence without enabling
 continuous logging or changing the kernel behavior being investigated. -->
-For the next Dark Moon run, rebuild the corrected worker offline and retain
-`--trace-scheduler` with the same run-003/run-004 limits. The trace flag switches
-on a host-only measurement; the source correction separately changes shared-page
-startup initialization. Neither changes the run's strict fault policy or
-scheduling responses. The ordinary worker default and Android frontends leave
-tracing disabled. No additional dependency or toolchain version is required.
+`--trace-scheduler` enables a host-only measurement without changing the run's
+strict fault policy or scheduling responses. The ordinary worker default and
+Android frontends leave tracing disabled. No additional dependency or toolchain
+version is required. The next Dark Moon measurement also enables CPU progress
+sampling as described below; rebuild the worker offline first.
 
 ```bash
 python3 tools/run_private_title.py \
   --input /home/OWNER/DroidDS-private/dark-moon-base.cci \
-  --output /home/OWNER/DroidDS-private/dark-moon-run-005 \
+  --output /home/OWNER/DroidDS-private/dark-moon-run-006 \
   --worker target/release/droidds-private-title \
   --max-steps 10000000 --max-cycles 2681118560 --max-frames 1200 \
-  --max-seconds 120 --timeout 130 --trace-scheduler
+  --max-seconds 120 --timeout 130 --trace-scheduler --trace-cpu-progress
 ```
 
 Use the actual authorized private paths and an absent output directory. The input
 hash should match the earlier baseline; the rebuilt worker has a new hash. Keep
-both identities in the local report. Compare against run-004; execution counters
-may change if the correction releases the startup wait. Do not increase limits
+both identities in the local report. Compare execution counters against run-005;
+the new sampling observes the existing runtime behavior. Do not increase limits
 to work around a repeated wait or the next unsupported operation.
 
 The report's `diagnostic_trace` retains the first 64 and last 128 nonoverlapping
@@ -187,13 +187,46 @@ universally a result code; some calls return data. A blocked call has no observe
 return until that thread resumes. Native SVC PCs are not inferred from compiled
 block entry points, and native execution remains disabled in this worker.
 
-Inspect whether repeated `SleepThread` calls at `0x004B23A4` clear, then identify
-the next blocker, final PC, service activity, draws/audio, execution counters
-and sampled memory. If the loop remains, include R4 from that sleep's `args[4]`
-and its wait-resume event; the polling load itself is not captured by this trace.
-`services_seen` counts acquired
-service handles rather than all earlier kernel/IPC activity. Report a concrete
+Run-005 already clears the repeated sleep at `0x004B23A4`. Continue reporting
+the stop/blocker, final PC, service activity, draws/audio, execution counters
+and sampled memory. `services_seen` counts acquired service handles rather than
+all earlier kernel/IPC activity. Report a concrete
 error or repeated wait without calling a lone PC or cached scheduler flag a
 deadlock. The trace has no guest save/restore support; this tool uses a fresh
 process. Its storage is bounded, and it does add diagnostic work when enabled;
 trace timings are not performance benchmarks.
+
+## Opt-in CPU progress sampling
+
+<!-- CodexAstraUlt: Observe scalar CPU progress at bounded intervals while
+leaving emulated execution, private game content and normal frontends alone. -->
+`--trace-cpu-progress` is independent of `--trace-scheduler`; both may be enabled
+for the same run. The new `cpu_progress` report section contains an initial
+state and one periodic state every 65,521 **dispatch steps**, retaining the
+first 16 and latest 112 without overlap. `samples_seen` and `samples_omitted`
+account for discarded periodic states. A separate `final` state is always
+retained after completed execution, even if it stops before the first interval.
+Early loader failures have no CPU progress snapshot.
+
+Each state records steps, cycles, interpreted-instruction count, live registers
+r0-r15, CPSR, current thread ID/guest ID and scheduler flags. The final
+`recent_dispatches` array contains at most 64 dispatch addresses, oldest first,
+with ARM/Thumb mode decoded separately. These are addresses, not instruction
+bytes. The sampler reads no guest memory, enables no unbounded profiler and
+writes no continuous log. Normal Android frontends do not include this host tool.
+
+Live r15 is the post-dispatch CPU PC, not necessarily the instruction just
+executed. Thread metadata describes the current scheduler state; it does not
+attribute every recent dispatch to that thread. Idle dispatches can retain old
+registers, so compare interpreted-instruction counts as well. Trace activity
+adds host overhead; its wall time is not a performance benchmark.
+Periodic samples precede the worker's per-frame input update; that update can
+change scheduler flags before the final snapshot at the same dispatch count.
+
+For run-006, compare recurring PCs and changes in registers across the retained
+states near `0x003B4FD8`. Return the final recent address pattern and a compact
+table of the last relevant snapshots: steps/instructions/cycles, thread identity,
+PC, and registers that change. A changing pointer or count supports active work;
+neither that change nor an unchanged sampled state proves correct completion or
+a deadlock. The local agent may still need a focused follow-up to identify the
+operation. Keep raw reports and any private instruction analysis local.

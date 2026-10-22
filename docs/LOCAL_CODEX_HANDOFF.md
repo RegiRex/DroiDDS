@@ -52,10 +52,14 @@ and unchanged sampled guest memory. Run-004's bounded trace then recorded 9,999
 one-millisecond sleeps at `0x004B23A4`, each observed wake returning on its
 deadline before another sleep. The [shared-page readiness correction](builds/0.0.7-shared-page-ready.md)
 initializes a missing startup byte and passes an original guest regression on
-both models. Its relationship to Dark Moon remains unconfirmed. The next local
-task is one matched rerun with this correction and the existing trace. Rebuild
-offline and record the new worker hash; preserve the input hash and earlier
-reports. These private-run records are owner text, not independent JSON validation.
+both models. The owner's matched run-005 now records zero sleeps and reaches
+five services and 80 IPC calls. It stops on the dispatch budget at `0x003B4FD8`
+after 9,998,658 instructions and approximately 0.05774 emulated seconds, with
+zero GPU/audio activity. The next local task is one run with bounded CPU progress
+sampling and the same limits, to distinguish advancing startup work from a
+repeated unchanged state. Rebuild offline and record the new worker hash;
+preserve the input hash and earlier reports. These private-run records are
+owner text, not independent JSON validation.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->
@@ -185,15 +189,15 @@ its filesystem knowledge and avoiding unnecessary manual command transcription. 
 > AGENTS.md, docs/PRIVATE_TITLE_RECONNAISSANCE.md and
 > docs/host-tests/dark-moon-2026-10-22.md. Rebuild droidds-private-title with the
 > existing pinned toolchain and locked dependencies, offline. Run the same authorized
-> Dark Moon input once with --trace-scheduler and the run-003 limits:
+> Dark Moon input once with --trace-scheduler --trace-cpu-progress and the run-005 limits:
 > --max-steps 10000000 --max-cycles 2681118560 --max-frames 1200
 > --max-seconds 120 --timeout 130. Keep other baseline settings unchanged and
 > choose a fresh output directory outside Git. Confirm the input hash matches;
-> record the rebuilt worker's new identity. Compare against run-004: whether the
-> repeated sleep at 0x004B23A4 clears, the next blocker and PC, service activity,
-> GPU/audio activity, execution counters and sampled memory. If the same loop
-> remains, include R4 from that SleepThread event's args[4]. Return a small reviewed
-> summary with the first concrete blocker or remaining diagnostic gap. Keep
+> record the rebuilt worker's new identity. Compare execution counters against
+> run-005 and inspect cpu_progress for recurring PCs, changing registers and
+> current thread identities near 0x003B4FD8. Report the final recent dispatch
+> addresses and a compact comparison of the last relevant snapshots, plus the
+> stop/blocker, service activity, GPU/audio activity and sampled memory. Keep
 > game data local; do not increase limits again or infer boot from timer events.
 
 The owner can paste this task into local Codex; they do not need to transcribe

@@ -9,7 +9,7 @@ use std::{collections::BTreeSet, fs::OpenOptions, io::Write, path::PathBuf};
 fn parse() -> Result<(Options, PathBuf), String> {
     let mut args = std::env::args_os().skip(1);
     if args.next().as_deref() != Some(std::ffi::OsStr::new("inspect-run")) {
-        return Err("usage: droidds-private-title inspect-run --input SNAPSHOT --data-dir NEWDIR --output NEW_REPORT [--max-steps N --max-cycles N --max-frames N --max-seconds N --model old|new --trace-scheduler]".into());
+        return Err("usage: droidds-private-title inspect-run --input SNAPSHOT --data-dir NEWDIR --output NEW_REPORT [--max-steps N --max-cycles N --max-frames N --max-seconds N --model old|new --trace-scheduler --trace-cpu-progress]".into());
     }
     let mut options = Options {
         input: PathBuf::new(),
@@ -20,6 +20,7 @@ fn parse() -> Result<(Options, PathBuf), String> {
         max_seconds: 30,
         new_model: false,
         trace_scheduler: false,
+        trace_cpu_progress: false,
     };
     let mut output = None;
     let mut seen = BTreeSet::new();
@@ -32,6 +33,12 @@ fn parse() -> Result<(Options, PathBuf), String> {
         // profiler allocation or diagnostics in the normal Android frontend.
         if flag == "--trace-scheduler" {
             options.trace_scheduler = true;
+            continue;
+        }
+        // CodexAstraUlt: CPU snapshots are independently opt-in and take no
+        // value, preserving the existing rejection of duplicate switches.
+        if flag == "--trace-cpu-progress" {
+            options.trace_cpu_progress = true;
             continue;
         }
         let value = args

@@ -167,17 +167,21 @@ class PrivateTitleIntegrationGateTests(unittest.TestCase):
         return ('test_real_original_fixture_executes_and_hashes (__main__.RealWorkerIntegration.test_real_original_fixture_executes_and_hashes) ... ok\n'
                 'test_real_malformed_container_records_loader_failure (__main__.RealWorkerIntegration.test_real_malformed_container_records_loader_failure) ... ok\n'
                 'test_real_trace_preserves_execution_and_retains_bounded_metadata (__main__.RealWorkerIntegration.test_real_trace_preserves_execution_and_retains_bounded_metadata) ... ok\n'
-                '\nRan 3 tests in 0.1s\n\nOK\n')
+                # CodexAstraUlt: The CPU sampler must execute through the real
+                # worker gate, independently and alongside scheduler tracing.
+                'test_real_cpu_progress_preserves_execution_with_and_without_scheduler (__main__.RealWorkerIntegration.test_real_cpu_progress_preserves_execution_with_and_without_scheduler) ... ok\n'
+                '\nRan 4 tests in 0.1s\n\nOK\n')
 
     def test_real_worker_controls_and_complete_python_summary_pass(self):
-        self.assertEqual(build.validate_title_integration(self.proof())["passed"], 3)
+        self.assertEqual(build.validate_title_integration(self.proof())["passed"], 4)
 
     def test_only_mocks_skip_failure_or_count_mismatch_cannot_qualify(self):
         for proof in (self.proof().replace('test_real_original_fixture_executes_and_hashes', 'test_mock'),
                       self.proof().replace('test_real_trace_preserves_execution_and_retains_bounded_metadata', 'test_mock_trace'),
+                      self.proof().replace('test_real_cpu_progress_preserves_execution_with_and_without_scheduler', 'test_mock_progress'),
                       self.proof().replace('... ok', "... skipped 'unavailable'", 1),
                       self.proof().replace('\nOK\n', '\nFAILED (failures=1)\n'),
-                      self.proof().replace('Ran 3 tests', 'Ran 4 tests')):
+                      self.proof().replace('Ran 4 tests', 'Ran 5 tests')):
             with self.subTest(proof=proof), self.assertRaises(ValueError):
                 build.validate_title_integration(proof)
 

@@ -9,6 +9,10 @@ use zakuro_core::{
     loader, memory::MemoryRegion, services::hid, Config, DiagnosticFault, StepOutcome, System,
 };
 
+// CodexAstraUlt: CPU progress metadata belongs to this explicit host diagnostic,
+// leaving the shared core and Android runtime free of another tracing mode.
+mod cpu_progress;
+
 pub const KIND: &str = "droidds_private_title_interpreter_reconnaissance";
 pub const RUNTIME_REVISION: &str = "412900a5a020301da15c1cc382585e05a489a535";
 const REGIONS: [MemoryRegion; 3] = [
@@ -32,6 +36,8 @@ pub struct Options {
     // CodexAstraUlt: Explicit local diagnostics only; ordinary runtime and
     // baseline execution retain the disabled trace path.
     pub trace_scheduler: bool,
+    // CodexAstraUlt: Sparse live CPU snapshots, independently opt-in from SVCs.
+    pub trace_cpu_progress: bool,
 }
 
 impl Options {
@@ -59,11 +65,12 @@ fn envelope(options: &Options) -> Value {
         "schema_version": 1, "tool_version": env!("CARGO_PKG_VERSION"), "kind": KIND,
         "runtime_revision": RUNTIME_REVISION, "runtime_has_local_patches": true,
         "status": "internal_error", "reason": "worker_incomplete", "blocker": null,
-        "input": null, "diagnostic_trace": null, "configuration": {
+        "input": null, "diagnostic_trace": null, "cpu_progress": null, "configuration": {
             "model_requested": if options.new_model { "new" } else { "old" },
             "model_resolved": null, "execution": "interpreter", "renderer": "software",
             "strict_diagnostics": true, "native_discovery": false, "updates": false,
             "scheduler_trace": options.trace_scheduler,
+            "cpu_progress_trace": options.trace_cpu_progress,
             "dlc": false, "texture_packs": false, "enhancements": false,
             "mods_and_cheats": "absent_in_fresh_private_data_directory",
             "idle_loop_skipping": false, "clock_ms_since_1900": 4_000_000_000_000u64,
@@ -200,6 +207,12 @@ fn execute(options: &Options, report: &mut Value, started: Instant) -> Result<()
     system.set_input(neutral);
     hid::update(&mut system, neutral);
 
+    // CodexAstraUlt: Capture the initial state only when requested. Subsequent
+    // samples use dispatch cadence, so both CPU work and idle steps stay bounded.
+    let mut cpu_progress = options
+        .trace_cpu_progress
+        .then(|| cpu_progress::CpuProgress::new(&system));
+
     // CodexAstraUlt: Inspect after each complete System::step. Unsupported
     // service replies from CPU dispatch cannot be consumed by a later guest
     // instruction; frame/audio hooks earlier in the same step are a documented
@@ -233,6 +246,11 @@ fn execute(options: &Options, report: &mut Value, started: Instant) -> Result<()
                 .min(options.max_cycles),
         ));
         steps += 1;
+        // CodexAstraUlt: Observe after dispatch but before a fault can stop the
+        // loop; sampling neither reads guest memory nor changes its CPU state.
+        if let Some(progress) = &mut cpu_progress {
+            progress.after_step(&system, steps);
+        }
         guest_debug_bytes = guest_debug_bytes.saturating_add(system.debug_output.len() as u64);
         system.debug_output.clear();
         if let Some(blocker) = first_blocker(&system) {
@@ -276,6 +294,11 @@ fn execute(options: &Options, report: &mut Value, started: Instant) -> Result<()
     // once, preserving pending returns and truncation as diagnostic evidence.
     report["diagnostic_trace"] = serde_json::to_value(system.diagnostic_trace_snapshot())
         .expect("diagnostic trace metadata");
+    // CodexAstraUlt: Final live registers and existing dispatch history are
+    // separate evidence; a live r15 must not be labeled the last executed PC.
+    report["cpu_progress"] = cpu_progress
+        .map(|progress| progress.finish(&system, steps))
+        .unwrap_or(Value::Null);
     report["observed"] = json!({
         "steps":steps, "cycles":system.cpu.cycles, "frames":system.frames,
         "cycles_after_budget":system.cpu.cycles.saturating_sub(options.max_cycles),

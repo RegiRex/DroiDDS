@@ -46,6 +46,16 @@ LOADER_REQUIRED_TESTS = {
     # an original guest poll/sleep, including the cleared-byte failure control.
     "droidds_shared_page_readiness_releases_original_guest_on_both_models",
 }
+# CodexAstraUlt: Require real guest progress/fault controls and bounded storage
+# before the opt-in CPU sampler is used to diagnose a private startup stop.
+TITLE_REQUIRED_TESTS = {
+    "cpu_progress::tests::cpu_progress_retention_is_bounded_and_preserves_nonoverlapping_order",
+    "cpu_progress_distinguishes_finite_countdown_from_stationary_branch",
+    "cpu_progress_and_scheduler_switches_preserve_original_guest_execution",
+    "cpu_progress_retains_fault_boundary_and_does_not_trace_loader_failure",
+    "cpu_progress_recent_dispatches_preserve_arm_thumb_order_and_terminal_state",
+    "cpu_progress_idle_dispatches_keep_registers_unattributed_and_execution_unchanged",
+}
 VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation"
 SYNC_VALIDATION = "VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT"
 
@@ -54,11 +64,12 @@ def validate_title_integration(output: str) -> dict:
     """CodexAstraUlt: Require actual worker execution in the Python suite, not
     only coordinator mocks or the Rust-only summary understood by run_logged.
     """
-    # CodexAstraUlt: Trace validation needs the real worker's emitted schema and
-    # trace-on/off execution comparison, not only synthetic envelope controls.
+    # CodexAstraUlt: Both optional traces need the real worker's emitted schema
+    # and execution comparisons, not only synthetic envelope controls.
     required = {"test_real_original_fixture_executes_and_hashes",
                 "test_real_malformed_container_records_loader_failure",
-                "test_real_trace_preserves_execution_and_retains_bounded_metadata"}
+                "test_real_trace_preserves_execution_and_retains_bounded_metadata",
+                "test_real_cpu_progress_preserves_execution_with_and_without_scheduler"}
     passed = set(re.findall(r"^([\w]+) \([^\n]+\) \.\.\. ok$", output, re.M))
     count = re.search(r"^Ran ([1-9]\d*) tests? in ", output, re.M)
     if (not required.issubset(passed) or count is None or int(count[1]) != len(passed)
@@ -243,7 +254,7 @@ def main() -> int:
             evidence["suites"][package] = validate_suite(proof)
         title_proof = run("test-title-tools", [cargo, "test", "--locked", "-p", "droidds-title-tools",
                           "-j", args.jobs, "--", "--test-threads=1"], machine=True, tests=True)
-        evidence["suites"]["droidds-title-tools"] = validate_suite(title_proof)
+        evidence["suites"]["droidds-title-tools"] = validate_suite(title_proof, TITLE_REQUIRED_TESTS)
         run("build-title-tools", [cargo, "build", "--locked", "--release", "-p", "droidds-title-tools",
                                  "-j", args.jobs], timeout=1800)
         title_worker = Path(metadata["target_directory"]) / "release/droidds-private-title"

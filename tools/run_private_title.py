@@ -144,6 +144,9 @@ def source_identity():
                 "binary_source_attested": False, "files_sha256": {}}
     for name in ("Cargo.lock", "upstream.lock.toml", "crates/droidds-title-tools/Cargo.toml",
                  "crates/droidds-title-tools/src/main.rs", "crates/droidds-title-tools/src/lib.rs",
+                 # CodexAstraUlt: Bind the optional host-only CPU sampler to
+                 # the same local source record as the worker and coordinator.
+                 "crates/droidds-title-tools/src/cpu_progress.rs",
                  "tools/run_private_title.py", "vendor/zakuro/crates/zakuro-core/src/lib.rs",
                  # CodexAstraUlt: Bind the new trace and the scheduler/syscall
                  # source context used to interpret its bounded metadata.
@@ -339,6 +342,99 @@ def validate_scheduler_trace(trace, observed):
         raise Rejected("invalid_worker_trace_current_thread_missing")
 
 
+def validate_cpu_progress(trace, observed):
+    """CodexAstraUlt: Accept only bounded scalar progress snapshots, not dumps.
+
+    Cadence is in System::step dispatches, which can include idle periods; live
+    post-dispatch registers do not identify the owner of a recent instruction.
+    The initial prefix, retained tail and separate final state are explicit.
+    """
+    def obj(value, keys, label):
+        if not isinstance(value, dict) or set(value) != set(keys.split()):
+            raise Rejected("invalid_worker_cpu_progress_" + label + "_shape")
+        return value
+
+    def uint(value, label, maximum=2**64 - 1, optional=False):
+        if optional and value is None:
+            return None
+        return integer(value, "cpu_progress_" + label, high=maximum)
+
+    def boolean(value, label):
+        if type(value) is not bool:
+            raise Rejected("invalid_worker_cpu_progress_" + label)
+
+    def bounded_list(value, maximum, label):
+        if not isinstance(value, list) or len(value) > maximum:
+            raise Rejected("invalid_worker_cpu_progress_" + label + "_bound")
+        return value
+
+    obj(trace, "schema_version interval_steps prefix_capacity tail_capacity samples_seen "
+        "samples_omitted prefix tail final recent_dispatches", "snapshot")
+    for name, expected in {"schema_version": 1, "interval_steps": 65521,
+                           "prefix_capacity": 16, "tail_capacity": 112}.items():
+        if type(trace[name]) is not int or trace[name] != expected:
+            raise Rejected("invalid_worker_cpu_progress_" + name)
+    seen = uint(trace["samples_seen"], "samples_seen")
+    omitted = uint(trace["samples_omitted"], "samples_omitted")
+    prefix = bounded_list(trace["prefix"], 16, "prefix")
+    tail = bounded_list(trace["tail"], 112, "tail")
+    if (seen != 1 + observed["steps"] // 65521 or len(prefix) != min(seen, 16)
+            or len(tail) != min(max(0, seen - 16), 112)
+            or omitted != seen - len(prefix) - len(tail)):
+        raise Rejected("invalid_worker_cpu_progress_retention_accounting")
+
+    def state(value, expected_steps):
+        obj(value, "steps cycles interpreted_instructions registers cpsr current_thread "
+            "thread_guest_id reschedule_pending all_blocked", "state")
+        steps = uint(value["steps"], "steps", observed["steps"])
+        if steps != expected_steps:
+            raise Rejected("invalid_worker_cpu_progress_sample_cadence")
+        cycles = uint(value["cycles"], "cycles", observed["cycles"])
+        instructions = uint(value["interpreted_instructions"], "interpreted_instructions",
+                            min(steps, observed["interpreted_instructions"]))
+        registers = bounded_list(value["registers"], 16, "registers")
+        if len(registers) != 16:
+            raise Rejected("invalid_worker_cpu_progress_register_count")
+        for register in registers:
+            uint(register, "register", 2**32 - 1)
+        uint(value["cpsr"], "cpsr", 2**32 - 1)
+        current = uint(value["current_thread"], "current_thread", 2**32 - 1, True)
+        guest_id = uint(value["thread_guest_id"], "thread_guest_id", 2**32 - 1, True)
+        if (current is None) != (guest_id is None):
+            raise Rejected("invalid_worker_cpu_progress_thread_identity")
+        for name in ("reschedule_pending", "all_blocked"):
+            boolean(value[name], name)
+        return cycles, instructions
+
+    previous_cycles, previous_instructions = 0, 0
+    for samples, start in ((prefix, 0), (tail, seen - len(tail))):
+        for index, sample in enumerate(samples, start):
+            cycles, instructions = state(sample, index * 65521)
+            if cycles < previous_cycles or instructions < previous_instructions:
+                raise Rejected("invalid_worker_cpu_progress_counter_order")
+            previous_cycles, previous_instructions = cycles, instructions
+    final = trace["final"]
+    cycles, instructions = state(final, observed["steps"])
+    if (cycles != observed["cycles"] or instructions != observed["interpreted_instructions"]
+            or final["registers"][15] != uint(observed.get("final_pc"), "final_pc", 2**32 - 1)):
+        raise Rejected("invalid_worker_cpu_progress_final_state")
+    # CodexAstraUlt: At a sampling boundary no later guest instruction changes
+    # CPU state. A subsequent HID hook can legitimately change scheduler flags.
+    if observed["steps"] % 65521 == 0:
+        last = (tail or prefix)[-1]
+        if any(final[name] != last[name] for name in
+               ("steps", "cycles", "interpreted_instructions", "registers", "cpsr")):
+            raise Rejected("invalid_worker_cpu_progress_final_sample_mismatch")
+    # CodexAstraUlt: Recent dispatch addresses are separate from live r15 and
+    # carry their instruction mode, without code bytes or a fabricated owner.
+    for dispatch in bounded_list(trace["recent_dispatches"], 64, "recent_dispatches"):
+        obj(dispatch, "pc thumb", "dispatch")
+        pc = uint(dispatch["pc"], "dispatch_pc", 2**32 - 1)
+        boolean(dispatch["thumb"], "dispatch_thumb")
+        if pc % (2 if dispatch["thumb"] else 4):
+            raise Rejected("invalid_worker_cpu_progress_dispatch_alignment")
+
+
 def validate_worker(report, requested, snapshot_bytes, returncode):
     """CodexAstraUlt: A bounded run needs actual loaded metadata and execution.
 
@@ -373,11 +469,17 @@ def validate_worker(report, requested, snapshot_bytes, returncode):
     trace_requested = requested.get("trace_scheduler", False)
     if type(trace_requested) is not bool:
         raise Rejected("invalid_scheduler_trace_request")
+    # CodexAstraUlt: CPU progress has independent opt-in consent and must not
+    # be silently activated by the scheduler trace or a numeric truthy value.
+    progress_requested = requested.get("trace_cpu_progress", False)
+    if type(progress_requested) is not bool:
+        raise Rejected("invalid_cpu_progress_trace_request")
     for key, value in {"execution": "interpreter", "renderer": "software",
                        "model_requested": requested["model"], "strict_diagnostics": True,
                        "native_discovery": False, "updates": False, "dlc": False,
                        "texture_packs": False, "enhancements": False,
                        "scheduler_trace": trace_requested,
+                       "cpu_progress_trace": progress_requested,
                        "idle_loop_skipping": False, "input_events": "neutral",
                        "scanout_captured": False,
                        "mods_and_cheats": "absent_in_fresh_private_data_directory"}.items():
@@ -472,6 +574,28 @@ def validate_worker(report, requested, snapshot_bytes, returncode):
             raise Rejected("worker_requested_scheduler_trace_missing")
     else:
         validate_scheduler_trace(trace, observed)
+    progress = report.get("cpu_progress")
+    if not progress_requested:
+        if progress is not None:
+            raise Rejected("worker_unrequested_cpu_progress_trace")
+    elif progress is None:
+        if status in SUCCESS_STATUSES:
+            raise Rejected("worker_requested_cpu_progress_trace_missing")
+    else:
+        validate_cpu_progress(progress, observed)
+    # CodexAstraUlt: Independently valid traces must also describe one final
+    # machine, including the current thread incarnation rather than ID alone.
+    if trace is not None and progress is not None:
+        scheduler, final = trace["scheduler"], progress["final"]
+        if (final["cycles"] != scheduler["cycle"]
+                or final["registers"][15] != scheduler["live_pc"]
+                or any(final[name] != scheduler[name] for name in
+                       ("current_thread", "reschedule_pending", "all_blocked"))):
+            raise Rejected("worker_cpu_progress_scheduler_mismatch")
+        if final["current_thread"] is not None:
+            thread = next(item for item in scheduler["threads"] if item["id"] == final["current_thread"])
+            if final["thread_guest_id"] != thread["guest_id"]:
+                raise Rejected("worker_cpu_progress_scheduler_thread_identity_mismatch")
     return report
 
 
@@ -543,6 +667,10 @@ def parse_args(argv=None):
     # syscall/scheduler metadata; ordinary baseline runs retain no trace.
     parser.add_argument("--trace-scheduler", action="store_true",
                         help="Retain a bounded scheduler/SVC diagnostic trace")
+    # CodexAstraUlt: Sparse register snapshots are a separate local diagnostic;
+    # no profiler, guest-memory inspection or default tracing is enabled.
+    parser.add_argument("--trace-cpu-progress", action="store_true",
+                        help="Retain bounded CPU register progress and recent dispatch addresses")
     for key, (default, ceiling) in LIMITS.items():
         parser.add_argument("--" + key.replace("_", "-"), type=int, default=default,
                             help=f"Positive limit, default {default}, maximum {ceiling}")
@@ -569,7 +697,7 @@ def run(args):
     handles, identities = [], []
     requested = {key: getattr(args, key) for key in LIMITS}
     requested.update(model=args.model, timeout=args.timeout, memory_mib=args.memory_mib,
-                     trace_scheduler=args.trace_scheduler)
+                     trace_scheduler=args.trace_scheduler, trace_cpu_progress=args.trace_cpu_progress)
     report = {"schema_version": 1, "kind": "droidds_private_title_local_run",
               "tool_version": "0.0.1", "status": "preparing", "reason": "preflight",
               "requested": requested, "input": None, "worker": None, "process": None,
@@ -636,6 +764,8 @@ def run(args):
         # requested/report binding below prevents silent activation or omission.
         if args.trace_scheduler:
             command.append("--trace-scheduler")
+        if args.trace_cpu_progress:
+            command.append("--trace-cpu-progress")
         process = run_worker(command, directory, args.timeout, args.memory_mib)
         report["process"] = process
         changed = [label for path, stream, original, digest, ceiling, label in identities

@@ -41,13 +41,13 @@ def worker_result(size=512):
         "configuration": {
             "model_requested": "old", "model_resolved": "old", "execution": "interpreter",
             "renderer": "software", "strict_diagnostics": True, "native_discovery": False,
-            "scheduler_trace": False,
+            "scheduler_trace": False, "cpu_progress_trace": False,
             "updates": False, "dlc": False, "texture_packs": False, "enhancements": False,
             "mods_and_cheats": "absent_in_fresh_private_data_directory",
             "idle_loop_skipping": False, "input_events": "neutral", "scanout_captured": False,
             "budget_boundary": {"steps": "before_dispatch_hard", "cycles": "after_system_step",
                                 "frames": "after_system_step", "wall": "between_loader_and_steps_parent_hard_timeout"}},
-        "diagnostic_trace": None,
+        "diagnostic_trace": None, "cpu_progress": None,
         "limits": {key: value[0] for key, value in RUNNER.LIMITS.items()},
         "input": {"program_id": "000400000FFDD100", "title_name": "TEST", "product_code": "CTR-P-TEST",
                   "container_bytes": size, "ncch_offset": 0, "entry_point": 1048576,
@@ -82,6 +82,32 @@ def traced_result():
     return result
 
 
+def progress_result(steps=4):
+    """CodexAstraUlt: Literal scalar snapshots test validation, never execution."""
+    result = worker_result()
+    result["configuration"]["cpu_progress_trace"] = True
+    result["observed"].update(steps=steps, cycles=steps, interpreted_instructions=steps,
+                              final_pc=0x100000)
+    result["limits"]["max_steps"] = max(result["limits"]["max_steps"], steps)
+
+    def state(at):
+        return {"steps": at, "cycles": at, "interpreted_instructions": at,
+                "registers": [at, *([0] * 14), 0x100000], "cpsr": 0x10,
+                "current_thread": 0, "thread_guest_id": 1,
+                "reschedule_pending": False, "all_blocked": False}
+
+    seen = 1 + steps // 65521
+    prefix = [state(index * 65521) for index in range(min(seen, 16))]
+    tail = [state(index * 65521) for index in range(max(16, seen - 112), seen)]
+    result["cpu_progress"] = {
+        "schema_version": 1, "interval_steps": 65521,
+        "prefix_capacity": 16, "tail_capacity": 112,
+        "samples_seen": seen, "samples_omitted": seen - len(prefix) - len(tail),
+        "prefix": prefix, "tail": tail, "final": state(steps),
+        "recent_dispatches": [{"pc": 0x100000, "thumb": False}] * min(steps, 64)}
+    return result
+
+
 class CoordinatorTests(unittest.TestCase):
     """CodexAstraUlt: Exercise failures at file, process and evidence boundaries."""
 
@@ -102,7 +128,10 @@ class CoordinatorTests(unittest.TestCase):
         # its synthetic success never substitutes for the real integration mode.
         report = worker_result() if result is None else result
         source = "#!/usr/bin/env python3\nimport json, os, pathlib, sys, time, subprocess\n"
-        source += "args = dict(zip(sys.argv[2::2], sys.argv[3::2]))\n"
+        # CodexAstraUlt: Parse the two valueless diagnostic flags separately so
+        # the mock can enforce activation without corrupting paired arguments.
+        source += "args = {}\noptions = iter(sys.argv[2:])\n"
+        source += "for flag in options:\n args[flag] = True if flag in ('--trace-scheduler', '--trace-cpu-progress') else next(options)\n"
         source += "pathlib.Path(args['--data-dir']).mkdir(mode=0o700)\n"
         source += body + "\n"
         source += "report = " + repr(report) + "\n"
@@ -312,6 +341,203 @@ class CoordinatorTests(unittest.TestCase):
         with self.assertRaises(RUNNER.Rejected):
             RUNNER.validate_worker(result, requested, 512, 0)
 
+    # CodexAstraUlt: Progress sampling is independently requested and report
+    # bound; neither the scheduler flag nor a truthy integer can activate it.
+    def test_cpu_progress_is_opt_in_and_boolean(self):
+        self.assertFalse(self.args().trace_cpu_progress)
+        self.assertFalse(self.args("--trace-scheduler").trace_cpu_progress)
+        self.assertTrue(self.args("--trace-cpu-progress").trace_cpu_progress)
+        self.assertFalse(self.args("--trace-cpu-progress").trace_scheduler)
+        with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+            self.args("--trace-cpu-progress=true")
+        self.fake_worker("assert '--trace-cpu-progress' not in sys.argv")
+        code, report = self.execute()
+        self.assertEqual(code, 0, report)
+        self.assertIs(report["requested"]["trace_cpu_progress"], False)
+        self.assertIs(report["worker_report"]["configuration"]["cpu_progress_trace"], False)
+        self.assertIsNone(report["worker_report"]["cpu_progress"])
+
+    def test_cpu_progress_request_and_configuration_must_match(self):
+        for requested, produced in ((True, False), (False, True), (False, 0), (0, False), (1, True)):
+            result = worker_result()
+            result["configuration"]["cpu_progress_trace"] = produced
+            with self.subTest(requested=requested, produced=produced), self.assertRaises(RUNNER.Rejected):
+                RUNNER.validate_worker(result, {**result["limits"], "model": "old", "timeout": 40,
+                                               "trace_cpu_progress": requested}, 512, 0)
+
+    def test_cpu_progress_required_after_execution_and_absent_when_disabled(self):
+        result = worker_result()
+        result["configuration"]["cpu_progress_trace"] = True
+        requested = {**result["limits"], "model": "old", "timeout": 40, "trace_cpu_progress": True}
+        with self.assertRaisesRegex(RUNNER.Rejected, "requested_cpu_progress_trace_missing"):
+            RUNNER.validate_worker(result, requested, 512, 0)
+        result.update(status="load_error", reason="loader_rejected", input=None)
+        result["observed"].update(steps=0, cycles=0, interpreted_instructions=0, guest_exited=False)
+        RUNNER.validate_worker(result, requested, 512, 2)
+        result = worker_result()
+        result["cpu_progress"] = {"unrequested": "metadata"}
+        with self.assertRaisesRegex(RUNNER.Rejected, "unrequested_cpu_progress_trace"):
+            RUNNER.validate_worker(result, {**result["limits"], "model": "old", "timeout": 40}, 512, 0)
+
+    def test_cpu_progress_flag_forwarded_independently_and_with_scheduler(self):
+        for scheduler in (False, True):
+            result = progress_result()
+            if scheduler:
+                traced = traced_result()
+                result["configuration"]["scheduler_trace"] = True
+                result["diagnostic_trace"] = traced["diagnostic_trace"]
+                result["diagnostic_trace"]["scheduler"]["live_pc"] = result["observed"]["final_pc"]
+            self.output = self.root / ("both" if scheduler else "progress-only")
+            self.fake_worker("assert '--trace-cpu-progress' in sys.argv\n"
+                             f"assert ('--trace-scheduler' in sys.argv) is {scheduler!r}", result=result)
+            flags = ["--trace-cpu-progress", *(["--trace-scheduler"] if scheduler else [])]
+            code, report = self.execute(*flags)
+            self.assertEqual(code, 0, report)
+            self.assertIs(report["requested"]["trace_cpu_progress"], True)
+            self.assertEqual(report["worker_report"]["cpu_progress"]["final"]["steps"], 4)
+            self.assertIn("crates/droidds-title-tools/src/cpu_progress.rs",
+                          report["worker"]["source"]["files_sha256"])
+
+    # CodexAstraUlt: The retained middle can be absent, but its exact size and
+    # sample cadence must remain verifiable through both retained segments.
+    def test_cpu_progress_retention_cadence_and_counter_order(self):
+        result = progress_result(10_000_000)
+        requested = {**result["limits"], "model": "old", "timeout": 40, "trace_cpu_progress": True}
+        RUNNER.validate_worker(result, requested, 512, 0)
+        trace = result["cpu_progress"]
+        self.assertEqual(trace["samples_seen"], 153)
+        self.assertEqual(trace["samples_omitted"], 25)
+        self.assertEqual(len(trace["prefix"]), 16)
+        self.assertEqual(len(trace["tail"]), 112)
+        for mutation in ("seen", "omitted", "cadence", "cycle_order", "instruction_order", "final"):
+            changed = copy.deepcopy(result)
+            trace = changed["cpu_progress"]
+            if mutation == "seen":
+                trace["samples_seen"] += 1
+            elif mutation == "omitted":
+                trace["samples_omitted"] -= 1
+            elif mutation == "cadence":
+                trace["tail"][0]["steps"] += 1
+            elif mutation == "cycle_order":
+                trace["tail"][0]["cycles"] = 0
+            elif mutation == "instruction_order":
+                trace["tail"][0]["interpreted_instructions"] = 0
+            else:
+                trace["final"]["cycles"] -= 1
+            with self.subTest(mutation=mutation), self.assertRaises(RUNNER.Rejected):
+                RUNNER.validate_worker(changed, requested, 512, 0)
+
+    # CodexAstraUlt: On the exact cadence CPU state must match; a frame/HID hook
+    # after periodic sampling can still request a reschedule before final capture.
+    def test_cpu_progress_boundary_final_matches_last_retained_sample(self):
+        for steps in (65521, 65521 * 140):
+            result = progress_result(steps)
+            requested = {**result["limits"], "model": "old", "timeout": 40, "trace_cpu_progress": True}
+            RUNNER.validate_worker(result, requested, 512, 0)
+            after_hook = copy.deepcopy(result)
+            after_hook["cpu_progress"]["final"]["reschedule_pending"] = True
+            RUNNER.validate_worker(after_hook, requested, 512, 0)
+            for field in ("registers", "cpsr"):
+                changed = copy.deepcopy(result)
+                final = changed["cpu_progress"]["final"]
+                if field == "registers":
+                    final[field][0] += 1
+                else:
+                    final[field] += 1
+                with self.subTest(steps=steps, field=field), self.assertRaisesRegex(
+                        RUNNER.Rejected, "cpu_progress_final_sample_mismatch"):
+                    RUNNER.validate_worker(changed, requested, 512, 0)
+
+    def test_cpu_progress_and_scheduler_final_state_must_agree(self):
+        result = progress_result()
+        result["configuration"]["scheduler_trace"] = True
+        result["diagnostic_trace"] = traced_result()["diagnostic_trace"]
+        result["diagnostic_trace"]["scheduler"]["live_pc"] = result["observed"]["final_pc"]
+        requested = {**result["limits"], "model": "old", "timeout": 40,
+                     "trace_cpu_progress": True, "trace_scheduler": True}
+        RUNNER.validate_worker(result, requested, 512, 0)
+        for field in ("live_pc", "current_thread", "reschedule_pending", "all_blocked", "guest_id"):
+            changed = copy.deepcopy(result)
+            scheduler = changed["diagnostic_trace"]["scheduler"]
+            if field == "live_pc":
+                scheduler[field] += 4
+            elif field == "current_thread":
+                scheduler[field] = None
+            elif field == "guest_id":
+                scheduler["threads"][0][field] += 1
+            else:
+                scheduler[field] = True
+            with self.subTest(field=field), self.assertRaisesRegex(
+                    RUNNER.Rejected, "cpu_progress_scheduler"):
+                RUNNER.validate_worker(changed, requested, 512, 0)
+
+    def test_cpu_progress_payload_bounds_types_and_final_binding(self):
+        for mutation in ("prefix", "tail", "history", "extra", "state_extra", "dispatch_extra",
+                         "register_count", "register_type", "register_bound", "boolean", "cpsr",
+                         "current_thread", "thread_pair", "pc", "thumb", "alignment", "version",
+                         "interval", "capacity", "final_steps", "final_instructions", "final_pc"):
+            result = progress_result()
+            trace = result["cpu_progress"]
+            if mutation == "prefix":
+                trace["prefix"] *= 17
+            elif mutation == "tail":
+                trace["tail"] = trace["prefix"] * 113
+            elif mutation == "history":
+                trace["recent_dispatches"] *= 17
+            elif mutation == "extra":
+                trace["guest_bytes"] = [1, 2, 3]
+            elif mutation == "state_extra":
+                trace["final"]["thread_name"] = "unreviewed"
+            elif mutation == "dispatch_extra":
+                trace["recent_dispatches"][0]["opcode"] = 0
+            elif mutation == "register_count":
+                trace["final"]["registers"].pop()
+            elif mutation == "register_type":
+                trace["final"]["registers"][0] = True
+            elif mutation == "register_bound":
+                trace["final"]["registers"][0] = 2**32
+            elif mutation == "boolean":
+                trace["final"]["all_blocked"] = 0
+            elif mutation == "cpsr":
+                trace["final"]["cpsr"] = -1
+            elif mutation == "current_thread":
+                trace["final"]["current_thread"] = True
+            elif mutation == "thread_pair":
+                trace["final"]["thread_guest_id"] = None
+            elif mutation == "pc":
+                trace["recent_dispatches"][0]["pc"] = 2**32
+            elif mutation == "thumb":
+                trace["recent_dispatches"][0]["thumb"] = 0
+            elif mutation == "alignment":
+                trace["recent_dispatches"][0]["pc"] += 2
+            elif mutation == "version":
+                trace["schema_version"] = True
+            elif mutation == "interval":
+                trace["interval_steps"] += 1
+            elif mutation == "capacity":
+                trace["tail_capacity"] += 1
+            elif mutation == "final_steps":
+                trace["final"]["steps"] -= 1
+            elif mutation == "final_instructions":
+                trace["final"]["interpreted_instructions"] -= 1
+            else:
+                trace["final"]["registers"][15] += 4
+            with self.subTest(mutation=mutation), self.assertRaises(RUNNER.Rejected):
+                RUNNER.validate_worker(result, {**result["limits"], "model": "old", "timeout": 40,
+                                               "trace_cpu_progress": True}, 512, 0)
+
+    def test_cpu_progress_final_after_short_run_and_unattributed_idle_state(self):
+        result = progress_result()
+        trace = result["cpu_progress"]
+        self.assertEqual(trace["samples_seen"], 1)
+        self.assertEqual(trace["prefix"][0]["steps"], 0)
+        self.assertEqual(trace["final"]["steps"], 4)
+        trace["final"].update(current_thread=None, thread_guest_id=None, all_blocked=True,
+                              reschedule_pending=True)
+        trace["recent_dispatches"][0] = {"pc": 0x100002, "thumb": True}
+        RUNNER.validate_worker(result, {**result["limits"], "model": "old", "timeout": 40,
+                                       "trace_cpu_progress": True}, 512, 0)
+
     def test_nonfinite_zero_and_excessive_limits_rejected(self):
         for arguments in (("--timeout", "nan"), ("--max-steps", "0"),
                           ("--max-seconds", "301"), ("--memory-mib", "1")):
@@ -506,6 +732,39 @@ class RealWorkerIntegration(unittest.TestCase):
                             and event["outcome"] == "process_exited"
                             for event in trace["prefix"] + trace["tail"]))
 
+    # CodexAstraUlt: Exercise real worker/coordinator agreement for the new
+    # flag alone and alongside SVC tracing, preserving actual guest work.
+    def test_real_cpu_progress_preserves_execution_with_and_without_scheduler(self):
+        reports = []
+        with tempfile.TemporaryDirectory(prefix="droidds-title-progress-") as temporary:
+            for index, flags in enumerate(([], ["--trace-cpu-progress"],
+                                           ["--trace-cpu-progress", "--trace-scheduler"])):
+                argv = ["--input", str(REAL_FIXTURE), "--output", str(Path(temporary) / str(index)),
+                        "--worker", str(REAL_WORKER), "--max-seconds", "5", "--timeout", "10", *flags]
+                code, report = RUNNER.run(RUNNER.parse_args(argv))
+                self.assertEqual(code, 0, json.dumps(report, indent=2))
+                self.assertEqual(report["status"], "guest_exited")
+                reports.append(report)
+        self.assertEqual(len({report["worker"]["sha256"] for report in reports}), 1)
+        self.assertEqual(len({report["input"]["sha256"] for report in reports}), 1)
+        workers = [report["worker_report"] for report in reports]
+        self.assertIsNone(workers[0]["cpu_progress"])
+        observed = [{key: value for key, value in report["observed"].items()
+                     if key != "elapsed_seconds"} for report in workers]
+        self.assertEqual(observed[0], observed[1])
+        self.assertEqual(observed[0], observed[2])
+        for report in workers[1:]:
+            progress = report["cpu_progress"]
+            self.assertEqual(progress["samples_seen"], 1)
+            self.assertEqual(progress["samples_omitted"], 0)
+            self.assertEqual(progress["prefix"][0]["steps"], 0)
+            self.assertEqual(progress["final"]["steps"], 606)
+            self.assertEqual(len(progress["recent_dispatches"]), 64)
+            self.assertEqual(progress["final"]["registers"][15], report["observed"]["final_pc"])
+        self.assertEqual(workers[1]["cpu_progress"], workers[2]["cpu_progress"])
+        self.assertIsNone(workers[1]["diagnostic_trace"])
+        self.assertIsNotNone(workers[2]["diagnostic_trace"])
+
     def test_real_malformed_container_records_loader_failure(self):
         with tempfile.TemporaryDirectory(prefix="droidds-title-bad-") as temporary:
             root = Path(temporary)
@@ -513,12 +772,13 @@ class RealWorkerIntegration(unittest.TestCase):
             source.write_bytes(b"Not an executable NCCH container" * 32)
             args = RUNNER.parse_args(["--input", str(source), "--output", str(root / "run"),
                                       "--worker", str(REAL_WORKER), "--max-seconds", "5", "--timeout", "10",
-                                      "--trace-scheduler"])
+                                      "--trace-scheduler", "--trace-cpu-progress"])
             code, report = RUNNER.run(args)
             self.assertNotEqual(code, 0)
             self.assertEqual(report["status"], "load_error", report)
             self.assertEqual(report["worker_report"]["observed"]["steps"], 0)
             self.assertIsNone(report["worker_report"]["diagnostic_trace"])
+            self.assertIsNone(report["worker_report"]["cpu_progress"])
             self.assertTrue((root / "run" / "input.cxi").exists())
 
 
