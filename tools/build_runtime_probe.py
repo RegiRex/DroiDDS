@@ -51,13 +51,16 @@ def validate_title_integration(output: str) -> dict:
     """CodexAstraUlt: Require actual worker execution in the Python suite, not
     only coordinator mocks or the Rust-only summary understood by run_logged.
     """
+    # CodexAstraUlt: Trace validation needs the real worker's emitted schema and
+    # trace-on/off execution comparison, not only synthetic envelope controls.
     required = {"test_real_original_fixture_executes_and_hashes",
-                "test_real_malformed_container_records_loader_failure"}
+                "test_real_malformed_container_records_loader_failure",
+                "test_real_trace_preserves_execution_and_retains_bounded_metadata"}
     passed = set(re.findall(r"^([\w]+) \([^\n]+\) \.\.\. ok$", output, re.M))
     count = re.search(r"^Ran ([1-9]\d*) tests? in ", output, re.M)
     if (not required.issubset(passed) or count is None or int(count[1]) != len(passed)
             or not re.search(r"^OK$", output, re.M)):
-        raise ValueError("Private-title integration must execute all tests and both real-worker controls")
+        raise ValueError("Private-title integration must execute all tests and required real-worker controls")
     return {"passed": int(count[1]), "required_tests": sorted(required)}
 
 

@@ -46,10 +46,12 @@ loader/service/CPU blocker from an authorized local decrypted game file.
 without promoting a timer event to a rendered frame or repeating setup. -->
 The owner has now reported a [first local run](host-tests/dark-moon-2026-10-22.md)
 that reached the default cycle budget with 316,366 interpreted instructions,
-59 frame events and zero draws. The next local task is the single controlled
-longer run documented there, reusing the existing worker and comparing both
-reports. No additional installation is needed for that budget change. The
-cloud record is based on the owner's text, not independent JSON validation.
+59 frame events and zero draws. Its ten-second follow-up still ended at
+`0x004B23A8`, with 433,366 instructions, no acquired service handles or draws,
+and unchanged sampled guest memory. The next local task is the opt-in bounded
+scheduler/SVC trace using the follow-up's limits. Rebuild the diagnostic worker
+and record its new hash; preserve the input hash and earlier reports. The cloud
+record is based on the owner's text, not independent JSON validation.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->
@@ -175,27 +177,19 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 <!-- CodexAstraUlt: Give the local session the executable next task, preserving
 its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
-> Continue DroidDS on this Nobara laptop. Read AGENTS.md,
-> docs/PRIVATE_TITLE_RECONNAISSANCE.md and
-> docs/device-tests/0.0.6-correction2-thor.md. Preserve local changes.
-> Read docs/host-tests/dark-moon-2026-10-22.md and docs/HOST_SETUP_CLEANUP.md.
-> Reuse the existing built worker for the documented single longer follow-up,
-> record cleanup inventory without removals, and compare the two local runs. Use
-> tools/run_private_title.py against an already authorized local decrypted copy
-> of Luigi's Mansion: Dark Moon, with a fresh output directory outside every
-> Git checkout. If its exact path is unknown, ask me for the local path; do not
-> request a game upload or search unrelated private directories. Keep updates,
-> DLC, saves and existing configuration out of this isolated baseline. Run the
-> bounded interpreter/software path and report the first loader, service, CPU
-> or execution-budget blocker accurately. Do not treat a bounded stop or zero
-> failure counters as an interactive boot pass. Prepare a small reviewed summary
-> with source/tool identity, title revision identity, outcome, counters and the
-> next concrete fix; keep raw inputs, snapshots and private runtime data local.
-> Run other selected titles separately only when their local paths are authorized.
-> This is host reconnaissance, not a 0.0.7 APK or native-performance result.
-> Continue independent implementation work while preserving the recorded
-> Android audio/control evidence and the unperformed private-boot gates. Use
-> CodexAstraUlt comments and stop only for missing input or a concrete blocker.
+> Update the DroidDS diagnostic source while preserving local changes. Read
+> AGENTS.md, docs/PRIVATE_TITLE_RECONNAISSANCE.md and
+> docs/host-tests/dark-moon-2026-10-22.md. Rebuild droidds-private-title with the
+> existing pinned toolchain and locked dependencies. Run the same authorized
+> Dark Moon input once with --trace-scheduler and the run-003 limits:
+> --max-steps 10000000 --max-cycles 2681118560 --max-frames 1200
+> --max-seconds 120 --timeout 130. Keep other baseline settings unchanged and
+> choose a fresh output directory outside Git. Confirm the input hash matches;
+> record the rebuilt worker's new identity. Compare execution counters against
+> run-003 and inspect startup/recent syscalls, actual return registers, final
+> thread waits and wake deadlines around 0x004B23A8. Return a small reviewed
+> summary with the first concrete blocker or remaining diagnostic gap. Keep
+> game data local; do not increase limits again or infer boot from timer events.
 
 The owner can paste this task into local Codex; they do not need to transcribe
 all build/run commands themselves. This document does not connect sessions or

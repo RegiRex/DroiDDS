@@ -6,6 +6,8 @@ pub mod cheats;
 pub mod enhancements;
 pub mod cro;
 pub mod download_play;
+// CodexAstraUlt: Fixed-size, opt-in host reconnaissance; normal frontends keep it disabled.
+pub mod diagnostics;
 pub mod hints;
 pub mod idle;
 pub mod kernel;
@@ -204,6 +206,8 @@ pub struct System {
     undefined_seen: BTreeMap<u32, u32>,
     // CodexAstraUlt: Strict diagnostic runs retain one fault and halt immediately.
     diagnostic_fault: Option<DiagnosticFault>,
+    // CodexAstraUlt: Heap storage exists only when a diagnostic tool enables it.
+    diagnostic_trace: Option<Box<diagnostics::TraceState>>,
     /// branches into unmapped memory, keyed by target.
     pub prefetch_aborts: BTreeMap<u32, u32>,
     /// the last few instruction addresses, so a fault can say how it got there.
@@ -310,6 +314,7 @@ impl System {
             fatal_errors: Vec::new(),
             undefined_seen: BTreeMap::new(),
             diagnostic_fault: None,
+            diagnostic_trace: None,
             prefetch_aborts: BTreeMap::new(),
             history: [0; HISTORY_LENGTH],
             history_index: 0,
@@ -412,6 +417,9 @@ impl System {
         }
 
         if self.kernel.reschedule_pending || self.kernel.current_thread.is_none() {
+            // CodexAstraUlt: Keep scheduling unchanged; observe transitions and
+            // completed wait return registers only for an explicitly enabled trace.
+            let previous_thread = self.kernel.current_thread;
             self.kernel.reschedule_pending = false;
             let tick = self.cpu.cycles;
             if self.kernel.schedule(&mut self.cpu, tick) {
@@ -419,7 +427,12 @@ impl System {
             }
             // a thread released here that keeps the core gets its result
             // too, before it runs on, not over whatever it does next
+            let wait_result = self.diagnostic_trace.as_ref().and_then(|_| self.kernel.current())
+                .and_then(|thread| thread.wait_result);
             self.apply_wait_result();
+            if self.diagnostic_trace.is_some() {
+                self.trace_schedule(previous_thread, wait_result);
+            }
         }
 
         if self.kernel.current_thread.is_none() {
@@ -494,8 +507,11 @@ impl System {
             self.sample();
         }
 
+        // CodexAstraUlt: A compiled block's entry is not its eventual SVC PC.
+        let mut native_dispatch = false;
         let exit = match self.run_recompiled(deadline) {
             Some(exit) => {
+                native_dispatch = true;
                 // its writes do not go through the log a watch keeps
                 self.idle_interrupted(false);
                 if let Some(hints) = &mut self.hints {
@@ -533,7 +549,13 @@ impl System {
         }
         match exit {
             None => {}
-            Some(Exit::Supervisor(number)) => kernel::svc::dispatch(self, number),
+            Some(Exit::Supervisor(number)) => {
+                // CodexAstraUlt: Capture ABI metadata around the real dispatch,
+                // preserving blocked returns until their thread actually resumes.
+                let entry = self.trace_svc_entry((!native_dispatch).then_some(pc), number);
+                kernel::svc::dispatch(self, number);
+                self.trace_svc_exit(entry);
+            }
             Some(Exit::Undefined { pc, opcode }) => {
                 // CodexAstraUlt: A baseline must not claim progress by skipping
                 // an unsupported instruction. Preserve its PC and stop before

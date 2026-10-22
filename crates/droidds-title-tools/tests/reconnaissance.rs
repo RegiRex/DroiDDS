@@ -40,6 +40,7 @@ impl Case {
             max_frames: 2,
             max_seconds: 30,
             new_model: false,
+            trace_scheduler: false,
         };
         Self { root, options }
     }
@@ -292,4 +293,36 @@ fn standalone_update_and_dlc_titles_never_execute_as_a_base_game() {
         assert_eq!(report["observed"]["steps"], 0);
         assert_eq!(report["input"]["program_id"], format!("{program:016X}"));
     }
+}
+
+// CodexAstraUlt: This original guest sleeps for one millisecond in a loop,
+// reproducing the shape of an early wait without copying any private title.
+// Tracing must retain the same execution, timing and memory accounting.
+#[test]
+fn scheduler_trace_preserves_sleep_loop_execution_and_is_disabled_by_default() {
+    let _lock = RUNTIME_TEST.lock().unwrap();
+    let image = small_guest(&[
+        0xe59f_0008, // LDR r0, [pc, #8]: the one-millisecond literal below.
+        0xe3a0_1000, // MOV r1, #0: upper half of nanoseconds.
+        0xef00_000a, // SVC SleepThread.
+        0xeaff_fffb, // B back to the first load after resumption.
+        1_000_000,
+    ]);
+    let mut reports = Vec::new();
+    for enabled in [false, true] {
+        let mut case = Case::new(&image);
+        case.options.trace_scheduler = enabled;
+        case.options.max_cycles = 268_111_856;
+        case.options.max_frames = 120;
+        let report = case.execute();
+        assert_eq!(report["status"], "budget_exhausted", "{report:#}");
+        assert_eq!(report["reason"], "cycle_budget", "{report:#}");
+        assert_eq!(report["configuration"]["scheduler_trace"], enabled);
+        assert_eq!(report["diagnostic_trace"].is_object(), enabled);
+        assert!(report.to_string().len() < 256 * 1024);
+        let mut observed = report["observed"].clone();
+        observed.as_object_mut().unwrap().remove("elapsed_seconds");
+        reports.push(observed);
+    }
+    assert_eq!(reports[0], reports[1]);
 }

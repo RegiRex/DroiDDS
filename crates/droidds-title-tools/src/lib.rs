@@ -29,6 +29,9 @@ pub struct Options {
     pub max_frames: u64,
     pub max_seconds: u64,
     pub new_model: bool,
+    // CodexAstraUlt: Explicit local diagnostics only; ordinary runtime and
+    // baseline execution retain the disabled trace path.
+    pub trace_scheduler: bool,
 }
 
 impl Options {
@@ -56,10 +59,11 @@ fn envelope(options: &Options) -> Value {
         "schema_version": 1, "tool_version": env!("CARGO_PKG_VERSION"), "kind": KIND,
         "runtime_revision": RUNTIME_REVISION, "runtime_has_local_patches": true,
         "status": "internal_error", "reason": "worker_incomplete", "blocker": null,
-        "input": null, "configuration": {
+        "input": null, "diagnostic_trace": null, "configuration": {
             "model_requested": if options.new_model { "new" } else { "old" },
             "model_resolved": null, "execution": "interpreter", "renderer": "software",
             "strict_diagnostics": true, "native_discovery": false, "updates": false,
+            "scheduler_trace": options.trace_scheduler,
             "dlc": false, "texture_packs": false, "enhancements": false,
             "mods_and_cheats": "absent_in_fresh_private_data_directory",
             "idle_loop_skipping": false, "clock_ms_since_1900": 4_000_000_000_000u64,
@@ -181,6 +185,11 @@ fn execute(options: &Options, report: &mut Value, started: Instant) -> Result<()
         return Err("unexpected_optional_runtime_component".into());
     }
 
+    // CodexAstraUlt: Capture only opt-in bounded scheduler/SVC metadata after
+    // loading and before the first guest instruction; no continuous log writer.
+    if options.trace_scheduler {
+        system.enable_diagnostic_trace();
+    }
     let mut steps = 0u64;
     let mut drained_pcm = 0u64;
     let mut nonzero_pcm = 0u64;
@@ -263,6 +272,10 @@ fn execute(options: &Options, report: &mut Value, started: Instant) -> Result<()
     report["status"] = json!(status);
     report["reason"] = json!(reason);
     report["blocker"] = blocker;
+    // CodexAstraUlt: Serialize the fixed-capacity trace and final wait snapshot
+    // once, preserving pending returns and truncation as diagnostic evidence.
+    report["diagnostic_trace"] = serde_json::to_value(system.diagnostic_trace_snapshot())
+        .expect("diagnostic trace metadata");
     report["observed"] = json!({
         "steps":steps, "cycles":system.cpu.cycles, "frames":system.frames,
         "cycles_after_budget":system.cpu.cycles.saturating_sub(options.max_cycles),

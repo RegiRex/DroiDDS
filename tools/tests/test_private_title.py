@@ -41,11 +41,13 @@ def worker_result(size=512):
         "configuration": {
             "model_requested": "old", "model_resolved": "old", "execution": "interpreter",
             "renderer": "software", "strict_diagnostics": True, "native_discovery": False,
+            "scheduler_trace": False,
             "updates": False, "dlc": False, "texture_packs": False, "enhancements": False,
             "mods_and_cheats": "absent_in_fresh_private_data_directory",
             "idle_loop_skipping": False, "input_events": "neutral", "scanout_captured": False,
             "budget_boundary": {"steps": "before_dispatch_hard", "cycles": "after_system_step",
                                 "frames": "after_system_step", "wall": "between_loader_and_steps_parent_hard_timeout"}},
+        "diagnostic_trace": None,
         "limits": {key: value[0] for key, value in RUNNER.LIMITS.items()},
         "input": {"program_id": "000400000FFDD100", "title_name": "TEST", "product_code": "CTR-P-TEST",
                   "container_bytes": size, "ncch_offset": 0, "entry_point": 1048576,
@@ -55,6 +57,29 @@ def worker_result(size=512):
         "observed": {"steps": 4, "cycles": 4, "cycles_after_budget": 0, "frames": 0, "interpreted_instructions": 4,
                      "recompiled_instructions": 0, "elapsed_seconds": 0.01, "guest_exited": True,
                      **{key: 0 for key in RUNNER.FAULT_COUNTERS}}}
+
+
+def traced_result():
+    """CodexAstraUlt: A bounded metadata fixture, never a simulated game pass."""
+    result = worker_result()
+    result["configuration"]["scheduler_trace"] = True
+    result["diagnostic_trace"] = {
+        "schema_version": 1, "prefix_capacity": 64, "tail_capacity": 128,
+        "thread_capacity": 64, "wait_object_capacity": 8, "pending_capacity": 64,
+        "events_seen": 1, "events_omitted": 0, "svc_counts": [{"number": 0x28, "count": 1}],
+        "other_svc_calls": 0, "pending_dropped": 0,
+        "prefix": [{"sequence": 1, "cycle": 4, "kind": "svc", "entry_cycle": 3,
+                    "thread": 0, "pc": 0x100000, "number": 0x28, "args": [0, 0, 0, 0, 0, 0],
+                    "returns": [4, 0, 0, 0], "outcome": "returned", "wakeup_at": None}],
+        "tail": [], "scheduler": {
+            "cycle": 4, "current_thread": 0, "live_pc": 0x100010,
+            "reschedule_pending": False, "all_blocked": False, "next_kernel_event": None,
+            "threads_total": 1, "threads_truncated": 0,
+            "threads": [{"id": 0, "guest_id": 1, "status": "running", "pc": 0x100010,
+                         "priority": 0x30, "wakeup_at": None, "wait_all": False,
+                         "wait_address": None, "wait_syscall": None,
+                         "wait_objects_total": 0, "wait_objects_truncated": 0, "wait_objects": []}]}}
+    return result
 
 
 class CoordinatorTests(unittest.TestCase):
@@ -167,6 +192,125 @@ class CoordinatorTests(unittest.TestCase):
         self.assertEqual(self.execute()[1]["reason"], "input_must_be_base_ncch_ncsd_or_cia")
         with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
             self.args("--updates", "unexpected.cia")
+
+    # CodexAstraUlt: Trace selection is explicit and report-bound; merely
+    # running the host coordinator must not activate scheduler instrumentation.
+    def test_scheduler_trace_is_opt_in_and_boolean(self):
+        self.assertFalse(self.args().trace_scheduler)
+        self.assertTrue(self.args("--trace-scheduler").trace_scheduler)
+        with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+            self.args("--trace-scheduler=true")
+        self.fake_worker("assert '--trace-scheduler' not in sys.argv")
+        code, report = self.execute()
+        self.assertEqual(code, 0, report)
+        self.assertIs(report["requested"]["trace_scheduler"], False)
+        self.assertIs(report["worker_report"]["configuration"]["scheduler_trace"], False)
+        self.assertIsNone(report["worker_report"]["diagnostic_trace"])
+
+    def test_scheduler_trace_request_must_match_worker_configuration(self):
+        for requested, produced in ((True, False), (False, True), (False, 0)):
+            result = worker_result()
+            result["configuration"]["scheduler_trace"] = produced
+            with self.subTest(requested=requested, produced=produced), self.assertRaises(RUNNER.Rejected):
+                RUNNER.validate_worker(result, {**result["limits"], "model": "old", "timeout": 40,
+                                               "trace_scheduler": requested}, 512, 0)
+
+    def test_requested_trace_required_after_execution_but_not_failed_loading(self):
+        result = worker_result()
+        result["configuration"]["scheduler_trace"] = True
+        requested = {**result["limits"], "model": "old", "timeout": 40, "trace_scheduler": True}
+        with self.assertRaisesRegex(RUNNER.Rejected, "requested_scheduler_trace_missing"):
+            RUNNER.validate_worker(result, requested, 512, 0)
+        result.update(status="load_error", reason="loader_rejected", input=None)
+        result["observed"].update(steps=0, cycles=0, interpreted_instructions=0, guest_exited=False)
+        RUNNER.validate_worker(result, requested, 512, 2)
+
+    def test_trace_absent_when_not_requested(self):
+        result = worker_result()
+        result["diagnostic_trace"] = {"unexpected": "must not retain this"}
+        with self.assertRaisesRegex(RUNNER.Rejected, "unrequested_scheduler_trace"):
+            RUNNER.validate_worker(result, {**result["limits"], "model": "old", "timeout": 40}, 512, 0)
+
+    def test_requested_trace_is_passed_to_worker_and_retained(self):
+        self.fake_worker("assert '--trace-scheduler' in sys.argv", result=traced_result())
+        code, report = self.execute("--trace-scheduler")
+        self.assertEqual(code, 0, report)
+        self.assertIs(report["requested"]["trace_scheduler"], True)
+        self.assertEqual(report["worker_report"]["diagnostic_trace"]["events_seen"], 1)
+
+    # CodexAstraUlt: A longer trace must disclose the exact lost middle while
+    # retaining the original prefix and correctly ordered recent tail.
+    def test_trace_retention_and_sequence_accounting(self):
+        result = traced_result()
+        result["observed"].update(cycles=300, steps=300, interpreted_instructions=300)
+        trace = result["diagnostic_trace"]
+        event = trace["prefix"][0]
+        trace.update(events_seen=300, events_omitted=108,
+                     svc_counts=[{"number": 0x28, "count": 300}],
+                     prefix=[{**event, "sequence": n, "cycle": n, "entry_cycle": n} for n in range(1, 65)],
+                     tail=[{**event, "sequence": n, "cycle": n, "entry_cycle": n} for n in range(173, 301)])
+        trace["scheduler"]["cycle"] = 300
+        requested = {**result["limits"], "model": "old", "timeout": 40, "trace_scheduler": True}
+        RUNNER.validate_worker(result, requested, 512, 0)
+        for mutation in ("omitted", "sequence", "time", "counter"):
+            changed = copy.deepcopy(result)
+            trace = changed["diagnostic_trace"]
+            if mutation == "omitted":
+                trace["events_omitted"] += 1
+            elif mutation == "sequence":
+                trace["tail"][0]["sequence"] -= 1
+            elif mutation == "time":
+                trace["tail"][0]["cycle"] = 0
+            else:
+                trace["svc_counts"][0]["count"] = 1
+            with self.subTest(mutation=mutation), self.assertRaises(RUNNER.Rejected):
+                RUNNER.validate_worker(changed, requested, 512, 0)
+
+    def test_trace_payload_bounds_types_and_unfinished_returns_rejected(self):
+        for mutation in ("prefix", "threads", "objects", "extra", "boolean", "pc", "return", "cycle", "capacity"):
+            result = traced_result()
+            trace = result["diagnostic_trace"]
+            if mutation == "prefix":
+                trace["prefix"] *= 65
+            elif mutation == "threads":
+                trace["scheduler"]["threads"] *= 65
+            elif mutation == "objects":
+                trace["scheduler"]["threads"][0]["wait_objects"] = [{}] * 9
+            elif mutation == "extra":
+                trace["prefix"][0]["guest_text"] = "unreviewed payload"
+            elif mutation == "boolean":
+                trace["scheduler"]["all_blocked"] = 0
+            elif mutation == "pc":
+                trace["prefix"][0]["pc"] = 2**32
+            elif mutation == "return":
+                trace["prefix"][0]["outcome"] = "blocked"
+            elif mutation == "cycle":
+                trace["scheduler"]["cycle"] += 1
+            else:
+                trace["tail_capacity"] = 129
+            with self.subTest(mutation=mutation), self.assertRaises(RUNNER.Rejected):
+                RUNNER.validate_worker(result, {**result["limits"], "model": "old", "timeout": 40,
+                                               "trace_scheduler": True}, 512, 0)
+
+    def test_trace_wait_resume_and_final_wait_object_metadata(self):
+        result = traced_result()
+        trace = result["diagnostic_trace"]
+        trace["events_seen"] = 3
+        trace["prefix"] += [
+            {"sequence": 2, "cycle": 4, "kind": "schedule", "previous_thread": None, "next_thread": 0},
+            {"sequence": 3, "cycle": 4, "kind": "wait_resume", "thread": 0, "guest_id": 1,
+             "number": 0x24, "svc_pc": 0x100004, "return_pc": 0x100008,
+             "returns": [0x09401BFE, 0, 0, 0], "wait_result": "timed_out", "signaled_index": None}]
+        thread = trace["scheduler"]["threads"][0]
+        thread.update(status="wait_sync", wakeup_at=100, wait_syscall=0x24,
+                      wait_objects_total=1, wait_objects=[{
+                          "id": 4, "kind": "Event", "signaled": False,
+                          "owner": None, "count": None, "deadline": None}])
+        requested = {**result["limits"], "model": "old", "timeout": 40, "trace_scheduler": True}
+        RUNNER.validate_worker(result, requested, 512, 0)
+        trace["prefix"][-1]["signaled_index"] = 0
+        with self.assertRaises(RUNNER.Rejected):
+            RUNNER.validate_worker(result, requested, 512, 0)
 
     def test_nonfinite_zero_and_excessive_limits_rejected(self):
         for arguments in (("--timeout", "nan"), ("--max-steps", "0"),
@@ -334,17 +478,47 @@ class RealWorkerIntegration(unittest.TestCase):
             self.assertTrue(report["input"]["stable_after_run"])
             self.assertEqual(report["worker_report"]["input"]["program_id"], "000400000D5D0005")
 
+    # CodexAstraUlt: The real original container proves trace-enabled metadata
+    # passes the coordinator while execution/rendering counters stay unchanged.
+    def test_real_trace_preserves_execution_and_retains_bounded_metadata(self):
+        reports = []
+        with tempfile.TemporaryDirectory(prefix="droidds-title-trace-") as temporary:
+            for enabled in (False, True):
+                argv = ["--input", str(REAL_FIXTURE), "--output", str(Path(temporary) / str(enabled)),
+                        "--worker", str(REAL_WORKER), "--max-seconds", "5", "--timeout", "10"]
+                if enabled:
+                    argv.append("--trace-scheduler")
+                code, report = RUNNER.run(RUNNER.parse_args(argv))
+                self.assertEqual(code, 0, json.dumps(report, indent=2))
+                self.assertEqual(report["status"], "guest_exited")
+                reports.append(report)
+        self.assertEqual(reports[0]["worker"]["sha256"], reports[1]["worker"]["sha256"])
+        self.assertEqual(reports[0]["input"]["sha256"], reports[1]["input"]["sha256"])
+        baseline, traced = [report["worker_report"] for report in reports]
+        self.assertIsNone(baseline["diagnostic_trace"])
+        observations = [{key: value for key, value in report["observed"].items()
+                         if key != "elapsed_seconds"} for report in (baseline, traced)]
+        self.assertEqual(observations[0], observations[1])
+        trace = traced["diagnostic_trace"]
+        self.assertGreater(trace["events_seen"], 0)
+        self.assertTrue(trace["svc_counts"])
+        self.assertTrue(any(event["kind"] == "svc" and event["number"] == 3
+                            and event["outcome"] == "process_exited"
+                            for event in trace["prefix"] + trace["tail"]))
+
     def test_real_malformed_container_records_loader_failure(self):
         with tempfile.TemporaryDirectory(prefix="droidds-title-bad-") as temporary:
             root = Path(temporary)
             source = root / "malformed.cxi"
             source.write_bytes(b"Not an executable NCCH container" * 32)
             args = RUNNER.parse_args(["--input", str(source), "--output", str(root / "run"),
-                                      "--worker", str(REAL_WORKER), "--max-seconds", "5", "--timeout", "10"])
+                                      "--worker", str(REAL_WORKER), "--max-seconds", "5", "--timeout", "10",
+                                      "--trace-scheduler"])
             code, report = RUNNER.run(args)
             self.assertNotEqual(code, 0)
             self.assertEqual(report["status"], "load_error", report)
             self.assertEqual(report["worker_report"]["observed"]["steps"], 0)
+            self.assertIsNone(report["worker_report"]["diagnostic_trace"])
             self.assertTrue((root / "run" / "input.cxi").exists())
 
 

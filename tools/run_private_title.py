@@ -144,7 +144,14 @@ def source_identity():
                 "binary_source_attested": False, "files_sha256": {}}
     for name in ("Cargo.lock", "upstream.lock.toml", "crates/droidds-title-tools/Cargo.toml",
                  "crates/droidds-title-tools/src/main.rs", "crates/droidds-title-tools/src/lib.rs",
-                 "tools/run_private_title.py", "vendor/zakuro/crates/zakuro-core/src/lib.rs"):
+                 "tools/run_private_title.py", "vendor/zakuro/crates/zakuro-core/src/lib.rs",
+                 # CodexAstraUlt: Bind the new trace and the scheduler/syscall
+                 # source context used to interpret its bounded metadata.
+                 "vendor/zakuro/crates/zakuro-core/src/diagnostics.rs",
+                 "vendor/zakuro/crates/zakuro-core/src/kernel/svc.rs",
+                 "vendor/zakuro/crates/zakuro-core/src/kernel/mod.rs",
+                 "vendor/zakuro/crates/zakuro-core/src/kernel/thread.rs",
+                 "vendor/zakuro/crates/zakuro-core/src/kernel/object.rs"):
         with (ROOT / name).open("rb") as stream:
             identity["files_sha256"][name] = stream_digest(stream, MAX_WORKER_BYTES)[0]
     for key, command in (("checkout_commit", ["git", "rev-parse", "HEAD"]),
@@ -160,6 +167,173 @@ def integer(value, name, low=0, high=2**64 - 1):
     if type(value) is not int or not low <= value <= high:
         raise Rejected("invalid_worker_" + name)
     return value
+
+
+def validate_scheduler_trace(trace, observed):
+    """CodexAstraUlt: Validate the fixed metadata schema before retaining it.
+
+    The initial prefix and recent tail are disjoint. Exact capacities, sequence
+    positions and omission counts distinguish a bounded trace from a complete
+    execution history; arbitrary guest text or extra payloads are not accepted.
+    """
+    def obj(value, keys, label):
+        if not isinstance(value, dict) or set(value) != set(keys.split()):
+            raise Rejected("invalid_worker_trace_" + label + "_shape")
+        return value
+
+    def uint(value, label, maximum=2**64 - 1, optional=False):
+        if optional and value is None:
+            return None
+        return integer(value, "trace_" + label, high=maximum)
+
+    def boolean(value, label):
+        if type(value) is not bool:
+            raise Rejected("invalid_worker_trace_" + label)
+
+    def choice(value, choices, label):
+        if not isinstance(value, str) or value not in choices.split():
+            raise Rejected("invalid_worker_trace_" + label)
+
+    def bounded_list(value, maximum, label):
+        if not isinstance(value, list) or len(value) > maximum:
+            raise Rejected("invalid_worker_trace_" + label + "_bound")
+        return value
+
+    def registers(value, label, count=4):
+        if not isinstance(value, list) or len(value) != count:
+            raise Rejected("invalid_worker_trace_" + label)
+        for item in value:
+            uint(item, label, 2**32 - 1)
+
+    obj(trace, "schema_version prefix_capacity tail_capacity thread_capacity wait_object_capacity "
+        "pending_capacity events_seen events_omitted svc_counts other_svc_calls pending_dropped "
+        "prefix tail scheduler", "snapshot")
+    for name, expected in {"schema_version": 1, "prefix_capacity": 64, "tail_capacity": 128,
+                           "thread_capacity": 64, "wait_object_capacity": 8, "pending_capacity": 64}.items():
+        if type(trace[name]) is not int or trace[name] != expected:
+            raise Rejected("invalid_worker_trace_" + name)
+    seen = uint(trace["events_seen"], "events_seen")
+    omitted = uint(trace["events_omitted"], "events_omitted")
+    other = uint(trace["other_svc_calls"], "other_svc_calls")
+    uint(trace["pending_dropped"], "pending_dropped", seen)
+    prefix = bounded_list(trace["prefix"], 64, "prefix")
+    tail = bounded_list(trace["tail"], 128, "tail")
+    if (len(prefix) != min(seen, 64) or len(tail) != min(max(0, seen - 64), 128)
+            or omitted != seen - len(prefix) - len(tail)):
+        raise Rejected("invalid_worker_trace_retention_accounting")
+    counts = {}
+    previous_number = -1
+    for counter in bounded_list(trace["svc_counts"], 128, "svc_counts"):
+        obj(counter, "number count", "svc_counter")
+        number = uint(counter["number"], "svc_number", 127)
+        count = integer(counter["count"], "trace_svc_count", low=1, high=seen)
+        if number <= previous_number:
+            raise Rejected("invalid_worker_trace_svc_count_order")
+        previous_number, counts[number] = number, count
+    if sum(counts.values()) + other > seen:
+        raise Rejected("invalid_worker_trace_svc_count_total")
+
+    # CodexAstraUlt: Syscall return registers are metadata, not universally
+    # ResultCodes. A parked syscall has no immediate return until wait_resume.
+    previous_cycle, retained_counts = 0, {}
+    for events, start in ((prefix, 1), (tail, seen - len(tail) + 1)):
+        for sequence, event in enumerate(events, start):
+            if not isinstance(event, dict):
+                raise Rejected("invalid_worker_trace_event_shape")
+            kind = event.get("kind")
+            common = "sequence cycle kind "
+            fields = {"svc": "entry_cycle thread pc number args returns outcome wakeup_at",
+                      "schedule": "previous_thread next_thread",
+                      "wait_resume": "thread guest_id number svc_pc return_pc returns wait_result signaled_index"}
+            choice(kind, "svc schedule wait_resume", "event_kind")
+            obj(event, common + fields[kind], "event")
+            if uint(event["sequence"], "sequence") != sequence:
+                raise Rejected("invalid_worker_trace_event_sequence")
+            cycle = uint(event["cycle"], "cycle", observed["cycles"])
+            if cycle < previous_cycle:
+                raise Rejected("invalid_worker_trace_event_cycle_order")
+            previous_cycle = cycle
+            if kind == "svc":
+                uint(event["entry_cycle"], "entry_cycle", cycle)
+                uint(event["thread"], "thread", 2**32 - 1, True)
+                uint(event["pc"], "pc", 2**32 - 1, True)
+                number = uint(event["number"], "number", 2**32 - 1)
+                registers(event["args"], "args", count=6)
+                choice(event["outcome"], "returned blocked thread_exited process_exited faulted", "outcome")
+                uint(event["wakeup_at"], "wakeup_at", optional=True)
+                if event["outcome"] == "returned":
+                    registers(event["returns"], "returns")
+                elif event["returns"] is not None:
+                    raise Rejected("invalid_worker_trace_unfinished_syscall_return")
+                retained_counts[number] = retained_counts.get(number, 0) + 1
+            elif kind == "schedule":
+                uint(event["previous_thread"], "previous_thread", 2**32 - 1, True)
+                uint(event["next_thread"], "next_thread", 2**32 - 1, True)
+                if event["previous_thread"] == event["next_thread"]:
+                    raise Rejected("invalid_worker_trace_unchanged_schedule")
+            else:
+                for name in ("thread", "guest_id", "number", "return_pc"):
+                    uint(event[name], name, 2**32 - 1)
+                uint(event["svc_pc"], "svc_pc", 2**32 - 1, True)
+                registers(event["returns"], "returns")
+                choice(event["wait_result"], "signaled timed_out not_recorded", "wait_result")
+                uint(event["signaled_index"], "signaled_index", optional=True)
+                if (event["wait_result"] == "signaled") != (event["signaled_index"] is not None):
+                    raise Rejected("invalid_worker_trace_signaled_index")
+    if any(count > counts.get(number, 0) for number, count in retained_counts.items() if number < 128):
+        raise Rejected("invalid_worker_trace_retained_svc_counts")
+    if sum(count for number, count in retained_counts.items() if number >= 128) > other:
+        raise Rejected("invalid_worker_trace_retained_other_svc_counts")
+
+    # CodexAstraUlt: Final thread/object summaries exclude names, CPU contexts
+    # and arbitrary memory. Explicit truncated counts preserve their limits.
+    scheduler = obj(trace["scheduler"], "cycle current_thread live_pc reschedule_pending all_blocked "
+                    "next_kernel_event threads_total threads_truncated threads", "scheduler")
+    if uint(scheduler["cycle"], "scheduler_cycle") != observed["cycles"]:
+        raise Rejected("invalid_worker_trace_final_cycle")
+    current = uint(scheduler["current_thread"], "current_thread", 2**32 - 1, True)
+    uint(scheduler["live_pc"], "live_pc", 2**32 - 1)
+    for name in ("reschedule_pending", "all_blocked"):
+        boolean(scheduler[name], name)
+    uint(scheduler["next_kernel_event"], "next_kernel_event", optional=True)
+    total = uint(scheduler["threads_total"], "threads_total")
+    truncated = uint(scheduler["threads_truncated"], "threads_truncated")
+    threads = bounded_list(scheduler["threads"], 64, "threads")
+    if len(threads) != min(total, 64) or truncated != total - len(threads):
+        raise Rejected("invalid_worker_trace_thread_accounting")
+    thread_ids = set()
+    for thread in threads:
+        obj(thread, "id guest_id status pc priority wakeup_at wait_all wait_address wait_syscall "
+            "wait_objects_total wait_objects_truncated wait_objects", "thread")
+        for name in ("id", "guest_id", "pc", "priority"):
+            uint(thread[name], name, 2**32 - 1)
+        if thread["id"] in thread_ids:
+            raise Rejected("invalid_worker_trace_duplicate_thread")
+        thread_ids.add(thread["id"])
+        choice(thread["status"], "running ready sleeping wait_sync wait_arbiter dormant dead", "thread_status")
+        uint(thread["wakeup_at"], "wakeup_at", optional=True)
+        boolean(thread["wait_all"], "wait_all")
+        uint(thread["wait_address"], "wait_address", 2**32 - 1, True)
+        syscall = uint(thread["wait_syscall"], "wait_syscall", 2**32 - 1, True)
+        if syscall not in (None, 0x24, 0x25, 0x22, 0x0A):
+            raise Rejected("invalid_worker_trace_wait_syscall")
+        count = uint(thread["wait_objects_total"], "wait_objects_total")
+        truncated = uint(thread["wait_objects_truncated"], "wait_objects_truncated")
+        objects = bounded_list(thread["wait_objects"], 8, "wait_objects")
+        if len(objects) != min(count, 8) or truncated != count - len(objects):
+            raise Rejected("invalid_worker_trace_wait_object_accounting")
+        for item in objects:
+            obj(item, "id kind signaled owner count deadline", "wait_object")
+            uint(item["id"], "object_id", 2**32 - 1)
+            choice(item["kind"], "Thread Event Mutex Semaphore Timer AddressArbiter SharedMemory ClientSession "
+                   "ClientPort Process ResourceLimit missing", "object_kind")
+            boolean(item["signaled"], "signaled")
+            uint(item["owner"], "owner", 2**32 - 1, True)
+            if item["count"] is not None:
+                integer(item["count"], "trace_object_count", low=-(2**63), high=2**63 - 1)
+            uint(item["deadline"], "deadline", optional=True)
+    if current is not None and current not in thread_ids:
+        raise Rejected("invalid_worker_trace_current_thread_missing")
 
 
 def validate_worker(report, requested, snapshot_bytes, returncode):
@@ -191,10 +365,16 @@ def validate_worker(report, requested, snapshot_bytes, returncode):
     config = report.get("configuration", {})
     if not isinstance(config, dict):
         raise Rejected("worker_configuration_not_object")
+    # CodexAstraUlt: Bind the opt-in boolean independently of Python's numeric
+    # equality so a malformed request cannot turn an integer into trace consent.
+    trace_requested = requested.get("trace_scheduler", False)
+    if type(trace_requested) is not bool:
+        raise Rejected("invalid_scheduler_trace_request")
     for key, value in {"execution": "interpreter", "renderer": "software",
                        "model_requested": requested["model"], "strict_diagnostics": True,
                        "native_discovery": False, "updates": False, "dlc": False,
                        "texture_packs": False, "enhancements": False,
+                       "scheduler_trace": trace_requested,
                        "idle_loop_skipping": False, "input_events": "neutral",
                        "scanout_captured": False,
                        "mods_and_cheats": "absent_in_fresh_private_data_directory"}.items():
@@ -278,6 +458,17 @@ def validate_worker(report, requested, snapshot_bytes, returncode):
                 raise Rejected("worker_blocker_counter_missing")
         if status != "blocked" and blocker is not None:
             raise Rejected("worker_unexpected_blocker")
+    # CodexAstraUlt: An early loader failure has no initialized runtime to trace.
+    # Completed diagnostic execution must retain its requested bounded snapshot.
+    trace = report.get("diagnostic_trace")
+    if not trace_requested:
+        if trace is not None:
+            raise Rejected("worker_unrequested_scheduler_trace")
+    elif trace is None:
+        if status in SUCCESS_STATUSES:
+            raise Rejected("worker_requested_scheduler_trace_missing")
+    else:
+        validate_scheduler_trace(trace, observed)
     return report
 
 
@@ -345,6 +536,10 @@ def parse_args(argv=None):
     parser.add_argument("--output", required=True, type=Path, help="Absent run directory outside every Git checkout")
     parser.add_argument("--worker", type=Path, default=ROOT / "target/release/droidds-private-title")
     parser.add_argument("--model", choices=("old", "new"), default="old")
+    # CodexAstraUlt: Only this explicit diagnostic option enables the bounded
+    # syscall/scheduler metadata; ordinary baseline runs retain no trace.
+    parser.add_argument("--trace-scheduler", action="store_true",
+                        help="Retain a bounded scheduler/SVC diagnostic trace")
     for key, (default, ceiling) in LIMITS.items():
         parser.add_argument("--" + key.replace("_", "-"), type=int, default=default,
                             help=f"Positive limit, default {default}, maximum {ceiling}")
@@ -370,7 +565,8 @@ def run(args):
     started, directory = time.monotonic(), None
     handles, identities = [], []
     requested = {key: getattr(args, key) for key in LIMITS}
-    requested.update(model=args.model, timeout=args.timeout, memory_mib=args.memory_mib)
+    requested.update(model=args.model, timeout=args.timeout, memory_mib=args.memory_mib,
+                     trace_scheduler=args.trace_scheduler)
     report = {"schema_version": 1, "kind": "droidds_private_title_local_run",
               "tool_version": "0.0.1", "status": "preparing", "reason": "preflight",
               "requested": requested, "input": None, "worker": None, "process": None,
@@ -433,6 +629,10 @@ def run(args):
                    "--model", args.model]
         for key in LIMITS:
             command += ["--" + key.replace("_", "-"), str(getattr(args, key))]
+        # CodexAstraUlt: A disabled trace is not passed as a worker option;
+        # requested/report binding below prevents silent activation or omission.
+        if args.trace_scheduler:
+            command.append("--trace-scheduler")
         process = run_worker(command, directory, args.timeout, args.memory_mib)
         report["process"] = process
         changed = [label for path, stream, original, digest, ceiling, label in identities

@@ -8,10 +8,10 @@ renderer. It uses the new `droidds-private-title` host worker. The purpose is to
 find the first reproducible loader, CPU or service blocker in an actual title,
 starting with Luigi's Mansion: Dark Moon. No private-title baseline has yet been
 independently validated by this cloud work. The owner subsequently supplied a
-[first local execution summary](host-tests/dark-moon-2026-10-22.md): the default
-cycle budget was reached with 316,366 interpreted instructions, 59 frame events
-and zero draws. Read that record for the single controlled follow-up and its
-evidence limits. This does not generate native title code, produce a
+[paired local execution summary](host-tests/dark-moon-2026-10-22.md): the default
+and ten-second emulated-time runs both ended at `0x004B23A8` with zero draws.
+The next measurement is the bounded scheduler/SVC trace below, using the same
+longer limits. This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in
 [the corrected 0.0.6 report](device-tests/0.0.6-correction2-thor.md).
@@ -146,3 +146,46 @@ controls or playability. Once the first real-title blocker is measured, fix it
 with a generic regression where possible and rerun the same private baseline.
 Native generation, private APK packaging and hardware validation remain in
 [the private title build plan](PRIVATE_TITLE_BUILD_PLAN.md).
+
+## Opt-in scheduler/SVC trace
+
+<!-- CodexAstraUlt: Collect bounded early-startup evidence without enabling
+continuous logging or changing the kernel behavior being investigated. -->
+For the next Dark Moon run, rebuild the worker from the updated source and add
+`--trace-scheduler` to the same run-003 limits. This switches on a host-only
+measurement; it changes neither the run's strict fault policy nor its scheduling
+or service responses. The ordinary worker default and Android frontends leave
+tracing disabled. No additional dependency or toolchain version is required.
+
+```bash
+python3 tools/run_private_title.py \
+  --input /home/OWNER/DroidDS-private/dark-moon-base.cci \
+  --output /home/OWNER/DroidDS-private/dark-moon-run-004 \
+  --worker target/release/droidds-private-title \
+  --max-steps 10000000 --max-cycles 2681118560 --max-frames 1200 \
+  --max-seconds 120 --timeout 130 --trace-scheduler
+```
+
+Use the actual authorized private paths and an absent output directory. The input
+hash should match the earlier baseline; the rebuilt worker has a new hash. Keep
+both identities in the local report. A trace-disabled run remains available for
+checking identical execution counters if the enabled run behaves differently.
+
+The report's `diagnostic_trace` retains the first 64 and last 128 nonoverlapping
+events, bounded SVC counts, omission counts, and a final snapshot of up to 64
+threads with at most eight wait objects each. Deferred-call correlation admits
+at most 64 pending threads and reports dropped entries. Events record scalar
+SVC argument registers r0-r5, returned registers r0-r3, actual interpreter call
+PCs, thread selection and resumed waits. No raw guest strings, instructions,
+memory dumps, images or audio are collected. A syscall's returned r0 is not
+universally a result code; some calls return data. A blocked call has no observed
+return until that thread resumes. Native SVC PCs are not inferred from compiled
+block entry points, and native execution remains disabled in this worker.
+
+Inspect startup queries and repeated calls leading to `0x004B23A8`, final thread
+states, wake deadlines and wait-object state. `services_seen` counts acquired
+service handles rather than all earlier kernel/IPC activity. Report a concrete
+error or repeated wait without calling a lone PC or cached scheduler flag a
+deadlock. The trace has no guest save/restore support; this tool uses a fresh
+process. Its storage is bounded, and it does add diagnostic work when enabled;
+trace timings are not performance benchmarks.

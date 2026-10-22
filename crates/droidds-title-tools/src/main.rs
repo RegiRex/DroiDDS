@@ -9,7 +9,7 @@ use std::{collections::BTreeSet, fs::OpenOptions, io::Write, path::PathBuf};
 fn parse() -> Result<(Options, PathBuf), String> {
     let mut args = std::env::args_os().skip(1);
     if args.next().as_deref() != Some(std::ffi::OsStr::new("inspect-run")) {
-        return Err("usage: droidds-private-title inspect-run --input SNAPSHOT --data-dir NEWDIR --output NEW_REPORT [--max-steps N --max-cycles N --max-frames N --max-seconds N --model old|new]".into());
+        return Err("usage: droidds-private-title inspect-run --input SNAPSHOT --data-dir NEWDIR --output NEW_REPORT [--max-steps N --max-cycles N --max-frames N --max-seconds N --model old|new --trace-scheduler]".into());
     }
     let mut options = Options {
         input: PathBuf::new(),
@@ -19,6 +19,7 @@ fn parse() -> Result<(Options, PathBuf), String> {
         max_frames: 120,
         max_seconds: 30,
         new_model: false,
+        trace_scheduler: false,
     };
     let mut output = None;
     let mut seen = BTreeSet::new();
@@ -26,6 +27,12 @@ fn parse() -> Result<(Options, PathBuf), String> {
         let flag = flag.to_str().ok_or("option name must be UTF-8")?;
         if !seen.insert(flag.to_owned()) {
             return Err(format!("duplicate option {flag}"));
+        }
+        // CodexAstraUlt: This opt-in switch takes no value and never enables
+        // profiler allocation or diagnostics in the normal Android frontend.
+        if flag == "--trace-scheduler" {
+            options.trace_scheduler = true;
+            continue;
         }
         let value = args
             .next()
