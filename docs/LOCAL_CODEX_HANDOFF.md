@@ -68,8 +68,8 @@ Check branch and local changes before fetching; do not reset another session's w
 
 <!-- CodexAstraUlt: Carry the owner's laptop-cleanup preference into local work
 without deleting preexisting software or requesting unnecessary new tooling. -->
-The owner requests exact selective cleanup commands when testing/development is
-finished. Follow [host setup cleanup](HOST_SETUP_CLEANUP.md): record the actual
+The owner requests exact selective cleanup commands when version **0.1.0 is
+built**. Follow [host setup cleanup](HOST_SETUP_CLEANUP.md): record the actual
 DNF transaction, Rust ownership and project output paths now using read-only
 checks; preserve uncertain or shared items. Install additional tools only for a
 concrete need. Prepare cleanup for review later, without automatic removals.

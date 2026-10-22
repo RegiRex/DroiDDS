@@ -2,8 +2,9 @@
 
 <!-- CodexAstraUlt: Persist the owner's 2026-10-22 request for selective cleanup
 after testing, without treating that request as permission to remove tools now. -->
-The owner wants exact commands to remove development additions when this work is
-finished, while preserving software and data that were already on the Nobara
+The owner requests the cleanup guidance when **version 0.1.0 is built**: provide
+exact commands to remove development additions that are then no longer needed,
+while preserving software and data that were already on the Nobara
 laptop. Prepare those commands from the actual local inventory; do not remove
 anything automatically or during ongoing testing. Install another tool only
 when a concrete build or diagnostic requires it. The current host baseline
@@ -41,7 +42,7 @@ Local Codex should keep a cleanup inventory outside Git, using read-only checks:
   game snapshot from small reports. Keep the original game, saves, source
   changes, signing material and diagnostic summaries outside the removal list.
 
-## Prepare cleanup when finished
+## Prepare cleanup at the 0.1.0 build
 
 <!-- CodexAstraUlt: Require concrete, reviewed removal scope instead of a broad
 undo that can remove system tools, other projects' caches or private originals. -->
