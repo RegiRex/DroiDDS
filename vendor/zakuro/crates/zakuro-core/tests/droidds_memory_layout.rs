@@ -77,6 +77,132 @@ fn load(image: &Fixture, new3ds: bool) -> System {
     .unwrap()
 }
 
+// CodexAstraUlt: Independently authored ARM guest polls the shared hardware
+// readiness byte, sleeps while it is absent, then verifies running_hw before
+// exiting. These instructions are an original ABI regression, not game code.
+fn readiness_fixture(new3ds: bool) -> Fixture {
+    let image = fixture(if new3ds { 2 } else { 1 }, 0, 0, 0x22C);
+    let words = [
+        0xE59F_402C, // LDR r4, [pc, #0x2C]: shared-page base literal.
+        0xE5D4_2086, // LDRB r2, [r4, #0x86]: hardware readiness.
+        0xE352_0001, // CMP r2, #1.
+        0x0A00_0003, // BEQ the running_hw check.
+        0xE59F_0020, // LDR r0, [pc, #0x20]: one-millisecond literal.
+        0xE3A0_1000, // MOV r1, #0: upper timeout word.
+        0xEF00_000A, // SVC SleepThread.
+        0xEAFF_FFF8, // B back to the readiness load.
+        0xE5D4_2004, // LDRB r2, [r4, #4]: running_hw.
+        0xE352_0001, // CMP r2, #1: retail/product hardware.
+        0x1AFF_FFFE, // BNE here: do not exit if running_hw is incorrect.
+        0xE3A0_302A, // MOV r3, #42: reached both successful checks.
+        0xEF00_0003, // SVC ExitProcess.
+        SHARED_PAGE_VADDR,
+        1_000_000,
+    ];
+    let code: Vec<_> = words.iter().flat_map(|word| word.to_le_bytes()).collect();
+    let mut bytes = std::fs::read(&image.0).unwrap();
+    bytes.resize(0x800 + code.len(), 0);
+    bytes[0x800..].copy_from_slice(&code);
+    for offset in [0x218, 0x60C] {
+        bytes[offset..offset + 4].copy_from_slice(&(code.len() as u32).to_le_bytes());
+    }
+    std::fs::write(&image.0, bytes).unwrap();
+    image
+}
+
+// CodexAstraUlt: Bound the original guest by emulated time and dispatch count,
+// including periods with no runnable thread; never skip its poll or its sleep.
+fn run_readiness_guest(system: &mut System, deadline: u64) {
+    for _ in 0..100_000 {
+        if system.exited || system.cpu.cycles >= deadline {
+            return;
+        }
+        let boundary = (system.cpu.cycles + 4096).min(deadline);
+        assert_ne!(system.step(Some(boundary)), StepOutcome::Faulted);
+    }
+    panic!("original readiness guest exceeded its dispatch bound");
+}
+
+#[test]
+fn droidds_shared_page_readiness_releases_original_guest_on_both_models() {
+    // CodexAstraUlt: Exercise the actual loader mapping and CPU reads on Old
+    // and New models. Clearing only the host-owned readiness byte reproduces
+    // the old bounded sleep loop; restoring it releases that same guest state.
+    for new3ds in [false, true] {
+        let image = readiness_fixture(new3ds);
+        let load_original = || {
+            loader::load(
+                &image.0,
+                Config {
+                    clock: Some(0),
+                    hardware_renderer: false,
+                    find_recompiled: false,
+                    skip_idle_loops: false,
+                    strict_diagnostics: true,
+                    ..Config::default()
+                },
+            )
+            .unwrap()
+        };
+        let mut system = load_original();
+        assert_eq!(system.config.new3ds, new3ds);
+        assert_eq!(system.memory.read8(SHARED_PAGE_VADDR + 0x86), 1);
+        assert_eq!(
+            system
+                .memory
+                .mapping_at(SHARED_PAGE_VADDR)
+                .unwrap()
+                .permission,
+            Permission::READ
+        );
+        system.enable_diagnostic_trace();
+
+        // CodexAstraUlt: A fresh loaded title must observe readiness directly,
+        // without any host-side repair or a single trip through the sleep path.
+        run_readiness_guest(&mut system, 64);
+        assert!(system.exited);
+        assert_eq!(system.cpu.regs[3], 42);
+        assert!(!system
+            .diagnostic_trace_snapshot()
+            .unwrap()
+            .svc_counts
+            .iter()
+            .any(|call| call.number == 0xA));
+        drop(system);
+
+        // CodexAstraUlt: Recreate only the prior missing-byte condition in a
+        // separate fresh machine, then release its existing waiting guest.
+        let mut system = load_original();
+        system.enable_diagnostic_trace();
+        system.memory.phys.shared_page_mut()[0x86] = 0;
+        let first_deadline = zakuro_core::kernel::thread::CPU_CLOCK_HZ / 100;
+        run_readiness_guest(&mut system, first_deadline);
+        assert!(!system.exited);
+        assert_eq!(system.cpu.cycles, first_deadline);
+        assert_eq!(system.cpu.regs[4], SHARED_PAGE_VADDR);
+        assert_eq!(system.cpu.regs[3], 0);
+        let waiting = system.diagnostic_trace_snapshot().unwrap();
+        assert!(waiting
+            .svc_counts
+            .iter()
+            .any(|call| call.number == 0xA && call.count > 1));
+        assert!(system.memory.fault_summary().is_empty());
+
+        system.memory.phys.shared_page_mut()[0x86] = 1;
+        run_readiness_guest(&mut system, first_deadline * 2);
+        assert!(
+            system.exited,
+            "readiness must release the original polling guest"
+        );
+        assert_eq!(system.cpu.regs[2], 1);
+        assert_eq!(system.cpu.regs[3], 42);
+        assert!(system.cpu.cycles < first_deadline * 2);
+        assert!(system.memory.fault_summary().is_empty());
+        assert!(system.unimplemented_svcs.is_empty());
+        assert!(system.fatal_errors.is_empty());
+    }
+}
+
 fn allocate(system: &mut System, linear: bool, size: u32) -> (u32, u32) {
     system.cpu.regs[..5].copy_from_slice(&[if linear { 0x1_0003 } else { 3 }, 0, 0, size, 3]);
     svc::dispatch(system, 1);

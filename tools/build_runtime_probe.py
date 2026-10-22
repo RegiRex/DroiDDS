@@ -42,6 +42,9 @@ LOADER_REQUIRED_TESTS = {
     "droidds_allocation_restore_and_failed_requests_preserve_accounting",
     "droidds_heap_windows_reject_overlap_overflow_and_old_linear_excess",
     "droidds_incompatible_same_size_state_does_not_mutate_live_machine",
+    # CodexAstraUlt: A startup readiness fix must exercise the real loader and
+    # an original guest poll/sleep, including the cleared-byte failure control.
+    "droidds_shared_page_readiness_releases_original_guest_on_both_models",
 }
 VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation"
 SYNC_VALIDATION = "VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT"

@@ -151,7 +151,10 @@ def source_identity():
                  "vendor/zakuro/crates/zakuro-core/src/kernel/svc.rs",
                  "vendor/zakuro/crates/zakuro-core/src/kernel/mod.rs",
                  "vendor/zakuro/crates/zakuro-core/src/kernel/thread.rs",
-                 "vendor/zakuro/crates/zakuro-core/src/kernel/object.rs"):
+                 "vendor/zakuro/crates/zakuro-core/src/kernel/object.rs",
+                 # CodexAstraUlt: Bind shared-page publication fixes to the
+                 # local diagnostic's source context alongside syscall behavior.
+                 "vendor/zakuro/crates/zakuro-core/src/memory/config.rs"):
         with (ROOT / name).open("rb") as stream:
             identity["files_sha256"][name] = stream_digest(stream, MAX_WORKER_BYTES)[0]
     for key, command in (("checkout_commit", ["git", "rev-parse", "HEAD"]),

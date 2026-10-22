@@ -77,6 +77,12 @@ pub fn init_shared_page(page: &mut [u8], model: ConsoleModel, slider_3d: f32, cl
     // battery, on the adapter, full and no longer charging
     page[0x85] = 1 | 5 << 2;
     page[0xC0] = 0; // no headset
+
+    // CodexAstraUlt: Publish the shared hardware-readiness byte after the
+    // page is initialized. Leaving offset 0x86 zero parks SDK-style startup
+    // polling before running_hw is read; this is a console ABI value, not a
+    // title-specific bypass or a change to the separate clock publication.
+    page[0x86] = 1;
 }
 
 /// the host's local time, in milliseconds since 1900.
@@ -121,6 +127,25 @@ pub fn set_slider_3d(page: &mut [u8], value: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: Both console models publish readiness, and unrelated
+    // periodic clock or slider writes must not withdraw that startup state.
+    #[test]
+    fn shared_page_readiness_survives_clock_and_slider_updates() {
+        for model in [ConsoleModel::Old3ds, ConsoleModel::New3ds] {
+            let mut page = vec![0u8; SHARED_PAGE_SIZE as usize];
+            let boot = 3_900_000_000_000;
+            init_shared_page(&mut page, model, 0.25, boot);
+            assert_eq!(page[0x86], 1);
+            let hardware = [page[0x04], page[0x05], page[0x85]];
+            for frame in 1..=120 {
+                update_datetime(&mut page, boot, frame * crate::CYCLES_PER_FRAME);
+                set_slider_3d(&mut page, if frame % 2 == 0 { 0.0 } else { 1.0 });
+                assert_eq!(page[0x86], 1);
+                assert_eq!([page[0x04], page[0x05], page[0x85]], hardware);
+            }
+        }
+    }
 
     /// the time a title reads, the way the SDK works it out of the page,
     /// its selected slot's time plus the ticks since its update times 1000

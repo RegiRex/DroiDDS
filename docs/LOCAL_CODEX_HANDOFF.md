@@ -48,10 +48,14 @@ The owner has now reported a [first local run](host-tests/dark-moon-2026-10-22.m
 that reached the default cycle budget with 316,366 interpreted instructions,
 59 frame events and zero draws. Its ten-second follow-up still ended at
 `0x004B23A8`, with 433,366 instructions, no acquired service handles or draws,
-and unchanged sampled guest memory. The next local task is the opt-in bounded
-scheduler/SVC trace using the follow-up's limits. Rebuild the diagnostic worker
-and record its new hash; preserve the input hash and earlier reports. The cloud
-record is based on the owner's text, not independent JSON validation.
+and unchanged sampled guest memory. Run-004's bounded trace then recorded 9,999
+one-millisecond sleeps at `0x004B23A4`, each observed wake returning on its
+deadline before another sleep. The [shared-page readiness correction](builds/0.0.7-shared-page-ready.md)
+initializes a missing startup byte and passes an original guest regression on
+both models. Its relationship to Dark Moon remains unconfirmed. The next local
+task is one matched rerun with this correction and the existing trace. Rebuild
+offline and record the new worker hash; preserve the input hash and earlier
+reports. These private-run records are owner text, not independent JSON validation.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->
@@ -180,14 +184,15 @@ its filesystem knowledge and avoiding unnecessary manual command transcription. 
 > Update the DroidDS diagnostic source while preserving local changes. Read
 > AGENTS.md, docs/PRIVATE_TITLE_RECONNAISSANCE.md and
 > docs/host-tests/dark-moon-2026-10-22.md. Rebuild droidds-private-title with the
-> existing pinned toolchain and locked dependencies. Run the same authorized
+> existing pinned toolchain and locked dependencies, offline. Run the same authorized
 > Dark Moon input once with --trace-scheduler and the run-003 limits:
 > --max-steps 10000000 --max-cycles 2681118560 --max-frames 1200
 > --max-seconds 120 --timeout 130. Keep other baseline settings unchanged and
 > choose a fresh output directory outside Git. Confirm the input hash matches;
-> record the rebuilt worker's new identity. Compare execution counters against
-> run-003 and inspect startup/recent syscalls, actual return registers, final
-> thread waits and wake deadlines around 0x004B23A8. Return a small reviewed
+> record the rebuilt worker's new identity. Compare against run-004: whether the
+> repeated sleep at 0x004B23A4 clears, the next blocker and PC, service activity,
+> GPU/audio activity, execution counters and sampled memory. If the same loop
+> remains, include R4 from that SleepThread event's args[4]. Return a small reviewed
 > summary with the first concrete blocker or remaining diagnostic gap. Keep
 > game data local; do not increase limits again or infer boot from timer events.
 

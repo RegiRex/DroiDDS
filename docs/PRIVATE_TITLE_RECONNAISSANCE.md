@@ -10,8 +10,11 @@ starting with Luigi's Mansion: Dark Moon. No private-title baseline has yet been
 independently validated by this cloud work. The owner subsequently supplied a
 [paired local execution summary](host-tests/dark-moon-2026-10-22.md): the default
 and ten-second emulated-time runs both ended at `0x004B23A8` with zero draws.
-The next measurement is the bounded scheduler/SVC trace below, using the same
-longer limits. This does not generate native title code, produce a
+Run-004's bounded trace identifies repeated one-millisecond sleeps with working
+wake deadlines. The next measurement reruns those same limits after the
+[shared-page readiness correction](builds/0.0.7-shared-page-ready.md), retaining
+the existing trace to identify progress or the next blocker. This does not
+generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in
 [the corrected 0.0.6 report](device-tests/0.0.6-correction2-thor.md).
@@ -29,7 +32,7 @@ toolchain, including Python 3.11 or newer and the pinned Rust 1.95.0.
 From the DroidDS checkout, build the worker:
 
 ```bash
-cargo build --locked --release -p droidds-title-tools --bin droidds-private-title
+cargo build --offline --locked --release -p droidds-title-tools --bin droidds-private-title
 ```
 
 Use a decrypted base CXI/NCCH (`.cxi`/`.ncch`), cartridge NCSD
@@ -151,16 +154,17 @@ Native generation, private APK packaging and hardware validation remain in
 
 <!-- CodexAstraUlt: Collect bounded early-startup evidence without enabling
 continuous logging or changing the kernel behavior being investigated. -->
-For the next Dark Moon run, rebuild the worker from the updated source and add
-`--trace-scheduler` to the same run-003 limits. This switches on a host-only
-measurement; it changes neither the run's strict fault policy nor its scheduling
-or service responses. The ordinary worker default and Android frontends leave
+For the next Dark Moon run, rebuild the corrected worker offline and retain
+`--trace-scheduler` with the same run-003/run-004 limits. The trace flag switches
+on a host-only measurement; the source correction separately changes shared-page
+startup initialization. Neither changes the run's strict fault policy or
+scheduling responses. The ordinary worker default and Android frontends leave
 tracing disabled. No additional dependency or toolchain version is required.
 
 ```bash
 python3 tools/run_private_title.py \
   --input /home/OWNER/DroidDS-private/dark-moon-base.cci \
-  --output /home/OWNER/DroidDS-private/dark-moon-run-004 \
+  --output /home/OWNER/DroidDS-private/dark-moon-run-005 \
   --worker target/release/droidds-private-title \
   --max-steps 10000000 --max-cycles 2681118560 --max-frames 1200 \
   --max-seconds 120 --timeout 130 --trace-scheduler
@@ -168,8 +172,9 @@ python3 tools/run_private_title.py \
 
 Use the actual authorized private paths and an absent output directory. The input
 hash should match the earlier baseline; the rebuilt worker has a new hash. Keep
-both identities in the local report. A trace-disabled run remains available for
-checking identical execution counters if the enabled run behaves differently.
+both identities in the local report. Compare against run-004; execution counters
+may change if the correction releases the startup wait. Do not increase limits
+to work around a repeated wait or the next unsupported operation.
 
 The report's `diagnostic_trace` retains the first 64 and last 128 nonoverlapping
 events, bounded SVC counts, omission counts, and a final snapshot of up to 64
@@ -182,8 +187,11 @@ universally a result code; some calls return data. A blocked call has no observe
 return until that thread resumes. Native SVC PCs are not inferred from compiled
 block entry points, and native execution remains disabled in this worker.
 
-Inspect startup queries and repeated calls leading to `0x004B23A8`, final thread
-states, wake deadlines and wait-object state. `services_seen` counts acquired
+Inspect whether repeated `SleepThread` calls at `0x004B23A4` clear, then identify
+the next blocker, final PC, service activity, draws/audio, execution counters
+and sampled memory. If the loop remains, include R4 from that sleep's `args[4]`
+and its wait-resume event; the polling load itself is not captured by this trace.
+`services_seen` counts acquired
 service handles rather than all earlier kernel/IPC activity. Report a concrete
 error or repeated wait without calling a lone PC or cached scheduler flag a
 deadlock. The trace has no guest save/restore support; this tool uses a fresh
