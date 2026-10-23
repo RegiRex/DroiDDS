@@ -109,12 +109,16 @@ fn result(description: u32, summary: Summary, level: Level) -> u32 {
 }
 
 pub fn handle(system: &mut System, buffer: &CommandBuffer, header: Header) -> bool {
-    // with no room wireless is off, as local wireless has it, unless the
-    // game already started on it in one
-    if system.services.dlp.state == NOT_INITIALIZED && system.room.as_ref().is_none_or(|room| !room.open()) {
+    let command = header.command_id();
+    // CodexAstraUlt: IsChild reads local process identity and is available before
+    // server initialization or joining a room. Preserve the wireless-off gate
+    // for every other command when the game has not started a wireless session.
+    if command != 0x000E
+        && system.services.dlp.state == NOT_INITIALIZED
+        && system.room.as_ref().is_none_or(|room| !room.open())
+    {
         return false;
     }
-    let command = header.command_id();
     let word = |system: &mut System, index: u32| buffer.get(&mut system.memory, index);
     match command {
         // Initialize(shared memory size, most guests, process, ...) and
@@ -535,5 +539,75 @@ mod tests {
         let (mut system, buffer) = system_with_thread();
         let (code, _) = request(&mut system, &buffer, &[0x0001_0183, 0x1000, 4, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(code, zakuro_common::result::errors::UDS_WIRELESS_OFF.0);
+    }
+
+    // CodexAstraUlt: Original metadata-only NCCH fixtures distinguish ordinary
+    // applications from Download Play children without any retail data. Reserve
+    // a new temporary file and remove only this test's own file on scope exit.
+    struct IdentityFixture(std::path::PathBuf);
+
+    impl IdentityFixture {
+        fn new(program_id: u64) -> Self {
+            use std::io::Write;
+            let path = std::env::temp_dir().join(format!(
+                "droidds-dlp-identity-{}-{program_id:016x}.cxi", std::process::id()
+            ));
+            let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path).unwrap();
+            let fixture = Self(path);
+            let image = zakuro_fs::testing::ncch(program_id, Some(&[0; 4]), &[]);
+            file.write_all(&image).unwrap();
+            fixture
+        }
+    }
+
+    impl Drop for IdentityFixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    // CodexAstraUlt: IsChild queries the current process's loaded identity even
+    // before server initialization. A room must not be required, and neither a
+    // hardcoded false result nor initializing wireless can satisfy both cases.
+    #[test]
+    fn is_child_without_room_preserves_base_and_child_identity() {
+        let (mut system, buffer) = system_with_thread();
+        system.config.strict_diagnostics = true;
+        for (program_id, expected) in [(0x0004_0000_0D5D_0007, 0), (0x0004_0001_0D5D_0007, 1)] {
+            let image = IdentityFixture::new(program_id);
+            system.title = Some(zakuro_fs::Title::load(&image.0).unwrap());
+            let pid = system.kernel.process_id;
+            let (result, words) = request(&mut system, &buffer, &[0x000E_0040, pid]);
+            assert_eq!(result, 0, "local identity must not report wireless off");
+            assert_eq!(words[0], expected);
+            assert_eq!(buffer.header(&mut system.memory).0, 0x000E_0080);
+            assert!(system.services.unimplemented.is_empty());
+            assert!(system.room.is_none());
+            assert_eq!(system.services.dlp.state, NOT_INITIALIZED);
+            assert!(system.services.dlp.guests.is_empty());
+            assert!(system.services.dlp.child.is_none());
+            assert!(system.services.dlp.next_offer.is_none());
+        }
+    }
+
+    // CodexAstraUlt: Opening the local query must leave actual wireless commands
+    // and unknown requests on the existing explicit offline diagnostic path.
+    #[test]
+    fn local_identity_query_does_not_enable_wireless_or_mask_unknown_commands() {
+        let (mut system, buffer) = system_with_thread();
+        let pid = system.kernel.process_id;
+        assert_eq!(request(&mut system, &buffer, &[0x000E_0040, pid]).0, 0);
+        let offline = zakuro_common::result::errors::UDS_WIRELESS_OFF.0;
+        for words in [
+            vec![0x0001_0183, 0x1000, 4, 0, 0, 0, 0, 0, 0, 0],
+            vec![0xFFFF_0000],
+        ] {
+            assert_eq!(request(&mut system, &buffer, &words).0, offline);
+        }
+        assert_eq!(system.services.unimplemented.len(), 2);
+        assert_eq!(system.services.unimplemented.get(&("dlp:SRVR".into(), 1)), Some(&1));
+        assert_eq!(system.services.unimplemented.get(&("dlp:SRVR".into(), 0xFFFF)), Some(&1));
+        assert_eq!(system.services.dlp.state, NOT_INITIALIZED);
+        assert!(system.room.is_none());
     }
 }
