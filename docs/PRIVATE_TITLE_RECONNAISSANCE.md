@@ -14,7 +14,10 @@ Run-004's bounded trace identifies repeated one-millisecond sleeps with working
 wake deadlines. Run-005 clears that wait after the
 [shared-page readiness correction](builds/0.0.7-shared-page-ready.md), reaches
 five services and 80 IPC calls, then exhausts its dispatch budget at `0x003B4FD8`.
-The next measurement adds bounded CPU progress sampling with unchanged limits.
+Run-006's CPU sampling preserves those counters and shows a repeated 12-address
+ARM pattern, but its sparse registers do not measure individual loop iterations.
+The next task is the [local investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md),
+starting with private inspection of the mapped instructions before another run.
 This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in
@@ -158,8 +161,9 @@ continuous logging or changing the kernel behavior being investigated. -->
 `--trace-scheduler` enables a host-only measurement without changing the run's
 strict fault policy or scheduling responses. The ordinary worker default and
 Android frontends leave tracing disabled. No additional dependency or toolchain
-version is required. The next Dark Moon measurement also enables CPU progress
-sampling as described below; rebuild the worker offline first.
+version is required. The completed run-006 also enabled CPU progress sampling
+as described below. This command records that experiment; the current task is
+the [local investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md).
 
 ```bash
 python3 tools/run_private_title.py \
@@ -170,11 +174,11 @@ python3 tools/run_private_title.py \
   --max-seconds 120 --timeout 130 --trace-scheduler --trace-cpu-progress
 ```
 
-Use the actual authorized private paths and an absent output directory. The input
-hash should match the earlier baseline; the rebuilt worker has a new hash. Keep
-both identities in the local report. Compare execution counters against run-005;
-the new sampling observes the existing runtime behavior. Do not increase limits
-to work around a repeated wait or the next unsupported operation.
+For a new experiment, use the actual authorized private paths and an absent
+output directory. Preserve the input identity and record any rebuilt worker's
+new hash. Run-006 compared counters against run-005 to check that sampling
+preserved execution. Follow the current batch's bounds for subsequent runs;
+do not increase limits to work around a repeated wait or unsupported operation.
 
 The report's `diagnostic_trace` retains the first 64 and last 128 nonoverlapping
 events, bounded SVC counts, omission counts, and a final snapshot of up to 64
@@ -223,7 +227,10 @@ adds host overhead; its wall time is not a performance benchmark.
 Periodic samples precede the worker's per-frame input update; that update can
 change scheduler flags before the final snapshot at the same dispatch count.
 
-For run-006, compare recurring PCs and changes in registers across the retained
+Run-006 used the command above. Its result is recorded in
+[the host evidence](host-tests/dark-moon-2026-10-22.md#owner-reported-run-006-cpu-progress);
+do not repeat it unchanged as the next task. When interpreting progress traces,
+compare recurring PCs and changes in registers across the retained
 states near `0x003B4FD8`. Return the final recent address pattern and a compact
 table of the last relevant snapshots: steps/instructions/cycles, thread identity,
 PC, and registers that change. A changing pointer or count supports active work;

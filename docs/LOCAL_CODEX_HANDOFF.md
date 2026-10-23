@@ -55,11 +55,13 @@ initializes a missing startup byte and passes an original guest regression on
 both models. The owner's matched run-005 now records zero sleeps and reaches
 five services and 80 IPC calls. It stops on the dispatch budget at `0x003B4FD8`
 after 9,998,658 instructions and approximately 0.05774 emulated seconds, with
-zero GPU/audio activity. The next local task is one run with bounded CPU progress
-sampling and the same limits, to distinguish advancing startup work from a
-repeated unchanged state. Rebuild offline and record the new worker hash;
-preserve the input hash and earlier reports. These private-run records are
-owner text, not independent JSON validation.
+zero GPU/audio activity. Run-006's CPU trace preserves those counters and
+identifies a repeated 12-address ARM pattern at `0x003B4FB8–0x003B4FE4`, but only
+the final register sample is within that loop. The next local task is the
+[bounded investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md): inspect the
+private mapped instructions first, then diagnose/fix/retest locally within the
+documented bounds. The owner has offered the connected Thor for useful tests.
+These private-run records are owner text, not independent JSON validation.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->
@@ -185,20 +187,14 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 <!-- CodexAstraUlt: Give the local session the executable next task, preserving
 its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
-> Update the DroidDS diagnostic source while preserving local changes. Read
-> AGENTS.md, docs/PRIVATE_TITLE_RECONNAISSANCE.md and
-> docs/host-tests/dark-moon-2026-10-22.md. Rebuild droidds-private-title with the
-> existing pinned toolchain and locked dependencies, offline. Run the same authorized
-> Dark Moon input once with --trace-scheduler --trace-cpu-progress and the run-005 limits:
-> --max-steps 10000000 --max-cycles 2681118560 --max-frames 1200
-> --max-seconds 120 --timeout 130. Keep other baseline settings unchanged and
-> choose a fresh output directory outside Git. Confirm the input hash matches;
-> record the rebuilt worker's new identity. Compare execution counters against
-> run-005 and inspect cpu_progress for recurring PCs, changing registers and
-> current thread identities near 0x003B4FD8. Report the final recent dispatch
-> addresses and a compact comparison of the last relevant snapshots, plus the
-> stop/blocker, service activity, GPU/audio activity and sampled memory. Keep
-> game data local; do not increase limits again or infer boot from timer events.
+> Safely obtain the current DroidDS source and execute
+> docs/LOCAL_DARK_MOON_INVESTIGATION.md using the existing Dark Moon file and
+> run-006 reports. Work on an investigation branch, preserving existing changes.
+> Inspect the private loop code before another run; complete the bounded
+> diagnose/fix/retest batch without pausing for each intermediate measurement.
+> Check the connected Thor with existing ADB tools and use it only for a relevant
+> regression. Keep permissions and installed tools unchanged. Return
+> dark-moon-investigation-summary.md plus any reviewed generic commit/diff.
 
 The owner can paste this task into local Codex; they do not need to transcribe
 all build/run commands themselves. This document does not connect sessions or
