@@ -1,15 +1,16 @@
-# Local Dark Moon investigation after the offline identity fix
+# Local Dark Moon decoder-completion investigation
 
 <!-- CodexAstraUlt: Give the local session one bounded diagnose/fix/retest task
 instead of requiring the owner to relay each intermediate trace measurement.
-Advance the task after the first batch clears the old loop and IsChild blocker. -->
+Advance from measured table/checksum progress to decoder and caller completion. -->
 The next investigation belongs on the owner's Nobara laptop, where the owned
 decrypted title and private run reports already exist. The Thor is connected
 and available for relevant testing. This document is the task to execute when
 the owner starts it in local Codex; it does not connect sessions or start work
 on that computer from the cloud.
 
-Read `AGENTS.md` and [the reported evidence](host-tests/dark-moon-2026-10-22.md#owner-reported-local-investigation-after-run-006).
+Read `AGENTS.md` and the latest section of
+[the reported evidence](host-tests/dark-moon-2026-10-22.md).
 Preserve local changes and work on a dedicated local investigation branch based
 on the current DroidDS source. Record the base commit and any existing changes.
 The local session owns this CPU/HLE investigation until it returns a result;
@@ -19,20 +20,26 @@ operator serializing private execution and device access.
 
 ## Start with the existing evidence
 
-<!-- CodexAstraUlt: Replace the completed run-006 target with the latest
-post-fix evidence; do not turn a suggested decoding operation into a finding. -->
+<!-- CodexAstraUlt: Carry measured finite work forward rather than repeating
+the completed table-progress and no-draw-request measurements. -->
 Read the latest local `dark-moon-investigation-summary.md` and its linked
 `report.json` and `worker-report.json`. Record source and worker identities,
 verify the input matches earlier baselines, and retain the exact limits. The
 source must include `8c15ce2`, which makes the existing local `IsChild` identity
 query available offline without enabling wireless commands.
 
-The owner reports that the original startup loop clears. After the identity
-fix, execution reaches the 100-million-step limit at `0x0018806C`, with 268 GPU
-command lists, zero draws and silent PCM. Inspect the full reports for cycles,
-thread identity, drained/nonzero PCM counts and sampled memory; those details
-are not established by the short supplied summary. Treat decoding-table work as
-the next hypothesis to check from actual code and state, not a diagnosed defect.
+Published findings `39f6fa6` record three matched runs, 010–012, on `03b2760`.
+Each stops at 100 million steps and `0x0018806C`: 99,969,272 interpreted
+instructions, 225,985,001 cycles (about 0.843 emulated seconds), 50 frame events,
+268 GPU lists, zero draws/vertices and 25,760 silent stereo PCM pairs. The
+normal worker is unchanged; private observation does not change these results.
+
+The table builder advances toward its finite bound. Stream accounting reaches
+2,680,467 output bytes, with final cursor differences consistent with 2,729,470
+output bytes. Checksum processing also advances. The enclosing resource's full
+extent and completion remain unobserved. All captured GPU commands are setup;
+there are no array/indexed draw writes, immediate vertices or list jumps. These
+findings support following initialization further, not a CPU or renderer fix.
 
 Inspect the relevant instructions locally before another execution. Resolve
 the guest address through the parsed title's executable segments: a guest PC
@@ -42,9 +49,11 @@ loader and `code()` handle container selection and `.code` decompression;
 window belongs to the loaded main text and has not been remapped or replaced
 by a CRO. If it has, resolve the actual runtime code provenance first.
 
-Decode an initial window of at most 256 bytes using existing local tools or a
-small local helper built with the existing dependencies. Identify the loop's
-continuation/exit condition, loads/stores and state it changes. Keep any bytes,
+Inspect the existing private decoding work, then decode only missing windows
+around the continuation at `0x0018898C`, return at `0x001889F4`, and its caller.
+Start with at most 256 bytes per necessary window using existing tools. Verify
+the actual return instruction and caller target for this title revision; a
+return may restore PC from the stack rather than use the current LR. Keep bytes,
 disassembly and derived notes in a fresh private location outside Git. Do not
 run `examples/dumpcode.rs` unchanged: it writes the entire code image to a
 fixed output path. A new helper must preserve existing files and extract only
@@ -52,42 +61,46 @@ the validated window needed for this diagnosis.
 
 ## Diagnose, fix and verify in one batch
 
-<!-- CodexAstraUlt: Allow measured local iteration within explicit bounds,
-without inventing a game workaround or another default tracing subsystem. -->
-If static analysis is insufficient, add a temporary host diagnostic that
-captures at most 32 same-thread visits to one loop anchor, or at most 256
-consecutive scalar instruction states near the latest stopping point. Select
-the window using the existing report, and ensure the samples belong to the
-same thread/guest incarnation. Preserve the actual dispatch PC and ARM/Thumb
-mode after scheduling; pre-`System::step` thread identity can be stale. Retain
-only the registers/counters needed to inspect that loop. Do not add diagnostic
-guest-memory reads with side effects or enable an unbounded profiler. Test the
-capture on an original fixture and keep it out of normal Android execution.
+<!-- CodexAstraUlt: Replace the checksum instruction window with correlated
+return/caller observations that answer whether a chunk or resource is complete. -->
+Extend the existing private observer only as needed, using one combined
+measurement rather than separate runs for each address. Capture continuation
+after checksum, actual decoder return status and post-return target, then the
+same thread/guest incarnation's caller decision: refill, continue, complete or
+error. Interpret the status using that caller; zero is not automatically proof
+of completion. Distinguish a 262,144-byte quota/chunk return from completion of
+the enclosing resource.
 
-<!-- CodexAstraUlt: Distinguish command-list processing from reaching a draw
-before diagnosing downstream shaders or rasterization from a zero-draw count. -->
-Inspect the PICA command path in `vendor/zakuro/crates/zakuro-gpu/src/lib.rs`.
-`command_lists` counts processed lists, including ones with no draws; `draw_calls`
-increments on entry to array/indexed or immediate drawing, before rasterization.
-Determine whether the submitted lists contain only setup, whether writes to
-`REG_DRAW_ARRAYS`/`REG_DRAW_ELEMENTS` reach their handlers, or whether an expected
-immediate draw never becomes ready. Include chained lists and burst writes when
-checking the parser. Start with existing private evidence; if a run needs added
-observability, use bounded counters and at most 64 scalar command-path samples
-across the entire run. Keep command payloads and shader/game data private.
+Correlate each return with the stream/resource instance, available or declared
+input/output extent, cumulative consumption/production and remaining work. Keep
+unknown extents explicit. Read only validated scalar state without side effects;
+retain at most 32 semantic return/caller records with a small prefix and tail,
+omission counts, and at most 16 completion/first-draw milestone records. Bound
+pending correlations too; do not use an unbounded map or per-instruction log.
+Preserve actual dispatch PC/mode and identity after scheduling. Test the observer
+with original fixtures and keep it out of normal Android execution.
 
-Measure the CPU operation's exit condition and state progression alongside that
-path. Establish whether startup has reached drawing at all before attributing
-the absence of draws to a graphics defect.
+Keep the established GPU counters. Record the first draw request and draw-call
+entry if they occur, including their relation to resource completion. There is
+no reason to repeat three observations proving the same setup-only lists.
+Disarm capture once its question is answered, but let execution reach its genuine
+budget, exit or runtime blocker. The coordinator does not accept an early observer
+stop falsely labeled `budget_exhausted`; do not change its validation to hide one.
 
-Use up to **three new private executions** in this batch, each answering a
-distinct recorded question: focused observation, a matched correction check,
-and one necessary follow-up. Do not stop between these steps merely to ask the
-owner to relay another counter. Use the previous batch's step ceiling and the
-other existing limits; check their identities against the retained reports:
+Use **at most three new private executions**, not a quota of three. Prepare the
+combined observer using existing code/captures, then run with a step-only ceiling
+of **1,000,000,000 steps** (or a smaller evidence-supported bound). The measured
+progress in runs 010–012 justifies this extension without another confirmation;
+it does not prove resource completion. Recover any still-missing extent during
+the same extended observation rather than requiring another 100-million-step
+replay first. Reserve further runs for a concrete missing observation or matched
+verification of a justified fix. Do not pause merely to ask the owner to relay
+another counter.
+
+Use these ceilings, with every non-step limit unchanged:
 
 ```text
---max-steps 100000000
+--max-steps 1000000000
 --max-cycles 2681118560
 --max-frames 1200
 --max-seconds 120
@@ -103,10 +116,16 @@ creates a full new input snapshot. Use new absent output directories outside
 Git; preserve the original, saves, earlier reports and snapshots. Build offline
 with the existing pinned toolchain and locked dependencies.
 
-Do not extend these limits again in this batch. If finite useful initialization
-needs more work, report its decoded bounds, measured progression and estimated
-remaining work. If execution is not progressing, identify the dependency or
-incorrect operation. Neither case warrants skipping the guest's work.
+During an extended run, capture one 100-million-step checkpoint and compare its
+steps, instructions, cycles, frames and GPU counters with run-012 before
+interpreting later results. Do not drain PCM or alter guest state for the
+checkpoint; a stopped worker's final audio drain is a different boundary. The existing
+rate suggests roughly 2.26 billion cycles and 63–65 host seconds at one billion
+steps, within the unchanged limits, but this estimate is not a completion bound
+or handheld performance measurement. Do not extend beyond this batch's ceilings.
+If a ceiling still stops useful work, report the measured remaining extent and
+estimated work, or explicitly state why that bound is still unknown. If execution
+stops progressing, identify the dependency instead of skipping guest work.
 
 For a concrete CPU/HLE/command-processing defect, author an original regression that
 fails before the generic fix, implement the fix, run relevant checks, and
@@ -117,8 +136,8 @@ manufacture progress. A correct finite initialization loop needs no runtime
 workaround. Keep title-specific investigative instrumentation private until a
 generic, tested diagnostic is justified.
 
-Return after a diagnosed-and-tested correction, a clearly identified remaining
-blocker, or the three-run ceiling. Stop a dependent action if a required input,
+Return after a diagnosed-and-tested correction, a useful completion/next-blocker
+finding, or the three-run ceiling. Stop a dependent action if a required input,
 tool, permission or resource is unavailable; continue independent analysis.
 Preserve current permission settings and do not install additional software as
 part of this batch. A hardware test remains separate from a host result.
@@ -155,12 +174,14 @@ package path and its existing build/identity gates.
 
 <!-- CodexAstraUlt: Return semantic findings and reviewable generic code,
 keeping private title bytes and raw evidence on the owner's computer. -->
-Prepare `dark-moon-investigation-summary.md` with the verified loop behavior,
-evidence of progression or the blocking dependency, source/worker/input identity
-comparisons, changes made, regression results, each private run's limits and
-outcome, and the next concrete action. Include device readiness or a relevant
-device result separately. State whether any drawing, audio or interactive boot
-was actually observed. Do not infer compatibility from elapsed cycles or draws.
+Prepare a fresh `dark-moon-investigation-summary.md` with decoder return status,
+the caller's interpretation, chunk versus resource completion, extent/progress
+or blocking dependency, source/worker/input identity comparisons, changes made,
+regression results, each run's limits and outcome, and the next concrete action.
+If loading completes, identify the next executed operation and any actual draw
+request or runtime blocker. Keep device work separate. State whether drawing,
+audio or interactive boot was actually observed. Do not infer compatibility
+from elapsed cycles or draws.
 
 Keep game bytes, disassembly, raw captures, generated title code and private
 APKs local. Commit only reviewed generic changes/tests and nonprivate findings

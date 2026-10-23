@@ -18,9 +18,11 @@ Run-006's CPU sampling preserves those counters and shows a repeated 12-address
 ARM pattern, but its sparse registers do not measure individual loop iterations.
 The subsequent local batch reports that loop clears and fixes a later offline
 `IsChild` blocker in `8c15ce2`. Its post-fix run reaches 100 million steps at
-`0x0018806C`, with 268 command lists, zero draws and silent PCM. The current
-[local investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md) examines CPU
-progress and the draw-trigger path using that latest private evidence.
+`0x0018806C`, with 268 command lists, zero draws and silent PCM. Runs 010–012
+confirm table/stream/checksum progress and no draw requests in those
+setup lists. The current [local investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md)
+captures decoder return and the caller's resource completion conditions, allowing
+a measured step-only extension up to one billion with unchanged other limits.
 This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in
