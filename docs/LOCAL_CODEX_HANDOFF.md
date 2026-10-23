@@ -57,10 +57,14 @@ five services and 80 IPC calls. It stops on the dispatch budget at `0x003B4FD8`
 after 9,998,658 instructions and approximately 0.05774 emulated seconds, with
 zero GPU/audio activity. Run-006's CPU trace preserves those counters and
 identifies a repeated 12-address ARM pattern at `0x003B4FB8–0x003B4FE4`, but only
-the final register sample is within that loop. The next local task is the
-[bounded investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md): inspect the
-private mapped instructions first, then diagnose/fix/retest locally within the
-documented bounds. The owner has offered the connected Thor for useful tests.
+the final register sample is within that loop. The subsequent local batch reports
+that loop clears and fixes a later offline `IsChild` query in `8c15ce2`. The
+post-fix run reaches 100 million steps at `0x0018806C`, with 268 command lists,
+zero draws and silent PCM. Continue the
+[bounded investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md) against that new
+state: inspect decoding-table progress and whether draw triggers reach their
+handlers. The local session's ADB check was blocked by USB/socket access;
+host investigation can continue independently.
 These private-run records are owner text, not independent JSON validation.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
@@ -189,11 +193,13 @@ its filesystem knowledge and avoiding unnecessary manual command transcription. 
 
 > Safely obtain the current DroidDS source and execute
 > docs/LOCAL_DARK_MOON_INVESTIGATION.md using the existing Dark Moon file and
-> run-006 reports. Work on an investigation branch, preserving existing changes.
-> Inspect the private loop code before another run; complete the bounded
+> latest post-IsChild-fix reports. Work on an investigation branch, preserving
+> existing changes. Inspect progress near 0x0018806C and the zero-draw command
+> path before another run; complete the bounded
 > diagnose/fix/retest batch without pausing for each intermediate measurement.
-> Check the connected Thor with existing ADB tools and use it only for a relevant
-> regression. Keep permissions and installed tools unchanged. Return
+> Use the Thor only for a relevant regression through a session with working
+> access; USB access does not block host analysis. Keep permissions and installed
+> tools unchanged. Return
 > dark-moon-investigation-summary.md plus any reviewed generic commit/diff.
 
 The owner can paste this task into local Codex; they do not need to transcribe

@@ -1,14 +1,15 @@
-# Local Dark Moon investigation after run-006
+# Local Dark Moon investigation after the offline identity fix
 
 <!-- CodexAstraUlt: Give the local session one bounded diagnose/fix/retest task
-instead of requiring the owner to relay each intermediate trace measurement. -->
+instead of requiring the owner to relay each intermediate trace measurement.
+Advance the task after the first batch clears the old loop and IsChild blocker. -->
 The next investigation belongs on the owner's Nobara laptop, where the owned
 decrypted title and private run reports already exist. The Thor is connected
 and available for relevant testing. This document is the task to execute when
 the owner starts it in local Codex; it does not connect sessions or start work
 on that computer from the cloud.
 
-Read `AGENTS.md` and [the reported evidence](host-tests/dark-moon-2026-10-22.md#owner-reported-run-006-cpu-progress).
+Read `AGENTS.md` and [the reported evidence](host-tests/dark-moon-2026-10-22.md#owner-reported-local-investigation-after-run-006).
 Preserve local changes and work on a dedicated local investigation branch based
 on the current DroidDS source. Record the base commit and any existing changes.
 The local session owns this CPU/HLE investigation until it returns a result;
@@ -18,16 +19,20 @@ operator serializing private execution and device access.
 
 ## Start with the existing evidence
 
-<!-- CodexAstraUlt: Sparse samples from different code and an intervening
-thread switch cannot establish progression of one specific loop iteration. -->
-Read the actual run-006 `report.json` and `worker-report.json`. Record their
-source and worker identities, and verify the input hash matches run-005 before
-drawing conclusions; the rebuilt worker is expected to have a different hash.
-The supplied summary reports unchanged execution counters, a final PC of
-`0x003B4FD8`, and the last 64 dispatches repeating 12 ARM addresses from
-`0x003B4FB8` through `0x003B4FE4`. Only the terminal register sample is inside
-that loop. R0/R4 differences from the earlier sample span other code and an
-intervening thread-3 switch; they are not measurements of loop iteration progress.
+<!-- CodexAstraUlt: Replace the completed run-006 target with the latest
+post-fix evidence; do not turn a suggested decoding operation into a finding. -->
+Read the latest local `dark-moon-investigation-summary.md` and its linked
+`report.json` and `worker-report.json`. Record source and worker identities,
+verify the input matches earlier baselines, and retain the exact limits. The
+source must include `8c15ce2`, which makes the existing local `IsChild` identity
+query available offline without enabling wireless commands.
+
+The owner reports that the original startup loop clears. After the identity
+fix, execution reaches the 100-million-step limit at `0x0018806C`, with 268 GPU
+command lists, zero draws and silent PCM. Inspect the full reports for cycles,
+thread identity, drained/nonzero PCM counts and sampled memory; those details
+are not established by the short supplied summary. Treat decoding-table work as
+the next hypothesis to check from actual code and state, not a diagnosed defect.
 
 Inspect the relevant instructions locally before another execution. Resolve
 the guest address through the parsed title's executable segments: a guest PC
@@ -51,7 +56,7 @@ the validated window needed for this diagnosis.
 without inventing a game workaround or another default tracing subsystem. -->
 If static analysis is insufficient, add a temporary host diagnostic that
 captures at most 32 same-thread visits to one loop anchor, or at most 256
-consecutive scalar instruction states near the run-006 stopping point. Select
+consecutive scalar instruction states near the latest stopping point. Select
 the window using the existing report, and ensure the samples belong to the
 same thread/guest incarnation. Preserve the actual dispatch PC and ARM/Thumb
 mode after scheduling; pre-`System::step` thread identity can be stale. Retain
@@ -59,13 +64,30 @@ only the registers/counters needed to inspect that loop. Do not add diagnostic
 guest-memory reads with side effects or enable an unbounded profiler. Test the
 capture on an original fixture and keep it out of normal Android execution.
 
+<!-- CodexAstraUlt: Distinguish command-list processing from reaching a draw
+before diagnosing downstream shaders or rasterization from a zero-draw count. -->
+Inspect the PICA command path in `vendor/zakuro/crates/zakuro-gpu/src/lib.rs`.
+`command_lists` counts processed lists, including ones with no draws; `draw_calls`
+increments on entry to array/indexed or immediate drawing, before rasterization.
+Determine whether the submitted lists contain only setup, whether writes to
+`REG_DRAW_ARRAYS`/`REG_DRAW_ELEMENTS` reach their handlers, or whether an expected
+immediate draw never becomes ready. Include chained lists and burst writes when
+checking the parser. Start with existing private evidence; if a run needs added
+observability, use bounded counters and at most 64 scalar command-path samples
+across the entire run. Keep command payloads and shader/game data private.
+
+Measure the CPU operation's exit condition and state progression alongside that
+path. Establish whether startup has reached drawing at all before attributing
+the absence of draws to a graphics defect.
+
 Use up to **three new private executions** in this batch, each answering a
 distinct recorded question: focused observation, a matched correction check,
 and one necessary follow-up. Do not stop between these steps merely to ask the
-owner to relay another counter. Start with the run-006 settings:
+owner to relay another counter. Use the previous batch's step ceiling and the
+other existing limits; check their identities against the retained reports:
 
 ```text
---max-steps 10000000
+--max-steps 100000000
 --max-cycles 2681118560
 --max-frames 1200
 --max-seconds 120
@@ -81,13 +103,12 @@ creates a full new input snapshot. Use new absent output directories outside
 Git; preserve the original, saves, earlier reports and snapshots. Build offline
 with the existing pinned toolchain and locked dependencies.
 
-A single step-only extension, up to **100,000,000 steps**, is permitted within
-this batch only after decoded loop bounds and measured state changes support
-finite useful work. Record that evidence and the estimated work required first;
-keep every other resource limit unchanged. If execution is not progressing,
-identify the dependency or incorrect operation instead of extending the limit.
+Do not extend these limits again in this batch. If finite useful initialization
+needs more work, report its decoded bounds, measured progression and estimated
+remaining work. If execution is not progressing, identify the dependency or
+incorrect operation. Neither case warrants skipping the guest's work.
 
-For a concrete CPU/HLE defect, author an independent original regression that
+For a concrete CPU/HLE/command-processing defect, author an original regression that
 fails before the generic fix, implement the fix, run relevant checks, and
 repeat the matched private baseline within the batch. Use `CodexAstraUlt`
 commentary. Do not copy private game instructions into public fixtures, patch
@@ -104,23 +125,26 @@ part of this batch. A hardware test remains separate from a host result.
 
 ## Use the connected Thor where relevant
 
-<!-- CodexAstraUlt: Use the offered device without repeating a passed probe
-as a substitute for investigating private-title CPU behavior on the laptop. -->
-With existing tools, run `command -v adb` and `adb devices -l`. Identify the
-authorized Thor explicitly, then use `adb -s SERIAL` for `get-state`, the
-`ro.product.manufacturer`, `ro.product.model` and `ro.product.cpu.abi` properties,
-and `shell pm path org.droidds.probe`. Read its version fields from
-`shell dumpsys package org.droidds.probe`. Record the selected serial locally and
-the installed package/version identity. If the device is unauthorized, offline,
-ambiguous or ADB is absent, leave the device portion pending and continue the
-host investigation. Do not select an arbitrary connected device.
+<!-- CodexAstraUlt: The owner confirms another local session already uses the
+Thor; remove the redundant readiness check from this host investigation. -->
+The owner confirms that another Codex session is currently connected to the
+Thor. No additional ADB readiness check is needed for this batch. The blocked
+session reported missing `/dev/bus/usb` and socket creation failing with
+`Operation not permitted`; these suggest restrictions in its execution context.
+Continue host diagnosis there, leaving USB work with the already-working session.
+Do not keep retrying, kill/restart its ADB server, change permissions or work
+around access controls. Device tests remain serialized with the session that
+owns the Thor. If a relevant device test is scheduled later, use its explicitly
+identified serial and record the actual installed artifact and device identity.
 
-Run-006 changed only the host diagnostic tool. Repeating the unchanged, already
-qualified 0.0.6 probe does not investigate this loop. If a subsequent shared
-runtime fix warrants an Android regression and the existing build tools and
-matching APK are available, use the [supported device runner](ANDROID_PROBE.md#run-from-the-laptop-with-adb).
+Repeating the unchanged, already qualified 0.0.6 probe does not validate the
+new identity fix. If a shared runtime fix warrants an Android regression and
+the existing build tools and matching APK are available, use the
+[supported device runner](ANDROID_PROBE.md#run-from-the-laptop-with-adb).
 Use an artifact containing the fix when validating that fix; an older APK is
-only a comparison baseline. Preserve the existing `files/latest-probe.json`
+only a comparison baseline. A claim that the affected service works on Android
+also needs an original fixture exercising it; an unrelated probe pass is only
+a general regression check. Preserve the existing `files/latest-probe.json`
 before the runner replaces it. The runner always installs with `adb install -r`;
 it has no installed-only mode. Do not uninstall to resolve signing conflicts,
 clear app data or change USB/network permissions. The current probe cannot

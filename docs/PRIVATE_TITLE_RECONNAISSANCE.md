@@ -16,8 +16,11 @@ wake deadlines. Run-005 clears that wait after the
 five services and 80 IPC calls, then exhausts its dispatch budget at `0x003B4FD8`.
 Run-006's CPU sampling preserves those counters and shows a repeated 12-address
 ARM pattern, but its sparse registers do not measure individual loop iterations.
-The next task is the [local investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md),
-starting with private inspection of the mapped instructions before another run.
+The subsequent local batch reports that loop clears and fixes a later offline
+`IsChild` blocker in `8c15ce2`. Its post-fix run reaches 100 million steps at
+`0x0018806C`, with 268 command lists, zero draws and silent PCM. The current
+[local investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md) examines CPU
+progress and the draw-trigger path using that latest private evidence.
 This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in
