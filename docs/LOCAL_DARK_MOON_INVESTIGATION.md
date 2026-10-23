@@ -1,5 +1,10 @@
 # Local Dark Moon decoder-completion investigation
 
+<!-- CodexAstraUlt: Retain the completed decoder task as history and route
+continuation to selected-screen and DSP evidence after successful drawing. -->
+This batch is complete; its findings are published in `a9b9cb1`. The current
+task is [the local display/audio check](LOCAL_DARK_MOON_OUTPUT_CHECK.md).
+
 <!-- CodexAstraUlt: Give the local session one bounded diagnose/fix/retest task
 instead of requiring the owner to relay each intermediate trace measurement.
 Advance from measured table/checksum progress to decoder and caller completion. -->

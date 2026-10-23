@@ -20,9 +20,11 @@ The subsequent local batch reports that loop clears and fixes a later offline
 `IsChild` blocker in `8c15ce2`. Its post-fix run reaches 100 million steps at
 `0x0018806C`, with 268 command lists, zero draws and silent PCM. Runs 010–012
 confirm table/stream/checksum progress and no draw requests in those
-setup lists. The current [local investigation batch](LOCAL_DARK_MOON_INVESTIGATION.md)
-captures decoder return and the caller's resource completion conditions, allowing
-a measured step-only extension up to one billion with unchanged other limits.
+setup lists. Batch-003 then observes resource completion, followed by 95,458 draws
+before run-014 stops at 500 million steps. PCM remains silent; images have not
+been inspected. The current [local display/audio check](LOCAL_DARK_MOON_OUTPUT_CHECK.md)
+captures selected-screen output and DSP/voice/mixer activity under the successful
+run-014 limits. The failed run-013 SIGKILL is preserved with cause unestablished.
 This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in

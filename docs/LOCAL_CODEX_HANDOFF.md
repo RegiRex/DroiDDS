@@ -63,12 +63,14 @@ post-fix run reaches 100 million steps at `0x0018806C`, with 268 command lists,
 zero draws and silent PCM. Runs 010–012 then confirm table/stream/checksum
 progress and setup-only GPU lists with no draw requests. Their 225,985,001 cycles
 cover about 0.843 emulated seconds; the enclosing resource's extent and completion
-are still unobserved. Continue the
-[decoder-completion investigation](LOCAL_DARK_MOON_INVESTIGATION.md): capture
-actual return status and caller completion/refill decisions, with a justified
-step-only extension up to one billion and unchanged time/memory caps. No new
-generic runtime fix is supported by this evidence. USB work remains with the
-already-connected session; host investigation continues independently.
+were then unobserved. Batch-003 completes the observed resource at about 114
+million steps and first enters drawing at 125,851,274. Run-014 reaches 95,458
+draws at 500 million steps, spanning about 8.451 emulated seconds. Its 274,720
+silent stereo PCM pairs show DSP output generation, but do not establish active
+voices or nonzero gains. Run-013's SIGKILL remains unexplained. Continue the
+[local display/audio check](LOCAL_DARK_MOON_OUTPUT_CHECK.md) at the successful
+500-million-step ceiling. No generic fix is justified yet. Parallel builds may
+use separate build/output directories; USB stays with the connected session.
 These private-run records are owner text, not independent JSON validation.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
@@ -196,12 +198,12 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
 > Safely obtain the current DroidDS source and execute
-> docs/LOCAL_DARK_MOON_INVESTIGATION.md using the existing Dark Moon file and
-> batch-002 reports. Work on an investigation branch, preserving existing changes.
-> Capture decoder return at 0x001889F4 and the caller's resource completion/refill
-> decision, using the documented extended step ceiling and unchanged other caps.
-> Complete the bounded investigation without pausing for each intermediate
-> measurement. Keep permissions and installed tools unchanged. Return
+> docs/LOCAL_DARK_MOON_OUTPUT_CHECK.md using the existing Dark Moon file and
+> batch-003 reports. Work on an investigation branch, preserving existing changes.
+> Inspect selected top/bottom images locally and locate the first silent DSP
+> stage in one combined run with the documented 500-million-step ceiling.
+> Complete the bounded investigation without pausing for intermediate counters.
+> Keep permissions and installed tools unchanged. Return
 > dark-moon-investigation-summary.md plus any reviewed generic commit/diff.
 
 The owner can paste this task into local Codex; they do not need to transcribe

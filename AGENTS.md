@@ -127,6 +127,12 @@ New 3DS compatibility gate instead of ranking games by hardware exclusivity. -->
   repository as a side effect. Use the existing checkout; no worktree is needed.
 - One coordinator owns integration; parallel agents may review, analyze or work
   in explicitly assigned files. One operator owns the Thor; device runs serialize.
+<!-- CodexAstraUlt: Preserve the owner's explicit permission for concurrent
+builds with isolated artifacts, without attributing an unexplained kill to them. -->
+- Concurrent builds are allowed with separate build/output directories and
+  distinct Cargo target directories. Preserve stable source inputs and other
+  sessions' work. Host timings may reflect shared load; an unexplained SIGKILL
+  does not establish interference or an out-of-memory failure.
 - Preserve user files, save data, signing identity and local changes. Cache/save
   reset requires the actual local session's scope; an archived report is not new
   authorization. Do not carry Uberhar's signing key or release permissions here.
