@@ -109,10 +109,15 @@ on the owner's Linux computer. This is planned work after the 0.0.6 gate.
 the private guest activation trace, retaining the remaining delivery work. -->
 The [permission-remap correction](builds/0.0.7-memory-remap.md) now prevents
 revoked read/write access through stale fast pointers. General native-code
-freshness, deterministic compiler inputs, shared title identity and private
-packaging remain open. Continue those implementation tasks alongside the
-[bounded voice-activation diagnosis](LOCAL_DARK_MOON_VOICE_ACTIVATION.md);
-the silent interpreted prefix does not prove an audio defect or block this work.
+freshness and private packaging remain open.
+<!-- CodexAstraUlt: Mark preparation as implemented without treating its identity
+record as already enforced by a native runtime or Android package. -->
+[Native-source preparation](PRIVATE_TITLE_PREPARATION.md) now resolves strict
+base inputs, excludes ambient hints, checks compiler/runtime reader agreement,
+emits C and binds its inputs/outputs in a SHA-256 manifest. Consuming that manifest
+before native execution and packaging remains work. Run-019 closes the bounded
+voice trace without demonstrating an audio defect; private preparation is the
+next local task, with no repeated unchanged interpreter prefix required.
 
 | Ticket | Scope and concrete output | Acceptance | Depends on | Pack mapping |
 | --- | --- | --- | --- | --- |

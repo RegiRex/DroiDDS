@@ -1,0 +1,17 @@
+# CodexAstraUlt: Reuse the pinned compiler and runtime container reader for a
+# local preparation stage, without importing a desktop frontend or new dependency.
+[package]
+name = "droidds-title-builder"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "droidds-prepare-title"
+path = "src/main.rs"
+
+[dependencies]
+recomp3ds.workspace = true
+zakuro-fs.workspace = true
+serde_json.workspace = true

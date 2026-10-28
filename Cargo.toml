@@ -8,6 +8,9 @@ members = ["crates/droidds-foundation", "crates/droidds-android-probe",
            # CodexAstraUlt: Local owned-title inspection is a host-only tool;
            # Android keeps its separately selected package and unchanged version.
            "crates/droidds-title-tools",
+           # CodexAstraUlt: Native-source preparation is a separate host tool;
+           # no compiler dependency is added to the Android or diagnostic worker.
+           "crates/droidds-title-builder",
            "crates/droidds-runtime-probe", "vendor/zakuro/crates/zakuro-core",
            "vendor/zakuro/crates/zakuro-fs", "vendor/zakuro/crates/zakuro-gpu"]
 # CodexAstraUlt: Preserve the default host command while Android explicitly

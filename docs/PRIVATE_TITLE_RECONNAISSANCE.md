@@ -33,10 +33,13 @@ Batch-005's runs 017–018 complete the 500-million-step budget with matching
 execution counters and no recorded runtime fault. No guest voice payload or
 dirty stores reach either DSP bank; measured guest predicates skip voice work,
 and resource loading is still progressing. The current
-[voice-activation investigation](LOCAL_DARK_MOON_VOICE_ACTIVATION.md) traces the
-writer/caller that can change those predicates, on the frozen run-018 runtime.
-No runtime audio fix is justified. Native-builder development can proceed
-independently. Earlier failures and all private evidence remain preserved.
+[voice-activation investigation](LOCAL_DARK_MOON_VOICE_ACTIVATION.md) then records
+constructor initialization and an empty manager list in run-019, matching that
+prefix. The selected allocation request never executes; no runtime audio fix or
+unchanged repeat is justified. The next local task is
+[native-source preparation](PRIVATE_TITLE_PREPARATION.md), using the implemented
+strict compiler/runtime input comparison and deterministic source generation.
+Earlier failures and all private evidence remain preserved.
 This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in

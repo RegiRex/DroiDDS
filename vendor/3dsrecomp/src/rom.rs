@@ -15,9 +15,20 @@ const NCCH_HEADER_SIZE: u64 = 0x200;
 const EXEFS_HEADER_SIZE: u64 = 0x200;
 /// the RomFS tables' mark for no entry.
 const NONE: u32 = 0xFFFF_FFFF;
+// CodexAstraUlt: A host preparation read/decompressed executable is bounded
+// independently of total cartridge size; module admission is tighter below.
+const STRICT_MAX_READ: usize = 256 * 1024 * 1024;
 
 #[derive(Debug)]
 pub struct Error(String);
+
+// CodexAstraUlt: Strict resolution reports context without exposing parser
+// implementation details or requiring callers to manufacture I/O errors.
+impl Error {
+    pub(crate) fn invalid(message: impl Into<String>) -> Self {
+        Self(message.into())
+    }
+}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -212,6 +223,104 @@ impl RomFs {
             .map(|(_, f)| f)
             .ok_or_else(missing)
     }
+
+    // CodexAstraUlt: Strict preparation visits every linked file exactly once,
+    // rejects malformed links/cycles instead of breaking silently, and bounds
+    // both tree depth and retained metadata independently of module discovery.
+    pub(crate) fn strict_files(&self) -> Result<Vec<(String, FileEntry)>, Error> {
+        use std::collections::BTreeSet;
+        const MAX_ENTRIES: usize = 100_000;
+        const MAX_DEPTH: usize = 64;
+        const MAX_PATH: usize = 4096;
+        let root = self.strict_dir(0)?;
+        if !root.name.is_empty() || root.next_sibling != NONE {
+            return error("strict RomFS has an invalid root");
+        }
+        let mut directories = BTreeSet::from([0]);
+        let mut files = BTreeSet::new();
+        let mut paths = BTreeSet::new();
+        let mut pending = vec![(0, root, String::new(), 0usize)];
+        let mut result = Vec::new();
+        while let Some((offset, dir, path, depth)) = pending.pop() {
+            let mut child_names = BTreeSet::new();
+            let mut cursor = dir.first_file;
+            while cursor != NONE {
+                if !files.insert(cursor) || files.len() + directories.len() > MAX_ENTRIES {
+                    return error("strict RomFS repeats a file link or exceeds the entry limit");
+                }
+                let file = self.strict_file(cursor)?;
+                if u32_at(&self.files, cursor as usize) != offset {
+                    return error("strict RomFS file has a different parent");
+                }
+                if !child_names.insert(file.name.to_ascii_lowercase()) {
+                    return error("strict RomFS has duplicate sibling paths");
+                }
+                let name = crate::join(&path, &file.name);
+                if name.len() > MAX_PATH || !paths.insert(name.to_ascii_lowercase()) {
+                    return error("strict RomFS has a duplicate or oversized path");
+                }
+                cursor = file.next_sibling;
+                result.push((name, file));
+            }
+            let mut cursor = dir.first_child;
+            while cursor != NONE {
+                if depth >= MAX_DEPTH || !directories.insert(cursor) || files.len() + directories.len() > MAX_ENTRIES {
+                    return error("strict RomFS repeats a directory link or exceeds a tree limit");
+                }
+                let child_offset = cursor;
+                let child = self.strict_dir(child_offset)?;
+                if u32_at(&self.dirs, cursor as usize) != offset {
+                    return error("strict RomFS directory has a different parent");
+                }
+                if !child_names.insert(child.name.to_ascii_lowercase()) {
+                    return error("strict RomFS has duplicate sibling paths");
+                }
+                let name = crate::join(&path, &child.name);
+                if name.len() > MAX_PATH {
+                    return error("strict RomFS directory path exceeds the limit");
+                }
+                cursor = child.next_sibling;
+                pending.push((child_offset, child, name, depth + 1));
+            }
+        }
+        result.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(result)
+    }
+
+    // CodexAstraUlt: Preserve exact names on the strict path; lossy UTF-16 or
+    // separator/dot names would make source identities ambiguous.
+    fn strict_name(table: &[u8], offset: u32, header: usize, length_at: usize, empty: bool) -> Result<String, Error> {
+        let at = offset as usize;
+        if at & 3 != 0 || table.get(at..at.saturating_add(header)).is_none() {
+            return error("strict RomFS entry is outside its table or unaligned");
+        }
+        let length = u32_at(table, at + length_at) as usize;
+        let name = table.get(at + header..(at + header).saturating_add(length))
+            .filter(|name| name.len() % 2 == 0)
+            .ok_or_else(|| Error::invalid("strict RomFS name is truncated"))?;
+        let units: Vec<u16> = name.as_chunks::<2>().0.iter().map(|unit| u16::from_le_bytes(*unit)).collect();
+        let name = String::from_utf16(&units).map_err(|_| Error::invalid("strict RomFS name is invalid UTF-16"))?;
+        if (!empty && name.is_empty()) || matches!(name.as_str(), "." | "..") || name.chars().any(|c| c == '/' || c == '\\' || c.is_control()) {
+            return error("strict RomFS name is not a path component");
+        }
+        Ok(name)
+    }
+
+    // CodexAstraUlt: Reuse field decoding after strict entry/name validation;
+    // the legacy traversal keeps its existing permissive behavior.
+    fn strict_dir(&self, offset: u32) -> Result<DirEntry, Error> {
+        let name = Self::strict_name(&self.dirs, offset, 0x18, 0x14, true)?;
+        let mut dir = self.dir(offset).ok_or_else(|| Error::invalid("strict RomFS directory is truncated"))?;
+        dir.name = name;
+        Ok(dir)
+    }
+
+    fn strict_file(&self, offset: u32) -> Result<FileEntry, Error> {
+        let name = Self::strict_name(&self.files, offset, 0x20, 0x1C, false)?;
+        let mut file = self.file(offset).ok_or_else(|| Error::invalid("strict RomFS file is truncated"))?;
+        file.name = name;
+        Ok(file)
+    }
 }
 
 /// a .cia's header size, which is also its first field.
@@ -226,6 +335,11 @@ fn cia_executable(header: &[u8], mut read: impl FnMut(u64, usize) -> Result<Vec<
     let tmd_offset = align(align(align(CIA_HEADER_SIZE as u64) + u32_at(header, 0x08) as u64) + u32_at(header, 0x0C) as u64);
     let contents = align(tmd_offset + u32_at(header, 0x10) as u64);
     let tmd = read(tmd_offset, u32_at(header, 0x10) as usize)?;
+    // CodexAstraUlt: Truncated CIA metadata must fail before fixed-field
+    // decoding; strict preparation cannot rely on a parser panic for admission.
+    if tmd.len() < 4 {
+        return error("the .cia's TMD is truncated");
+    }
     let be16 = |at: usize| u16::from_be_bytes([tmd[at], tmd[at + 1]]);
     let be64 = |at: usize| u64::from_be_bytes(tmd[at..at + 8].try_into().unwrap());
     // the signature's size goes by its type, padded to 64 bytes
@@ -235,6 +349,9 @@ fn cia_executable(header: &[u8], mut read: impl FnMut(u64, usize) -> Result<Vec<
         0x0002 | 0x0005 => 0x80,
         _ => return error("the .cia's TMD has an unknown signature"),
     };
+    if tmd.len() < signature + 0xA0 {
+        return error("the .cia's signed TMD header is truncated");
+    }
     match be64(signature + 0x4C) >> 32 {
         0x0004_000E => return error("this .cia is an update, not a game"),
         0x0004_008C => return error("this .cia is downloadable content, not a game"),
@@ -243,6 +360,9 @@ fn cia_executable(header: &[u8], mut read: impl FnMut(u64, usize) -> Result<Vec<
     let mut offset = contents;
     for i in 0..be16(signature + 0x9E) as usize {
         let record = signature + 0xC4 + 64 * 0x24 + i * 0x30;
+        if tmd.get(record..record + 0x30).is_none() {
+            return error("the .cia's content record is truncated");
+        }
         let index = be16(record + 4) as usize;
         if bitmap[index / 8] & (0x80 >> (index % 8)) == 0 {
             continue;
@@ -266,12 +386,33 @@ pub struct Title {
     /// where .code is in the dump, and how big.
     code: (u64, u64),
     pub romfs: Option<RomFs>,
+    // CodexAstraUlt: Preserve the exact compiler header input for manifests and
+    // apply stricter read/decompression admission only to opt-in builder loads.
+    raw_exheader: Vec<u8>,
+    raw_ncch_header: Vec<u8>,
+    strict: bool,
 }
 
 impl Title {
     pub fn load(path: impl AsRef<Path>) -> Result<Title, Error> {
+        Self::load_inner(path.as_ref(), false)
+    }
+
+    /// CodexAstraUlt: Load a base title without hiding a declared malformed
+    /// RomFS, and bound parser allocations before compiler preparation.
+    pub fn load_strict(path: impl AsRef<Path>) -> Result<Title, Error> {
+        Self::load_inner(path.as_ref(), true)
+    }
+
+    fn load_inner(path: &Path, strict: bool) -> Result<Title, Error> {
         let mut file = File::open(path)?;
+        let file_len = file.metadata()?.len();
         let read = |file: &mut File, offset: u64, len: usize| -> Result<Vec<u8>, Error> {
+            // CodexAstraUlt: Header-controlled allocations and file extents are
+            // checked before reading, including metadata for an optional RomFS.
+            if strict && (len > STRICT_MAX_READ || offset.checked_add(len as u64).is_none_or(|end| end > file_len)) {
+                return error("strict title read is outside the file or allocation limit");
+            }
             let mut bytes = vec![0; len];
             file.seek(SeekFrom::Start(offset))?;
             file.read_exact(&mut bytes)?;
@@ -298,11 +439,17 @@ impl Title {
             return error("the dump is encrypted, it has to be decrypted first");
         }
         let program_id = u64_at(&header, 0x118);
+        // CodexAstraUlt: Bare NCCH/NCSD update or DLC inputs receive the same
+        // base-title restriction already used by the CIA reader.
+        if strict && matches!(program_id >> 32, 0x0004_000E | 0x0004_008C) {
+            return error("strict preparation accepts base titles, not updates or downloadable content");
+        }
         let exefs = ncch + u32_at(&header, 0x1A0) as u64 * MEDIA_UNIT;
         let romfs_offset = ncch + u32_at(&header, 0x1B0) as u64 * MEDIA_UNIT;
         let has_romfs = u32_at(&header, 0x1B4) != 0 && flags[7] & 0x02 == 0;
 
-        let exheader = ExHeader::read(&read(&mut file, ncch + NCCH_HEADER_SIZE, 0x400)?);
+        let raw_exheader = read(&mut file, ncch + NCCH_HEADER_SIZE, 0x400)?;
+        let exheader = ExHeader::read(&raw_exheader);
 
         // ten files, a name, an offset past the header and a size each
         let table = read(&mut file, exefs, EXEFS_HEADER_SIZE as usize)?;
@@ -315,16 +462,40 @@ impl Title {
             .map(|entry| (exefs + EXEFS_HEADER_SIZE + u32_at(entry, 8) as u64, u32_at(entry, 12) as u64))
             .ok_or(Error("the ExeFS has no .code".into()))?;
 
-        let romfs = if has_romfs { read_romfs(&mut file, romfs_offset, read).ok() } else { None };
-        Ok(Title { file: Mutex::new(file), program_id, exheader, code, romfs })
+        // CodexAstraUlt: A malformed declared filesystem must not silently turn
+        // a module-bearing title into an executable-only build.
+        let romfs = if has_romfs {
+            let parsed = read_romfs(&mut file, romfs_offset, read);
+            if strict { Some(parsed?) } else { parsed.ok() }
+        } else {
+            None
+        };
+        Ok(Title { file: Mutex::new(file), program_id, exheader, code, romfs, raw_exheader, raw_ncch_header: header, strict })
     }
 
     pub fn program_id(&self) -> u64 {
         self.program_id
     }
 
+    /// CodexAstraUlt: Exact effective 0x400-byte extended-header input; this
+    /// includes metadata not represented by the compiler's decoded subset.
+    pub fn raw_exheader(&self) -> &[u8] {
+        &self.raw_exheader
+    }
+
+    /// CodexAstraUlt: Preserve the NCCH format/version identity separately from
+    /// the title revision in the extended header for a caller's manifest.
+    pub fn raw_ncch_header(&self) -> &[u8] {
+        &self.raw_ncch_header
+    }
+
     fn read(&self, offset: u64, len: usize) -> Result<Vec<u8>, Error> {
         let mut file = self.file.lock().map_err(|_| Error("the dump was left half read".into()))?;
+        // CodexAstraUlt: Module and executable reads use the same bounded
+        // admission as initial metadata, even after the title has been opened.
+        if self.strict && (len > STRICT_MAX_READ || offset.checked_add(len as u64).is_none_or(|end| end > file.metadata().map(|m| m.len()).unwrap_or(0))) {
+            return error("strict title read is outside the file or allocation limit");
+        }
         let mut bytes = vec![0; len];
         file.seek(SeekFrom::Start(offset))?;
         file.read_exact(&mut bytes)?;
@@ -335,7 +506,20 @@ impl Title {
     pub fn code(&self) -> Result<Vec<u8>, Error> {
         let raw = self.read(self.code.0, self.code.1 as usize)?;
         if self.exheader.compress_code {
-            decompress(&raw)
+            // CodexAstraUlt: A tiny compressed input must not request an
+            // unbounded decompression allocation through its footer.
+            if self.strict {
+                let Some(footer) = raw.get(raw.len().saturating_sub(4)..).filter(|tail| tail.len() == 4) else {
+                    return error("compressed code is missing its footer");
+                };
+                let extra = u32::from_le_bytes(footer.try_into().unwrap()) as usize;
+                if raw.len().checked_add(extra).is_none_or(|size| size > STRICT_MAX_READ) {
+                    return error("strict decompressed code exceeds the allocation limit");
+                }
+            }
+            // CodexAstraUlt: Preparation also requires a complete stream; the
+            // legacy decoder keeps its existing permissive output contract.
+            decompress_inner(&raw, self.strict)
         } else {
             Ok(raw)
         }
@@ -345,7 +529,9 @@ impl Title {
     pub fn read_romfs(&self, file: &FileEntry, offset: u64, len: usize) -> Option<Vec<u8>> {
         let romfs = self.romfs.as_ref()?;
         let len = len.min(file.data_size.saturating_sub(offset) as usize);
-        self.read(romfs.data + file.data_offset + offset, len).ok()
+        // CodexAstraUlt: Reject overflowing source extents rather than wrapping
+        // or panicking while reading an admitted module's declared payload.
+        self.read(romfs.data.checked_add(file.data_offset)?.checked_add(offset)?, len).ok()
     }
 }
 
@@ -381,6 +567,12 @@ fn read_romfs(
 /// undoes the backwards LZSS the SDK compresses .code with, which works from
 /// the end of the buffer towards its start.
 pub fn decompress(compressed: &[u8]) -> Result<Vec<u8>, Error> {
+    decompress_inner(compressed, false)
+}
+
+// CodexAstraUlt: Strict preparation rejects invented zero tails and writes
+// into the uncompressed prefix while reusing the existing BLZ decoding rules.
+fn decompress_inner(compressed: &[u8], strict: bool) -> Result<Vec<u8>, Error> {
     let size = compressed.len();
     if size < 8 {
         return error("compressed code shorter than its footer");
@@ -394,6 +586,9 @@ pub fn decompress(compressed: &[u8]) -> Result<Vec<u8>, Error> {
     if footer_size > size || span > size {
         return error("the compressed code's footer points outside it");
     }
+    if strict && (footer_size < 8 || span < footer_size) {
+        return error("strict compressed code has an invalid footer/span");
+    }
 
     let mut out = vec![0u8; out_size];
     out[..size].copy_from_slice(compressed);
@@ -404,6 +599,14 @@ pub fn decompress(compressed: &[u8]) -> Result<Vec<u8>, Error> {
         index -= 1;
         let mut control = compressed[index];
         for _ in 0..8 {
+            // CodexAstraUlt: Once output reaches the preserved prefix, no
+            // additional encoded payload may still be waiting to be consumed.
+            if strict && cursor <= stop {
+                if index != stop {
+                    return error("strict compressed code has unused payload");
+                }
+                break;
+            }
             if index <= stop || index == 0 || cursor == 0 {
                 break;
             }
@@ -411,12 +614,18 @@ pub fn decompress(compressed: &[u8]) -> Result<Vec<u8>, Error> {
                 if index < 2 {
                     return error("a back reference is cut short");
                 }
+                if strict && index - stop < 2 {
+                    return error("strict compressed code has a cut-short back reference");
+                }
                 index -= 2;
                 let pair = u16_at(compressed, index) as usize;
                 // runs are never shorter than three, nor closer than two
                 let (length, distance) = ((pair >> 12) + 3, (pair & 0xFFF) + 2);
                 if cursor < length {
                     return error("a run goes past the start");
+                }
+                if strict && cursor - stop < length {
+                    return error("strict compressed code overwrites the preserved prefix");
                 }
                 for _ in 0..length {
                     let from = cursor + distance;
@@ -431,6 +640,11 @@ pub fn decompress(compressed: &[u8]) -> Result<Vec<u8>, Error> {
             }
             control <<= 1;
         }
+    }
+    // CodexAstraUlt: Every declared expanded byte must come from a literal or
+    // valid back reference; zero-initialized allocation is not decoded content.
+    if strict && (cursor != stop || index != stop) {
+        return error("strict compressed code did not complete its declared output");
     }
     Ok(out)
 }

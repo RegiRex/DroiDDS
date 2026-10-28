@@ -79,10 +79,16 @@ Batch-005's runs 017–018 now complete the 500-million-step budget with matchin
 run-014 counters and no recorded runtime fault. They use the explicit CPU
 allowance and omit image capture; completion cannot be attributed to CPU limits
 alone. Both DSP banks receive no guest voice data. The observed source-state
-predicates skip voice work while a later resource continues advancing. Follow
-the [voice-activation task](LOCAL_DARK_MOON_VOICE_ACTIVATION.md) using the frozen
-run-018 runtime. No runtime audio fix is justified. Generic manifest/compiler/
-packaging development proceeds independently of this private diagnosis.
+predicates skip voice work while a later resource continues advancing.
+<!-- CodexAstraUlt: Close the finite activation trace and make the implemented
+native preparation tool the current local task rather than another silent run. -->
+Run-019 then matches that prefix on the frozen run-018 runtime. It observes
+constructor initialization to `0x8000`, an empty manager list on all 1,704 visits,
+and no dispatch of the watched allocation/reset paths. No runtime audio fix or
+unchanged trace replay is justified. Follow [native-source preparation](PRIVATE_TITLE_PREPARATION.md)
+on current main. This checks resolved inputs and generates deterministic C;
+private native execution, runtime manifest enforcement and packaging remain
+separate implementation/acceptance steps.
 Parallel builds may use separate outputs; USB stays with the connected session.
 These private-run records are owner text, not independent JSON validation.
 
@@ -210,12 +216,12 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 <!-- CodexAstraUlt: Give the local session the executable next task, preserving
 its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
-> Read docs/LOCAL_DARK_MOON_VOICE_ACTIVATION.md from current RegiRex/DroiDDS main.
-> Execute it using the existing Dark Moon file, batch-005 reports and frozen
-> run-018 runtime. Preserve existing work. Identify the writer and prerequisite
-> for the measured voice predicates, then perform only the bounded run needed
-> to resolve that edge. Complete the investigation without pausing for intermediate
-> counters. Return dark-moon-investigation-summary.md and any reviewed generic fix.
+> Safely obtain current RegiRex/DroiDDS main, preserving local work and frozen
+> diagnostic sources. Follow docs/PRIVATE_TITLE_PREPARATION.md using the existing
+> Dark Moon base image. Build with the installed pinned offline toolchain, run
+> the original-fixture preparation checks, then prepare the private title once
+> in a fresh directory outside Git. Return dark-moon-preparation-summary.md with
+> the outcome, generated counts and first rejection if any. Keep derived output local.
 
 The owner can paste this task into local Codex; they do not need to transcribe
 all build/run commands themselves. This document does not connect sessions or

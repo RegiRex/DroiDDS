@@ -648,6 +648,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "droidds-title-builder"
+version = "0.0.1"
+dependencies = [
+ "recomp3ds",
+ "serde_json",
+ "zakuro-fs",
+]
+
+[[package]]
 name = "droidds-title-tools"
 version = "0.0.1"
 dependencies = [

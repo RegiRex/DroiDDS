@@ -62,6 +62,15 @@ It identifies an owned game's first observed runtime blocker. This
 interpreter/software host tool does not promote milestone 0.0.7 or produce a
 game-playing Android APK.
 
+<!-- CodexAstraUlt: Record the independent native-builder slice after bounded
+guest tracing reaches its evidence limit, without advancing the Android gate. -->
+[Native-source preparation](PRIVATE_TITLE_PREPARATION.md) implements strict
+base resolution, compiler/runtime reader byte agreement, disabled discovery hints,
+C generation and a canonical SHA-256 preparation manifest. Run-019 closes the
+bounded audio investigation at an unobserved allocation request, with no generic
+audio fix justified. Private preparation is next; manifest consumption, native
+comparison, packaging and Thor boot remain required for 0.0.7.
+
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->
 The [0.0.7 private title build plan](PRIVATE_TITLE_BUILD_PLAN.md) specifies the

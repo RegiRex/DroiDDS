@@ -32,9 +32,21 @@ As of 2026-10-28, [private runs 017–018](host-tests/dark-moon-2026-10-22.md#lo
 complete 500 million steps with matching counters and 95,458 draws. Voice
 production remains skipped by measured guest predicates while resource work
 continues. This does not establish a runtime audio defect or an interactive boot.
-The [activation investigation](LOCAL_DARK_MOON_VOICE_ACTIVATION.md) continues
-locally; generic manifest, compiler and package implementation need not wait for
-it. The permission-remap prerequisite below is now corrected and tested.
+The [activation investigation](LOCAL_DARK_MOON_VOICE_ACTIVATION.md) closes with
+run-019: construction is observed, the manager list stays empty, and the selected
+allocation path is not reached. No unchanged replay or generic audio fix is
+justified. The permission-remap prerequisite below is corrected and tested.
+
+<!-- CodexAstraUlt: Record the implemented builder stage precisely while keeping
+runtime consumption, compilation, packaging and device execution outstanding. -->
+[Native-source preparation](PRIVATE_TITLE_PREPARATION.md) now implements strict
+base-title resolution, compiler/runtime reader byte comparisons, explicit disabled
+hints, deterministic C emission and a canonical SHA-256 preparation manifest.
+It records header/revision fields, complete decompressed code, logical segments,
+raw CRO/static descriptors, generated files, ABI and source/tool identity.
+The runtime does not yet consume/enforce this manifest. Private native compilation,
+general code-freshness protection, packaging/import/signing and Thor boot remain
+unfinished. No 0.0.7 game APK is claimed by source preparation.
 
 ## One resolved title identity
 
@@ -81,11 +93,12 @@ working APK, input and saves intact.
 
 <!-- CodexAstraUlt: Preserve source-review findings as explicit native-builder
 work, not as proven runtime failures or completed fixes in reconnaissance. -->
-Before enabling this builder, bind or explicitly disable the compiler's automatic
-hint inputs; its current `apply_hints` reads owner-local information in addition
-to bundled hints. Module discovery must report parse failures instead of dropping
-them from the manifest. Neither behavior is exercised by the interpreter-only
-reconnaissance tool.
+The new preparer disables all compiler hints explicitly and resolves modules
+through the strict path, which reports parse/admission failures instead of dropping
+them. Its resolved collection feeds both identity material and generation.
+Legacy `apply_hints` and module APIs retain their historical behavior for existing
+callers; use the preparer for this reproducible route. Neither path changes the
+interpreter-only reconnaissance tool.
 <!-- CodexAstraUlt: Replace the untested remap concern with its demonstrated
 correction, keeping broader native code freshness and title evidence separate. -->
 The [permission-remap correction](builds/0.0.7-memory-remap.md) reproduces and

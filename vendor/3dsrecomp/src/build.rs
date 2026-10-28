@@ -52,6 +52,24 @@ pub struct Generated {
     pub sources: Vec<String>,
 }
 
+// CodexAstraUlt: Reproducible callers explicitly select all discovery hints;
+// none of these choices reads the owner's ambient hint file. Explicit addresses
+// must be included in the caller's input identity when used for a real build.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HintPolicy<'a> {
+    Disabled,
+    BundledOnly,
+    Explicit(&'a [u32]),
+}
+
+// CodexAstraUlt: Preserve legacy hint discovery only behind its existing API;
+// the new resolved-input API cannot select this ambient mode accidentally.
+#[derive(Clone, Copy)]
+enum HintMode<'a> {
+    Legacy,
+    Selected(HintPolicy<'a>),
+}
+
 /// writes the title at rom as C in the dir pick chooses, the overrides with
 /// it, and what the mods change in place of the title's own code and files.
 pub fn generate(
@@ -62,12 +80,66 @@ pub fn generate(
     events: &(dyn Fn(Event) + Sync),
 ) -> Result<Generated, String> {
     let title = Title::load(rom).map_err(|error| format!("could not load {}, {error}", rom.display()))?;
-    let mut programs = crate::programs(&title, mods).map_err(|error| format!("could not read the code, {error}"))?;
+    let programs = crate::programs(&title, mods).map_err(|error| format!("could not read the code, {error}"))?;
     let dir = pick(&title);
     let files = match overrides {
         Some(path) => overrides::load(path)?,
         None => Vec::new(),
     };
+    // CodexAstraUlt: Both entry points share lowering and writing, while this
+    // historical API retains owner-local hints, mods and override behavior.
+    generate_programs(title, programs, dir, files, HintMode::Legacy, events)
+}
+
+/// CodexAstraUlt: Emit the already resolved executable and modules with an
+/// explicit hint policy. This does not reopen the title, resolve mods, load
+/// overrides, discover owner-local hints, compile C or install a library.
+/// The caller binds the supplied programs to the title's validated input
+/// identity and owns the output directory, including overwrite protection.
+pub fn generate_resolved(
+    title: Title,
+    programs: Vec<(String, Program)>,
+    dir: PathBuf,
+    hints: HintPolicy<'_>,
+    events: &(dyn Fn(Event) + Sync),
+) -> Result<Generated, String> {
+    validate_resolved_names(&programs)?;
+    generate_programs(title, programs, dir, Vec::new(), HintMode::Selected(hints), events)
+}
+
+// CodexAstraUlt: Code generation requires one first executable, unique module
+// identities, and names safe to embed verbatim in its C string literals (also
+// excluding question marks so trigraph-enabled compilers cannot create escapes).
+// Generated filenames are fixed or numeric, not derived from module names.
+fn validate_resolved_names(programs: &[(String, Program)]) -> Result<(), String> {
+    if programs.first().map(|(name, _)| name.as_str()) != Some("executable") {
+        return Err("resolved programs must begin with the executable".into());
+    }
+    let mut names = std::collections::BTreeSet::new();
+    for (name, _) in programs {
+        if name.is_empty()
+            || name.len() > 255
+            || !name.bytes().all(|byte| (0x20..=0x7E).contains(&byte) && !b"\"\\?".contains(&byte))
+        {
+            return Err("resolved module name is not a bounded C string literal".into());
+        }
+        if !names.insert(name) {
+            return Err("resolved module names must be unique".into());
+        }
+    }
+    Ok(())
+}
+
+// CodexAstraUlt: Share the existing emission algorithm so deterministic input
+// selection cannot silently fork native instruction lowering or origin tables.
+fn generate_programs(
+    title: Title,
+    mut programs: Vec<(String, Program)>,
+    dir: PathBuf,
+    files: Vec<overrides::File>,
+    hints: HintMode<'_>,
+    events: &(dyn Fn(Event) + Sync),
+) -> Result<Generated, String> {
     let replaced: Vec<Override> = files.iter().flat_map(|file| file.overrides.iter().cloned()).collect();
     // whatever an override replaces has to be generated too, for it to call
     for item in &replaced {
@@ -79,9 +151,15 @@ pub fn generate(
     }
 
     let mut analyses: Vec<Analysis> = programs.iter().map(|(_, program)| discover::analyze(program)).collect();
-    let functions = apply_hints(&title, &mut programs, &mut analyses);
+    let functions = apply_selected_hints(&title, &mut programs, &mut analyses, hints);
     if functions > 0 {
-        events(Event::Note(format!("{functions} of the places Zakuro interpreted start new functions")));
+        // CodexAstraUlt: Preserve legacy event text without misattributing a
+        // supplied explicit list to an observed interpreter execution.
+        let note = match hints {
+            HintMode::Legacy => format!("{functions} of the places Zakuro interpreted start new functions"),
+            HintMode::Selected(_) => format!("{functions} selected hint addresses start new functions"),
+        };
+        events(Event::Note(note));
     }
     for item in &replaced {
         let index = programs.iter().position(|(name, _)| Some(name.as_str()) == item.module.as_deref()).unwrap_or(0);
@@ -159,12 +237,42 @@ pub fn build(rom: &Path, options: &Options, events: &(dyn Fn(Event) + Sync)) -> 
 /// svcs, while Zakuro used to note where it finished a block the budget did
 /// not cover, which as labels split the hot loops into single instructions.
 pub fn apply_hints(title: &Title, programs: &mut [(String, Program)], analyses: &mut [Analysis]) -> usize {
+    // CodexAstraUlt: Retain the public legacy operation and its combined
+    // local/bundled inputs; resolved generation takes the explicit path below.
+    apply_selected_hints(title, programs, analyses, HintMode::Legacy)
+}
+
+// CodexAstraUlt: Select sources lazily so Disabled and Explicit cannot touch
+// either ambient files or the bundled table, and BundledOnly never reads files.
+fn select_hints(
+    mode: HintMode<'_>,
+    ambient: impl FnOnce() -> Vec<u32>,
+    bundled: impl FnOnce() -> Vec<u32>,
+) -> Vec<u32> {
+    match mode {
+        HintMode::Legacy => {
+            let mut values = ambient();
+            values.extend(bundled());
+            values
+        }
+        HintMode::Selected(HintPolicy::Disabled) => Vec::new(),
+        HintMode::Selected(HintPolicy::BundledOnly) => bundled(),
+        HintMode::Selected(HintPolicy::Explicit(values)) => values.to_vec(),
+    }
+}
+
+// CodexAstraUlt: Keep filtering, deduplication and rediscovery identical across
+// policies; only the declared source of candidate addresses changes.
+fn apply_selected_hints(
+    title: &Title,
+    programs: &mut [(String, Program)],
+    analyses: &mut [Analysis],
+    mode: HintMode<'_>,
+) -> usize {
     let Some(index) = programs.iter().position(|(name, _)| name == "executable") else { return 0 };
     let program = &mut programs[index].1;
     let text = program.text.base..program.text.end();
-    // this player's and everyone's who ran the same code
-    let mut hinted = hints(title.program_id());
-    hinted.extend(bundled(title.program_id(), code_hash(program)));
+    let mut hinted = select_hints(mode, || hints(title.program_id()), || bundled(title.program_id(), code_hash(program)));
     hinted.retain(|&address| text.contains(&(address & !1)));
     hinted.sort_unstable();
     hinted.dedup();
@@ -280,6 +388,12 @@ fn step_aside(target: &Path) -> std::io::Result<()> {
     let free = (0..16).map(aside).find(|path| !path.exists()).unwrap_or_else(|| aside(16));
     std::fs::rename(target, free)
 }
+
+// CodexAstraUlt: Original resolved-generation fixtures exercise explicit hint
+// admission and output provenance without changing process-wide hint paths.
+#[cfg(test)]
+#[path = "build_resolved_tests.rs"]
+mod resolved_tests;
 
 #[cfg(test)]
 mod tests {

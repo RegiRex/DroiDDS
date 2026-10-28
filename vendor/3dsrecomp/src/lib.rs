@@ -29,6 +29,9 @@ pub mod image;
 pub mod overrides;
 pub mod port;
 pub mod rom;
+// CodexAstraUlt: Private builders opt into complete, bounded module discovery;
+// legacy callers retain their existing permissive loading contract.
+pub mod strict;
 mod thumb;
 // CodexAstraUlt: Compile and execute original ARM/Thumb budget regressions on
 // Unix hosts; these tests never enter an Android runtime build.

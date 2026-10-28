@@ -1,5 +1,14 @@
 # Local Dark Moon voice-activation investigation
 
+<!-- CodexAstraUlt: Close the bounded experiment on its observed missing request
+and move local work to native preparation rather than replaying the same prefix. -->
+**Completed in batch-006, run-019.** The [findings](host-tests/dark-moon-2026-10-22.md#locally-executed-voice-activation-batch-run-019)
+bind constructor initialization and the empty manager list; the selected voice
+allocation request remains unobserved. No runtime audio correction or unchanged
+repeat is justified. The next local task is [native-source preparation](PRIVATE_TITLE_PREPARATION.md).
+The procedure below records the completed experiment. Revisit activation when
+a later phase actually requests a voice or populates the manager list.
+
 <!-- CodexAstraUlt: Replace repeated observations of silent DSP banks with a
 bounded decision about the guest producer, without assuming sound is yet due. -->
 Read `AGENTS.md`, the [runs 017–018 findings](host-tests/dark-moon-2026-10-22.md#locally-executed-voice-production-batch-runs-017018)

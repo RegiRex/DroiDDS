@@ -39,6 +39,15 @@ jobs:
         run: python3 -m unittest discover -s tools/tests -v
       - name: Build and exercise CPU foundation
         run: python3 tools/build_foundation.py --output out/ci-foundation --jobs 2
+      # CodexAstraUlt: Require real original-input preparation in CI, including
+      # the coordinator; unit-only success cannot stand in for a prepared title.
+      - name: Verify native source preparation with original inputs
+        run: |
+          cargo fmt -p droidds-title-builder -- --check
+          cargo clippy --locked -p droidds-title-builder --all-targets --no-deps -- -D warnings
+          cargo test --locked -p droidds-title-builder -- --test-threads=1
+          cargo build --locked --release -p droidds-title-builder
+          python3 tools/tests/test_prepare_private_title.py --worker target/release/droidds-prepare-title -v
       - name: Record result in job summary
         if: always()
         shell: bash
