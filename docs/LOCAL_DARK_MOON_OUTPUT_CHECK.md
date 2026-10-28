@@ -1,5 +1,10 @@
 # Local Dark Moon display and audio check
 
+<!-- CodexAstraUlt: Preserve completed screen/audio observations as history;
+the next task follows voice publication with an explicit process CPU allowance. -->
+This batch's partial findings are published in `1cdceaf`. Continue with the
+[voice-publication investigation](LOCAL_DARK_MOON_DSP_HANDOFF.md).
+
 <!-- CodexAstraUlt: Advance from resource completion and draw admission to
 selected-screen images and the first silent audio stage, without a speculative fix. -->
 Read `AGENTS.md` and the latest batch in

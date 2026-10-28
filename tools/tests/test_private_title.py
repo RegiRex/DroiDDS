@@ -544,6 +544,68 @@ class CoordinatorTests(unittest.TestCase):
             with self.subTest(arguments=arguments), mock.patch("sys.stderr"), self.assertRaises(SystemExit):
                 self.args(*arguments)
 
+    # CodexAstraUlt: Existing commands retain their exact CPU cap; an explicit
+    # thread-CPU allowance is independent of the worker and parent wall bounds.
+    def test_cpu_budget_defaults_and_explicit_wall_independence(self):
+        self.assertEqual(self.args().cpu_seconds, 41)
+        for timeout, expected in (("130", 131), ("0.3", 2), ("310", 311)):
+            with self.subTest(timeout=timeout):
+                self.assertEqual(self.args("--timeout", timeout).cpu_seconds, expected)
+                self.assertEqual(self.args("--timeout", timeout, "--cpu-seconds", "260").cpu_seconds, 260)
+
+    def test_invalid_cpu_budgets_are_rejected_before_run_creation(self):
+        for value in ("0", "-1", "1.5", "nan", "inf", "312"):
+            with self.subTest(value=value), mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+                self.args("--cpu-seconds", value)
+        self.assertFalse(self.output.exists())
+
+    # CodexAstraUlt: Inspect kernel limits in a real child, not just a mocked
+    # setrlimit call; the Rust worker must never receive this parent-only flag.
+    def test_cpu_budget_is_installed_reported_and_not_forwarded(self):
+        for name, flags, expected in (("default", [], 41),
+                                      ("explicit", ["--timeout", "130", "--cpu-seconds", "260"], 260)):
+            with self.subTest(name=name):
+                self.output = self.root / ("run-" + name)
+                self.fake_worker("import resource\n"
+                                 "assert '--cpu-seconds' not in sys.argv\n"
+                                 "pathlib.Path('observed-cpu.json').write_text(\n"
+                                 "    json.dumps(resource.getrlimit(resource.RLIMIT_CPU)))")
+                code, report = self.execute(*flags)
+                self.assertEqual(code, 0, report)
+                self.assertEqual(json.loads((self.output / "observed-cpu.json").read_text()),
+                                 [expected, expected])
+                self.assertEqual(report["requested"]["cpu_seconds"], expected)
+                self.assertEqual(report["process"]["cpu_limit"], {
+                    "soft_seconds": expected, "hard_seconds": expected,
+                    "scope": "per_process_all_threads"})
+
+    # CodexAstraUlt: A CPU-bound child reaches its independent hard limit before
+    # the parent deadline, retaining partial evidence without inventing totals.
+    def test_cpu_exhaustion_retains_failed_outcome_and_partial_evidence(self):
+        self.fake_worker("pathlib.Path('checkpoint.txt').write_text('partial')\n"
+                         "while True:\n    pass")
+        code, report = self.execute("--timeout", "10", "--cpu-seconds", "1")
+        self.assertNotEqual(code, 0)
+        self.assertEqual(report["status"], "worker_failed")
+        self.assertEqual(report["reason"], "worker_signal_9")
+        self.assertIsNone(report["worker_report"])
+        self.assertEqual((self.output / "checkpoint.txt").read_text(), "partial")
+        self.assertEqual((self.output / "input.cxi").read_bytes(), self.source.read_bytes())
+        self.assertTrue(report["input"]["stable_after_run"])
+
+    # CodexAstraUlt: Even a plausible report cannot turn an unrelated SIGKILL
+    # into completed execution or a claim that the CPU cap caused termination.
+    def test_self_sigkill_never_accepts_prewritten_worker_report(self):
+        self.fake_worker("pathlib.Path(args['--output']).write_text(json.dumps(" +
+                         repr(worker_result()) + "))\n"
+                         "os.kill(os.getpid(), 9)")
+        code, report = self.execute("--cpu-seconds", "260")
+        self.assertNotEqual(code, 0)
+        self.assertEqual(report["status"], "worker_failed")
+        self.assertEqual(report["reason"], "worker_signal_9")
+        self.assertIsNone(report["worker_report"])
+        self.assertEqual(json.loads((self.output / "worker-report.json").read_text()), worker_result())
+
     def test_disk_space_check_precedes_creation(self):
         with mock.patch.object(RUNNER.shutil, "disk_usage", return_value=mock.Mock(free=1)):
             code, report = self.execute()
@@ -647,7 +709,9 @@ class CoordinatorTests(unittest.TestCase):
     def test_timeout_preserves_results_and_kills_descendant(self):
         self.fake_worker("child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
                          "pathlib.Path('child.pid').write_text(str(child.pid))\ntime.sleep(60)")
-        code, report = self.execute("--timeout", "0.3")
+        # CodexAstraUlt: A larger CPU allowance must not weaken the short parent
+        # wall deadline or leave a sleeping descendant alive after timeout.
+        code, report = self.execute("--timeout", "0.3", "--cpu-seconds", "260")
         self.assertEqual(code, 124)
         self.assertEqual(report["status"], "timed_out")
         self.assertTrue((self.output / "input.cxi").exists())
@@ -686,6 +750,28 @@ class CoordinatorTests(unittest.TestCase):
 
 class RealWorkerIntegration(unittest.TestCase):
     """CodexAstraUlt: Real original-fixture loader/execution and malformed control."""
+
+    # CodexAstraUlt: An explicit parent CPU allowance must reach the real Rust
+    # worker without changing its CLI, guest work, input or execution settings.
+    def test_real_explicit_cpu_budget_preserves_guest_execution(self):
+        reports = []
+        with tempfile.TemporaryDirectory(prefix="droidds-title-cpu-") as temporary:
+            for index, flags in enumerate(([], ["--cpu-seconds", "260"])):
+                args = RUNNER.parse_args([
+                    "--input", str(REAL_FIXTURE), "--output", str(Path(temporary) / str(index)),
+                    "--worker", str(REAL_WORKER), "--max-seconds", "5", "--timeout", "10", *flags])
+                code, report = RUNNER.run(args)
+                self.assertEqual(code, 0, json.dumps(report, indent=2))
+                self.assertEqual(report["status"], "guest_exited")
+                reports.append(report)
+        self.assertEqual([report["requested"]["cpu_seconds"] for report in reports], [11, 260])
+        self.assertEqual(reports[0]["worker"]["sha256"], reports[1]["worker"]["sha256"])
+        self.assertEqual(reports[0]["input"]["sha256"], reports[1]["input"]["sha256"])
+        self.assertEqual(reports[0]["worker_report"]["configuration"],
+                         reports[1]["worker_report"]["configuration"])
+        observations = [{key: value for key, value in report["worker_report"]["observed"].items()
+                         if key != "elapsed_seconds"} for report in reports]
+        self.assertEqual(observations[0], observations[1])
 
     def test_real_original_fixture_executes_and_hashes(self):
         self.assertTrue(REAL_WORKER.is_file(), "Build the real worker before integration")

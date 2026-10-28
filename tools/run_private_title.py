@@ -37,6 +37,9 @@ RESERVE_BYTES = 64 * 1024**2
 LIMITS = {"max_steps": (1_000_000, 1_000_000_000),
           "max_cycles": (268_111_856, 26_811_185_600),
           "max_frames": (120, 6000), "max_seconds": (30, 300)}
+# CodexAstraUlt: Separate aggregate thread CPU time from the wall deadline while
+# retaining the largest CPU ceiling already possible with the legacy timeout.
+MAX_CPU_SECONDS = 311
 SUCCESS_STATUSES = {"guest_exited", "budget_exhausted", "blocked"}
 FAULT_COUNTERS = ("unsupported_svc_count", "unsupported_service_count", "memory_fault_addresses",
                   "prefetch_abort_addresses", "fatal_error_count")
@@ -614,13 +617,20 @@ def stop_group(process):
         raise Rejected("worker_process_could_not_be_reaped")
 
 
-def run_worker(command, directory, timeout, memory_mib):
+def run_worker(command, directory, timeout, memory_mib, cpu_seconds=None):
     """CodexAstraUlt: Drain stdout continuously but retain only a fixed-size tail."""
+    # CodexAstraUlt: Preserve the old cap when omitted. CPU accumulates across
+    # each process's threads; it is neither wall time nor a process-tree budget.
+    if cpu_seconds is None:
+        cpu_seconds = math.ceil(timeout) + 1
+    if type(cpu_seconds) is not int or not 1 <= cpu_seconds <= MAX_CPU_SECONDS:
+        raise Rejected("cpu_seconds_out_of_range")
+
     def ceilings():
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         resource.setrlimit(resource.RLIMIT_AS, (memory_mib * 1024**2,) * 2)
         resource.setrlimit(resource.RLIMIT_FSIZE, (RESERVE_BYTES,) * 2)
-        resource.setrlimit(resource.RLIMIT_CPU, (math.ceil(timeout) + 1,) * 2)
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds,) * 2)
 
     process = subprocess.Popen(command, cwd=directory, stdin=subprocess.DEVNULL,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -652,6 +662,10 @@ def run_worker(command, directory, timeout, memory_mib):
             process.stdout.close()
         write_new(directory / "worker.log", bytes(tail))
     return {"outcome": outcome, "exit_code": process.returncode,
+            # CodexAstraUlt: Successful child setup installs these launch
+            # limits. Recording them does not attribute a later SIGKILL.
+            "cpu_limit": {"soft_seconds": cpu_seconds, "hard_seconds": cpu_seconds,
+                          "scope": "per_process_all_threads"},
             "log_bytes_emitted": total[0], "log_bytes_retained": len(tail),
             "log_truncated": total[0] > len(tail)}
 
@@ -676,6 +690,10 @@ def parse_args(argv=None):
                             help=f"Positive limit, default {default}, maximum {ceiling}")
     parser.add_argument("--timeout", type=float, default=None,
                         help="Parent wall deadline in seconds (default max-seconds+10, maximum310)")
+    # CodexAstraUlt: This parent-only option does not change guest execution or
+    # worker report validation; existing callers keep their derived CPU limit.
+    parser.add_argument("--cpu-seconds", type=int, default=None,
+                        help="Worker CPU ceiling across process threads, default ceil(timeout)+1, range1..311")
     parser.add_argument("--memory-mib", type=int, default=4096,
                         help="Worker address-space ceiling, default4096, range256..16384MiB")
     args = parser.parse_args(argv)
@@ -686,6 +704,10 @@ def parse_args(argv=None):
         args.timeout = args.max_seconds + 10
     if not math.isfinite(args.timeout) or not 0 < args.timeout <= 310:
         parser.error("--timeout must be positive and at most310 seconds")
+    if args.cpu_seconds is None:
+        args.cpu_seconds = math.ceil(args.timeout) + 1
+    if not 1 <= args.cpu_seconds <= MAX_CPU_SECONDS:
+        parser.error("--cpu-seconds must be between1 and311")
     if not 256 <= args.memory_mib <= 16384:
         parser.error("--memory-mib must be between256 and16384")
     return args
@@ -696,7 +718,8 @@ def run(args):
     started, directory = time.monotonic(), None
     handles, identities = [], []
     requested = {key: getattr(args, key) for key in LIMITS}
-    requested.update(model=args.model, timeout=args.timeout, memory_mib=args.memory_mib,
+    requested.update(model=args.model, timeout=args.timeout, cpu_seconds=args.cpu_seconds,
+                     memory_mib=args.memory_mib,
                      trace_scheduler=args.trace_scheduler, trace_cpu_progress=args.trace_cpu_progress)
     report = {"schema_version": 1, "kind": "droidds_private_title_local_run",
               "tool_version": "0.0.1", "status": "preparing", "reason": "preflight",
@@ -766,7 +789,7 @@ def run(args):
             command.append("--trace-scheduler")
         if args.trace_cpu_progress:
             command.append("--trace-cpu-progress")
-        process = run_worker(command, directory, args.timeout, args.memory_mib)
+        process = run_worker(command, directory, args.timeout, args.memory_mib, args.cpu_seconds)
         report["process"] = process
         changed = [label for path, stream, original, digest, ceiling, label in identities
                    if not unchanged(path, stream, original, digest, ceiling)]

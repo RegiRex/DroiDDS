@@ -21,10 +21,14 @@ The subsequent local batch reports that loop clears and fixes a later offline
 `0x0018806C`, with 268 command lists, zero draws and silent PCM. Runs 010–012
 confirm table/stream/checksum progress and no draw requests in those
 setup lists. Batch-003 then observes resource completion, followed by 95,458 draws
-before run-014 stops at 500 million steps. PCM remains silent; images have not
-been inspected. The current [local display/audio check](LOCAL_DARK_MOON_OUTPUT_CHECK.md)
-captures selected-screen output and DSP/voice/mixer activity under the successful
-run-014 limits. The failed run-013 SIGKILL is preserved with cause unestablished.
+before run-014 stops at 500 million steps. Batch-004 then inspects a preparation
+panel and a dark scene with a brightening window; bottom captures remain black.
+Its partial audio checkpoint shows mixer updates but no consumed voice settings
+or source samples. Both runs were killed. Run-016's accounted CPU time exceeds
+the configured 131-second hard limit, consistent with CPU-limit enforcement but
+without kernel attribution. The current [voice-publication investigation](LOCAL_DARK_MOON_DSP_HANDOFF.md)
+follows guest writes through DSP bank publication/consumption with an explicit
+CPU allowance. Earlier failures and all private evidence remain preserved.
 This does not generate native title code, produce a
 0.0.7 APK or measure Thor performance. The combined Android evidence, including
 the owner's steady-tone confirmation, is recorded in
@@ -94,6 +98,7 @@ an arbitrary binary was built from those sources. Build the worker locally.
 | `--max-frames` | 120 | 6,000 |
 | `--max-seconds` | 30 seconds | 300 |
 | `--timeout` | `max-seconds + 10` seconds | 310 |
+| `--cpu-seconds` | `ceil(timeout) + 1` CPU seconds | 311 |
 | `--memory-mib` | 4,096 MiB | 16,384 MiB |
 
 Guest budgets are checked at dispatch boundaries. Cycle/frame work inside a
@@ -101,8 +106,21 @@ Guest budgets are checked at dispatch boundaries. Cycle/frame work inside a
 reported. This is not an instruction-by-instruction hard cycle limit.
 `--timeout` bounds the worker process, including loading and a stuck dispatch;
 snapshot preparation is separate. `--memory-mib` limits worker virtual address
-space, not measured RSS or guest RAM, and its minimum is 256 MiB. The supervisor
-also limits CPU time, each worker-created file to 64 MiB and retained log bytes. The per-file cap is
+space, not measured RSS or guest RAM, and its minimum is 256 MiB.
+
+<!-- CodexAstraUlt: CPU time accumulates across threads independently of wall
+time; make the optional parent-only allowance and its legacy default explicit. -->
+`--cpu-seconds` sets both soft and hard process CPU limits, counting all threads
+in each process. It is independent of the parent wall deadline and is not a
+combined descendant-tree budget. Omitting it preserves the prior derived cap;
+for `--timeout 130`, that remains 131 CPU seconds. The resolved value appears in
+`requested.cpu_seconds`, and successful child setup records launch soft/hard limits
+in `process.cpu_limit`. This option is not forwarded to the Rust worker and does
+not change its guest budgets or validation. A SIGKILL remains `worker_signal_9`;
+the cap's presence alone cannot identify why a process was killed. See the
+[correction and verification record](builds/0.0.7-cpu-budget.md).
+
+The supervisor also limits each worker-created file to 64 MiB and retained log bytes. The per-file cap is
 not an aggregate directory quota. These are resource limits, not an
 operating-system sandbox for an untrusted executable.
 

@@ -6,9 +6,9 @@ As of 2026-10-20, the owner's
 [0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) passes all required
 CPU/Vulkan/runtime, five memory-layout and code-safety checks. The
 [0.0.5 runtime integration](builds/0.0.5-runtime-integration.md) is published in
-[prerelease v0.0.5-probe.1](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1).
+[prerelease v0.0.5-probe.1](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.5-probe.1).
 All required host/CI gates pass in
-[run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
+[run 39341905818](https://github.com/RegiRex/DroiDDS/actions/runs/39341905818),
 and public downloads are verified. **0.0.6 interactive homebrew is implemented
 and published. Local/main/tag CI gates and independent public-download
 verification pass; combined Thor evidence now supports the next development
@@ -67,10 +67,15 @@ were then unobserved. Batch-003 completes the observed resource at about 114
 million steps and first enters drawing at 125,851,274. Run-014 reaches 95,458
 draws at 500 million steps, spanning about 8.451 emulated seconds. Its 274,720
 silent stereo PCM pairs show DSP output generation, but do not establish active
-voices or nonzero gains. Run-013's SIGKILL remains unexplained. Continue the
-[local display/audio check](LOCAL_DARK_MOON_OUTPUT_CHECK.md) at the successful
-500-million-step ceiling. No generic fix is justified yet. Parallel builds may
-use separate build/output directories; USB stays with the connected session.
+voices or nonzero gains. Batch-004 then inspects a preparation panel and a dark
+scene with a brightening window; all bottom captures remain black. Its latest
+checkpoint has mixer updates/master volume 1.0, but no consumed voice settings
+or source samples. Both runs were killed; run-016's accounted CPU time exceeds
+its configured 131-second hard cap, consistent with enforcement but without
+kernel attribution. Follow the [voice-publication task](LOCAL_DARK_MOON_DSP_HANDOFF.md)
+using the new explicit CPU allowance. The coordinator correction leaves default
+limits and emulator behavior unchanged. Parallel builds may use separate outputs;
+USB stays with the connected session. No runtime audio fix is yet justified.
 These private-run records are owner text, not independent JSON validation.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
@@ -110,7 +115,7 @@ Vulkan rasterization; retain that distinction in future reports.
 <!-- CodexAstraUlt: Carry combined device evidence forward without asking for
 unrelated replay or claiming the separate private-title gate has passed. -->
 The 0.0.6 local/main/tag CI gates and public-download verification pass.
-The [published correction](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2)
+The [published correction](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.6-probe.2)
 now has the device evidence summarized above. Keep its 400×240 and 320×240
 Bitmap/Canvas views on one Android display distinct from physical dual-display
 support. Guest PICA rasterization uses Vulkan; guest PCM is resampled from
@@ -198,10 +203,10 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
 > Safely obtain the current DroidDS source and execute
-> docs/LOCAL_DARK_MOON_OUTPUT_CHECK.md using the existing Dark Moon file and
-> batch-003 reports. Work on an investigation branch, preserving existing changes.
-> Inspect selected top/bottom images locally and locate the first silent DSP
-> stage in one combined run with the documented 500-million-step ceiling.
+> docs/LOCAL_DARK_MOON_DSP_HANDOFF.md using the existing Dark Moon file and
+> batch-004 reports. Work on an investigation branch, preserving existing changes.
+> Trace guest voice production, bank publication and DSP consumption in one
+> combined run with the documented 500-million-step and 260-CPU-second ceilings.
 > Complete the bounded investigation without pausing for intermediate counters.
 > Keep permissions and installed tools unchanged. Return
 > dark-moon-investigation-summary.md plus any reviewed generic commit/diff.

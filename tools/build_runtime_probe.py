@@ -69,7 +69,10 @@ def validate_title_integration(output: str) -> dict:
     required = {"test_real_original_fixture_executes_and_hashes",
                 "test_real_malformed_container_records_loader_failure",
                 "test_real_trace_preserves_execution_and_retains_bounded_metadata",
-                "test_real_cpu_progress_preserves_execution_with_and_without_scheduler"}
+                "test_real_cpu_progress_preserves_execution_with_and_without_scheduler",
+                # CodexAstraUlt: Parent resource changes must preserve a real
+                # guest's work, not merely pass synthetic command envelopes.
+                "test_real_explicit_cpu_budget_preserves_guest_execution"}
     passed = set(re.findall(r"^([\w]+) \([^\n]+\) \.\.\. ok$", output, re.M))
     count = re.search(r"^Ran ([1-9]\d*) tests? in ", output, re.M)
     if (not required.issubset(passed) or count is None or int(count[1]) != len(passed)

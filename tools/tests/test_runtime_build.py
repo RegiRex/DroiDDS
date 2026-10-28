@@ -170,18 +170,21 @@ class PrivateTitleIntegrationGateTests(unittest.TestCase):
                 # CodexAstraUlt: The CPU sampler must execute through the real
                 # worker gate, independently and alongside scheduler tracing.
                 'test_real_cpu_progress_preserves_execution_with_and_without_scheduler (__main__.RealWorkerIntegration.test_real_cpu_progress_preserves_execution_with_and_without_scheduler) ... ok\n'
-                '\nRan 4 tests in 0.1s\n\nOK\n')
+                # CodexAstraUlt: Resource-budget integration is required too.
+                'test_real_explicit_cpu_budget_preserves_guest_execution (__main__.RealWorkerIntegration.test_real_explicit_cpu_budget_preserves_guest_execution) ... ok\n'
+                '\nRan 5 tests in 0.1s\n\nOK\n')
 
     def test_real_worker_controls_and_complete_python_summary_pass(self):
-        self.assertEqual(build.validate_title_integration(self.proof())["passed"], 4)
+        self.assertEqual(build.validate_title_integration(self.proof())["passed"], 5)
 
     def test_only_mocks_skip_failure_or_count_mismatch_cannot_qualify(self):
         for proof in (self.proof().replace('test_real_original_fixture_executes_and_hashes', 'test_mock'),
                       self.proof().replace('test_real_trace_preserves_execution_and_retains_bounded_metadata', 'test_mock_trace'),
                       self.proof().replace('test_real_cpu_progress_preserves_execution_with_and_without_scheduler', 'test_mock_progress'),
+                      self.proof().replace('test_real_explicit_cpu_budget_preserves_guest_execution', 'test_mock_cpu'),
                       self.proof().replace('... ok', "... skipped 'unavailable'", 1),
                       self.proof().replace('\nOK\n', '\nFAILED (failures=1)\n'),
-                      self.proof().replace('Ran 4 tests', 'Ran 5 tests')):
+                      self.proof().replace('Ran 5 tests', 'Ran 6 tests')):
             with self.subTest(proof=proof), self.assertRaises(ValueError):
                 build.validate_title_integration(proof)
 
