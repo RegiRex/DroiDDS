@@ -9,6 +9,9 @@ mod arm;
 mod locals;
 mod thumb;
 mod vfp;
+// CodexAstraUlt: Exercise streamed output independently of private titles.
+#[cfg(test)]
+mod stream_tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -199,8 +202,36 @@ pub struct Unit<'a> {
 /// contents. the overrides take the place of the functions they replace,
 /// which overrides.h lets them still call.
 pub fn generate(units: &[Unit], overrides: &[Override]) -> Vec<(String, String)> {
-    let mut files = vec![("recomp.h".to_owned(), HEADER.to_owned())];
-    let mut sources: Vec<String> = Vec::new();
+    // CodexAstraUlt: Retain the collected API and its historical ordering for
+    // callers that need all bytes. Streaming callers release each source chunk.
+    let mut files = Vec::new();
+    let mut sources = Vec::new();
+    generate_to(units, overrides, &mut |name, bytes| {
+        let file = (name.to_owned(), String::from_utf8(bytes.to_vec()).expect("generated C is UTF-8"));
+        if name.starts_with("code") && name.ends_with(".c") {
+            sources.push(file);
+        } else {
+            files.push(file);
+        }
+        Ok(())
+    }).expect("the collecting consumer cannot reject output");
+    files.extend(sources);
+    files
+}
+
+/// CodexAstraUlt: Deliver complete files as soon as they are available, retaining
+/// the current source chunk and tables instead of every generated C file. A
+/// consumer error aborts immediately; callers enforce limits before writing.
+/// File bytes and numeric source names match generate(), while callback order
+/// follows completion and can interleave source chunks with module headers.
+/// This does not bound a single function, metadata table, or discovery memory.
+pub fn generate_to(
+    units: &[Unit],
+    overrides: &[Override],
+    consume: &mut dyn FnMut(&str, &[u8]) -> Result<(), String>,
+) -> Result<(), String> {
+    consume("recomp.h", HEADER.as_bytes())?;
+    let mut source_count = 0;
     let mut source = String::new();
     // the headers the file being written includes
     let mut included = BTreeSet::new();
@@ -261,7 +292,7 @@ pub fn generate(units: &[Unit], overrides: &[Override]) -> Vec<(String, String)>
         for (&entry, function) in &functions {
             emit!(prototypes, "void {}(Context *ctx);", name(&prefix, entry, function.mode == Mode::Thumb));
         }
-        files.push((header.clone(), prototypes));
+        consume(&header, prototypes.as_bytes())?;
 
         let include = format!("#include \"{header}\"\n\n");
         // each function's labels with those after what it interprets
@@ -279,7 +310,10 @@ pub fn generate(units: &[Unit], overrides: &[Override]) -> Vec<(String, String)>
             let interpreted = std::cell::RefCell::new(Vec::new());
             let relative = unit.module.is_some();
             let scope = Scope { labels: &function.labels, functions: &names, prefix: &prefix, relative, interpreted: &interpreted };
-            write_function(&mut String::new(), unit.program, &scope, entry, function, number);
+            // CodexAstraUlt: Only lowering records interpreter resume sites;
+            // discard its body without running local liveness/sync analysis a
+            // second time. The final emission still uses write_function below.
+            write_body(&mut String::new(), unit.program, &scope, entry, function, number);
             let mut resumable = (*function).clone();
             for address in interpreted.take() {
                 let at = function.instructions.iter().position(|&a| a == address);
@@ -292,7 +326,11 @@ pub fn generate(units: &[Unit], overrides: &[Override]) -> Vec<(String, String)>
             resumed.insert(entry, resumable.labels);
             size += function.instructions.len();
             if size >= FILE_SIZE {
-                sources.push(std::mem::take(&mut source));
+                // CodexAstraUlt: Release an accepted chunk before generating the
+                // next one, and stop immediately if the bounded sink rejects it.
+                consume(&format!("code{source_count:03}.c"), source.as_bytes())?;
+                source_count += 1;
+                source = String::new();
                 included.clear();
                 size = 0;
             }
@@ -338,25 +376,26 @@ pub fn generate(units: &[Unit], overrides: &[Override]) -> Vec<(String, String)>
         write_origins(&mut tables, &mut origins, &prefix, unit.program, &functions, &entries);
     }
     if !source.is_empty() {
-        sources.push(source);
+        consume(&format!("code{source_count:03}.c"), source.as_bytes())?;
     }
+    drop(source);
 
     emit!(tables, "RECOMP_EXPORT const uint32_t recomp_abi = RECOMP_ABI;");
     emit!(tables, "RECOMP_EXPORT const uint32_t recomp_generation = {}u;", recomp_abi::GENERATION);
     emit!(tables, "RECOMP_EXPORT const uint32_t recomp_module_count = {};", units.len() - 1);
     emit!(tables, "RECOMP_EXPORT const Module recomp_modules[] = {{\n{modules}}};");
     emit!(tables, "RECOMP_EXPORT const Origins recomp_origins[] = {{\n{origins}}};");
-    files.push(("entries.c".to_owned(), tables));
+    consume("entries.c", tables.as_bytes())?;
+    drop(tables);
     if !overrides.is_empty() {
         let mut header = String::from("/* what overrides include, see docs/overrides.md. */\n\n#include \"recomp.h\"\n");
         for included in &original_headers {
             emit!(header, "#include \"{included}\"");
         }
         emit!(header, "\n/* the generated functions the overrides replace. */\n\n{originals}");
-        files.push(("overrides.h".to_owned(), header));
+        consume("overrides.h", header.as_bytes())?;
     }
-    files.extend(sources.into_iter().enumerate().map(|(i, source)| (format!("code{i:03}.c"), source)));
-    files
+    Ok(())
 }
 
 /// the stretches of code a function was made from, as runs of instructions

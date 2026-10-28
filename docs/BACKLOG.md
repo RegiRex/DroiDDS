@@ -116,8 +116,10 @@ record as already enforced by a native runtime or Android package. -->
 base inputs, excludes ambient hints, checks compiler/runtime reader agreement,
 emits C and binds its inputs/outputs in a SHA-256 manifest. Consuming that manifest
 before native execution and packaging remains work. Run-019 closes the bounded
-voice trace without demonstrating an audio defect; private preparation is the
-next local task, with no repeated unchanged interpreter prefix required.
+voice trace without demonstrating an audio defect. Private preparation exceeded
+the initial output allowance; the next local task uses corrected streaming
+admission with an explicit 1024 MiB allowance. No repeated unchanged interpreter
+prefix is required.
 
 | Ticket | Scope and concrete output | Acceptance | Depends on | Pack mapping |
 | --- | --- | --- | --- | --- |

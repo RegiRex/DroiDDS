@@ -71,6 +71,15 @@ def original_ncch():
     return bytes(image)
 
 
+# CodexAstraUlt: Failure telemetry is deliberately separate from successful
+# source inventory and must never serve as preparation or execution evidence.
+def rejected_generation(limit=RUNNER.MAX_PREPARED_BYTES):
+    return {"schema_version": 1, "kind": "droidds_title_preparation_failure",
+            "stage": "generation", "reason": "prepared output exceeds aggregate bound",
+            "output_limit_bytes": limit, "accepted_files": 6, "accepted_bytes": 8192,
+            "attempted_file_bytes": limit, "attempted_total_bytes": limit + 8192}
+
+
 class PreparationTests(unittest.TestCase):
     """CodexAstraUlt: Public fixtures exercise output honesty and preserve failed evidence."""
 
@@ -169,11 +178,13 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(report["status"], "timed_out")
         self.assertTrue((self.output / "prepared/prepare-report.json").exists())
 
-    def test_host_limits_are_installed_without_worker_flags(self):
-        self.fake_worker(after="import resource\nassert resource.getrlimit(resource.RLIMIT_CPU) == (260, 260)\nassert len(args) == 2\n")
+    def test_host_resource_limits_and_default_output_allowance_are_installed(self):
+        self.fake_worker(after="import resource\nassert resource.getrlimit(resource.RLIMIT_CPU) == (260, 260)\nassert len(args) == 3\nassert args['--output-limit-bytes'] == '536870912'\n")
         code, report = self.execute()
         self.assertEqual(code, 0, report)
         self.assertEqual(report["process"]["cpu_limit"]["hard_seconds"], 260)
+        self.assertEqual(report["requested"]["prepared_mib"], 512)
+        self.assertEqual(report["output_limits"]["prepared_bytes"], 512 * 1024**2)
 
     def test_existing_output_is_not_changed(self):
         self.output.mkdir()
@@ -271,11 +282,124 @@ class PreparationTests(unittest.TestCase):
                 self.assertEqual(self.execute()[1]["reason"], "preparation_descriptor_identity_mismatch")
 
     def test_output_admission_limits_are_enforced(self):
-        for field, ceiling in (("MAX_FILES", 4), ("MAX_PREPARED_BYTES", 1), ("MAX_FILE_BYTES", 10)):
+        for field, ceiling in (("MAX_FILES", 4), ("MAX_ARTIFACTS", 1), ("MAX_FILE_BYTES", 10)):
             with self.subTest(field=field):
                 self.output = self.root / field
                 with mock.patch.object(RUNNER, field, ceiling):
                     self.assertEqual(self.execute()[1]["status"], "rejected")
+
+    def test_explicit_output_limit_is_forwarded_reserved_and_recorded(self):
+        # CodexAstraUlt: A larger accepted CLI value changes the disk preflight
+        # and worker contract together, without changing CPU or memory defaults.
+        cap = 1024 * 1024**2
+        needed = self.input.stat().st_size + cap + RUNNER.MAX_FAILURE_BYTES
+        self.fake_worker(after="assert args['--output-limit-bytes'] == '1073741824'\n")
+        with mock.patch.object(RUNNER.shutil, "disk_usage", return_value=mock.Mock(free=needed - 1)):
+            code, report = self.execute("--prepared-mib", "1024")
+        self.assertNotEqual(code, 0)
+        self.assertEqual(report["reason"], "insufficient_disk_space_for_preparation")
+        self.assertFalse(self.output.exists())
+        with mock.patch.object(RUNNER.shutil, "disk_usage", return_value=mock.Mock(free=needed)):
+            code, report = self.execute("--prepared-mib", "1024")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(report["requested"], {"timeout": 130, "cpu_seconds": 260,
+                                              "memory_mib": 4096, "prepared_mib": 1024})
+        self.assertEqual(report["output_limits"], {"prepared_bytes": cap,
+                                                  "failure_diagnostic_bytes": 64 * 1024})
+
+    def test_selected_output_limit_is_enforced_against_actual_inventory(self):
+        # CodexAstraUlt: A plausible worker success cannot bypass the selected
+        # byte budget; the same original output fits only the larger allowance.
+        expected, blobs = fixture()
+        blobs["generated/program.c"] = b" " * 1024**2
+        next(item for item in expected["artifacts"] if item["path"] == "generated/program.c")["bytes"] = 1024**2
+        self.fake_worker(report=expected, blobs=blobs)
+        code, report = self.execute("--prepared-mib", "1")
+        self.assertNotEqual(code, 0)
+        self.assertEqual(report["reason"], "preparation_total_bytes_limit")
+        self.output = self.root / "fits"
+        self.assertEqual(self.execute("--prepared-mib", "2")[0], 0)
+
+    def test_exact_inventory_boundary_includes_descriptor_not_directories(self):
+        # CodexAstraUlt: Worker and coordinator count all success files,
+        # including metadata, while the two directory entries consume no slots.
+        self.assertEqual(self.execute()[0], 0)
+        directory = self.output / "prepared"
+        expected = RUNNER.read_json(directory / "prepare-report.json")
+        entries = [path for path in directory.rglob("*") if path.is_file()]
+        total = sum(path.stat().st_size for path in entries)
+        with mock.patch.object(RUNNER, "MAX_FILES", len(entries)):
+            RUNNER.validate_preparation(directory, expected, total)
+        with mock.patch.object(RUNNER, "MAX_FILES", len(entries) - 1):
+            with self.assertRaisesRegex(RUNNER.Rejected, "preparation_file_limit"):
+                RUNNER.inventory(directory, total)
+        with self.assertRaisesRegex(RUNNER.Rejected, "preparation_total_bytes_limit"):
+            RUNNER.validate_preparation(directory, expected, total - 1)
+
+    def test_failure_diagnostic_is_preserved_without_success_publication(self):
+        # CodexAstraUlt: A normal rejection can explain its capacity boundary
+        # while every partial generated file remains unvalidated.
+        diagnostic = rejected_generation(2 * 1024**2)
+        self.fake_worker(after="(out / 'prepare-failure.json').write_text(json.dumps(" + repr(diagnostic) + "))", exit_code=2)
+        code, report = self.execute("--prepared-mib", "2")
+        self.assertNotEqual(code, 0)
+        self.assertEqual(report["status"], "worker_failed")
+        self.assertEqual(report["reason"], "worker_exit_2")
+        self.assertEqual(report["failure_diagnostic"], diagnostic)
+        self.assertIsNone(report["failure_diagnostic_rejection"])
+        self.assertIsNone(report["manifest_sha256"])
+
+    def test_failure_diagnostic_contract_rejects_invalid_types_and_counts(self):
+        # CodexAstraUlt: Telemetry has a strict schema and requested-budget
+        # binding even though it can never qualify successful preparation.
+        mutations = ({"schema_version": True}, {"kind": "prepared"}, {"stage": "unknown"},
+                     {"stage": []}, {"reason": ""}, {"reason": "x" * 4097},
+                     {"output_limit_bytes": True}, {"output_limit_bytes": 1024},
+                     {"accepted_files": True}, {"accepted_files": -1}, {"accepted_files": 8193},
+                     {"accepted_bytes": RUNNER.MAX_PREPARED_BYTES + 1}, {"accepted_bytes": "1"},
+                     {"attempted_file_bytes": True}, {"attempted_file_bytes": -1},
+                     {"attempted_total_bytes": 2**64}, {"extra": 0})
+        path = self.root / "failure.json"
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                value = rejected_generation()
+                value.update(mutation)
+                path.write_text(json.dumps(value))
+                with self.assertRaises(RUNNER.Rejected):
+                    RUNNER.failure_diagnostic(path, RUNNER.MAX_PREPARED_BYTES)
+        value = rejected_generation()
+        value.update(stage="metadata", attempted_file_bytes=None, attempted_total_bytes=None)
+        path.write_text(json.dumps(value))
+        self.assertEqual(RUNNER.failure_diagnostic(path, RUNNER.MAX_PREPARED_BYTES), value)
+
+    def test_bad_failure_diagnostic_does_not_replace_worker_failure(self):
+        # CodexAstraUlt: Missing, oversized, malformed or linked diagnostics
+        # remain a failed worker with a bounded validation note, never a pass.
+        cases = ("pass", "(out / 'prepare-failure.json').write_text('{')",
+                 "(out / 'prepare-failure.json').write_text(' ' * 65537)",
+                 "(out / 'prepare-failure.json').symlink_to(out / 'prepare-report.json')",
+                 "(out / 'prepare-failure.json').write_text('{\"schema_version\":1,\"schema_version\":1}')")
+        for index, command in enumerate(cases):
+            with self.subTest(command=command):
+                self.output = self.root / str(index)
+                self.fake_worker(after=command, exit_code=2)
+                code, report = self.execute()
+                self.assertNotEqual(code, 0)
+                self.assertEqual(report["reason"], "worker_exit_2")
+                self.assertIsNone(report["failure_diagnostic"])
+                self.assertIsInstance(report["failure_diagnostic_rejection"], str)
+
+    def test_failure_diagnostic_is_not_consumed_for_success_or_other_exit(self):
+        # CodexAstraUlt: A leftover diagnostic invalidates a success inventory;
+        # panic and signal outcomes do not gain normal-rejection telemetry.
+        command = "(out / 'prepare-failure.json').write_text(json.dumps(" + repr(rejected_generation()) + "))"
+        for exit_code in (0, 3):
+            with self.subTest(exit_code=exit_code):
+                self.output = self.root / str(exit_code)
+                self.fake_worker(after=command, exit_code=exit_code)
+                code, report = self.execute()
+                self.assertNotEqual(code, 0)
+                self.assertIsNone(report["failure_diagnostic"])
 
     def test_source_context_change_blocks_publication(self):
         with mock.patch.object(RUNNER, "source_identity", side_effect=[{"source": 1}, {"source": 2}]):
@@ -345,6 +469,8 @@ class PreparationTests(unittest.TestCase):
     def test_invalid_arguments_reject_before_output_creation(self):
         for flags in (("--timeout", "nan"), ("--timeout", "0"), ("--timeout", "311"),
                       ("--cpu-seconds", "0"), ("--cpu-seconds", "312"), ("--memory-mib", "255"),
+                      ("--prepared-mib", "0"), ("--prepared-mib", "1025"), ("--prepared-mib", "1.5"),
+                      ("--prepared-mib", "True"), ("--prepared-mib", "512", "--prepared-mib", "1024"),
                       ("--updates", "unknown"), ("--timeout", "1", "--timeout", "2")):
             with self.subTest(flags=flags), self.assertRaises(SystemExit):
                 self.args(*flags)

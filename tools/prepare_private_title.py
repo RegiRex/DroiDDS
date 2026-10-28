@@ -29,8 +29,19 @@ COMMON = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(COMMON)
 Rejected = COMMON.Rejected
 MAX_FILES = 8192
+# CodexAstraUlt: Match the worker's generated-artifact admission separately
+# from the shared total that also includes identity files and the descriptor.
+MAX_ARTIFACTS = 4096
 MAX_PREPARED_BYTES = 512 * 1024**2
 MAX_FILE_BYTES = COMMON.RESERVE_BYTES
+# CodexAstraUlt: The reviewed larger allowance is explicit, while failure
+# diagnostics have their own small allowance outside admitted success output.
+MAX_PREPARED_MIB = 1024
+MAX_FAILURE_BYTES = 64 * 1024
+FAILURE_FIELDS = {
+    "schema_version", "kind", "stage", "reason", "output_limit_bytes",
+    "accepted_files", "accepted_bytes", "attempted_file_bytes", "attempted_total_bytes",
+}
 EXPECTED_FIELDS = {
     "schema_version", "kind", "status", "container", "program_id", "ncch_format_version",
     "remaster_version", "cia_title_version", "abi", "generation", "hints", "overlays",
@@ -59,7 +70,7 @@ def publish_manifest(directory, encoded):
         pass
 
 
-def read_json(path):
+def read_json(path, ceiling=COMMON.MAX_REPORT_BYTES):
     """CodexAstraUlt: Duplicate keys and nonfinite numbers cannot become identity evidence."""
     def unique(pairs):
         result = {}
@@ -72,9 +83,33 @@ def read_json(path):
     def nonfinite(_):
         raise Rejected("nonfinite_preparation_json")
 
-    stream, _ = COMMON.open_regular(path, COMMON.MAX_REPORT_BYTES)
+    stream, _ = COMMON.open_regular(path, ceiling)
     with stream:
-        return json.load(stream, object_pairs_hook=unique, parse_constant=nonfinite)
+        # CodexAstraUlt: Bound the actual read as well as initial metadata so
+        # even a changed diagnostic cannot expand an unbounded json.load read.
+        data = stream.read(ceiling + 1)
+    if len(data) > ceiling:
+        raise Rejected("preparation_json_exceeds_bound")
+    return json.loads(data, object_pairs_hook=unique, parse_constant=nonfinite)
+
+
+def failure_diagnostic(path, output_limit_bytes):
+    """CodexAstraUlt: Admit bounded failure telemetry, never preparation evidence."""
+    value = read_json(path, MAX_FAILURE_BYTES)
+    if not isinstance(value, dict) or set(value) != FAILURE_FIELDS:
+        raise Rejected("invalid_preparation_failure_fields")
+    if type(value["schema_version"]) is not int or value["schema_version"] != 1 or value["kind"] != "droidds_title_preparation_failure":
+        raise Rejected("invalid_preparation_failure_identity")
+    if value["stage"] not in ("identity", "generation", "metadata") or not isinstance(value["reason"], str) or not 1 <= len(value["reason"]) <= 4096:
+        raise Rejected("invalid_preparation_failure_description")
+    if integer(value["output_limit_bytes"], "failure_output_limit", MAX_PREPARED_MIB * 1024**2) != output_limit_bytes:
+        raise Rejected("preparation_failure_limit_mismatch")
+    integer(value["accepted_files"], "failure_accepted_files", MAX_FILES)
+    integer(value["accepted_bytes"], "failure_accepted_bytes", output_limit_bytes)
+    for name in ("attempted_file_bytes", "attempted_total_bytes"):
+        if value[name] is not None:
+            integer(value[name], "failure_" + name, 2**64 - 1)
+    return value
 
 
 def source_identity():
@@ -111,28 +146,33 @@ def relative_path(value, prefix):
     return value
 
 
-def inventory(directory):
+def inventory(directory, output_limit_bytes=MAX_PREPARED_BYTES):
     """CodexAstraUlt: Bound every actual output and refuse hidden files, links or devices."""
     COMMON.absolute_plain(directory)
     if not directory.is_dir():
         raise Rejected("missing_preparation_directory")
     result, directories, total = {}, set(), 0
     for base, dirs, files in os.walk(directory, followlinks=False):
-        if len(result) + len(directories) + len(dirs) + len(files) > MAX_FILES:
+        # CodexAstraUlt: The shared worker ceiling counts actual files, not the
+        # two required directories. Reject any other subtree before descending.
+        if len(result) + len(files) > MAX_FILES:
             raise Rejected("preparation_file_limit")
         for name in dirs:
             path = Path(base) / name
             info = path.lstat()
             if not stat.S_ISDIR(info.st_mode):
                 raise Rejected("preparation_nonregular_output")
-            directories.add(path.relative_to(directory).as_posix())
+            relative = path.relative_to(directory).as_posix()
+            if relative not in ("identity", "generated"):
+                raise Rejected("unexpected_preparation_directories")
+            directories.add(relative)
         for name in files:
             path = Path(base) / name
             info = path.lstat()
             if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_FILE_BYTES:
                 raise Rejected("preparation_nonregular_or_oversize_output")
             total += info.st_size
-            if total > MAX_PREPARED_BYTES:
+            if total > output_limit_bytes:
                 raise Rejected("preparation_total_bytes_limit")
             result[path.relative_to(directory).as_posix()] = info.st_size
     if directories != {"identity", "generated"}:
@@ -151,7 +191,7 @@ def file_identity(directory, item):
     return {**item, "sha256": digest}
 
 
-def validate_preparation(directory, report):
+def validate_preparation(directory, report, output_limit_bytes=MAX_PREPARED_BYTES):
     """CodexAstraUlt: Resolve exactly the reported inputs and outputs before manifest creation."""
     if not isinstance(report, dict) or set(report) != EXPECTED_FIELDS:
         raise Rejected("invalid_preparation_report_fields")
@@ -173,7 +213,7 @@ def validate_preparation(directory, report):
         raise Rejected("invalid_preparation_cia_title_version")
     integer(report["bss_size"], "bss_size")
     components, artifacts = report["components"], report["artifacts"]
-    if not isinstance(components, list) or not 3 <= len(components) <= 4099 or not isinstance(artifacts, list) or not 1 <= len(artifacts) <= MAX_FILES:
+    if not isinstance(components, list) or not 3 <= len(components) <= 4099 or not isinstance(artifacts, list) or not 1 <= len(artifacts) <= MAX_ARTIFACTS:
         raise Rejected("invalid_preparation_inventories")
     expected, kinds, names = {"prepare-report.json"}, {}, set()
     for item in components + artifacts:
@@ -213,7 +253,7 @@ def validate_preparation(directory, report):
     sources = report["sources"]
     if not isinstance(sources, list) or not sources or any(not isinstance(path, str) for path in sources) or len(set(sources)) != len(sources) or set(sources) != {item["path"] for item in artifacts if item["path"].endswith(".c")}:
         raise Rejected("invalid_preparation_sources")
-    actual = inventory(directory)
+    actual = inventory(directory, output_limit_bytes)
     if set(actual) != expected or any(actual[item["path"]] != item["bytes"] for item in components + artifacts):
         raise Rejected("preparation_inventory_mismatch")
     resolved = dict(report)
@@ -282,6 +322,9 @@ def parse_args(argv=None):
     parser.add_argument("--timeout", type=float, default=130)
     parser.add_argument("--cpu-seconds", type=int, default=260)
     parser.add_argument("--memory-mib", type=int, default=4096)
+    # CodexAstraUlt: An owner-reviewed preparation capacity is separate from
+    # worker address space and does not relax any input or artifact validation.
+    parser.add_argument("--prepared-mib", type=int, default=MAX_PREPARED_BYTES // 1024**2)
     argv = sys.argv[1:] if argv is None else argv
     flags = [item.split("=", 1)[0] for item in argv if item.startswith("--")]
     if len(flags) != len(set(flags)):
@@ -289,15 +332,21 @@ def parse_args(argv=None):
     args = parser.parse_args(argv)
     if not math.isfinite(args.timeout) or not 0 < args.timeout <= 310 or not 1 <= args.cpu_seconds <= COMMON.MAX_CPU_SECONDS or not 256 <= args.memory_mib <= 16384:
         parser.error("host limits outside supported range")
+    if not 1 <= args.prepared_mib <= MAX_PREPARED_MIB:
+        parser.error("prepared output limit must be between 1 and 1024 MiB")
     return args
 
 
 def run(args):
     """CodexAstraUlt: Success is published only after process, snapshot and output validation."""
     started, directory, code = time.monotonic(), None, 1
+    output_limit_bytes = args.prepared_mib * 1024**2
     handles, identities = [], []
     report = {"schema_version": 1, "kind": "droidds_private_title_preparation_run", "status": "preparing", "reason": "preflight",
-              "requested": {"timeout": args.timeout, "cpu_seconds": args.cpu_seconds, "memory_mib": args.memory_mib},
+              "requested": {"timeout": args.timeout, "cpu_seconds": args.cpu_seconds, "memory_mib": args.memory_mib,
+                            "prepared_mib": args.prepared_mib},
+              "output_limits": {"prepared_bytes": output_limit_bytes, "failure_diagnostic_bytes": MAX_FAILURE_BYTES},
+              "failure_diagnostic": None, "failure_diagnostic_rejection": None,
               "input": None, "worker": None, "process": None, "manifest_sha256": None,
               "evidence": "prepared_sources_only_no_guest_execution_or_APK"}
     try:
@@ -314,7 +363,7 @@ def run(args):
             identities.append((path, stream, info, digest, ceiling, label))
         if not os.access(worker, os.X_OK):
             raise Rejected("worker_not_executable_build_it_first")
-        if shutil.disk_usage(output.parent).free < identities[0][2].st_size + MAX_PREPARED_BYTES:
+        if shutil.disk_usage(output.parent).free < identities[0][2].st_size + output_limit_bytes + MAX_FAILURE_BYTES:
             raise Rejected("insufficient_disk_space_for_preparation")
         output.mkdir(mode=0o700)
         directory = output
@@ -347,7 +396,8 @@ def run(args):
                 raise Rejected(identity[5] + "_changed_before_run")
         report["input"]["stable_before_run"] = True
         COMMON.save_report(output, report)
-        process = COMMON.run_worker([str(worker), "prepare", "--input", str(snapshot), "--output", str(output / "prepared")], output, args.timeout, args.memory_mib, args.cpu_seconds)
+        process = COMMON.run_worker([str(worker), "prepare", "--input", str(snapshot), "--output", str(output / "prepared"),
+                                     "--output-limit-bytes", str(output_limit_bytes)], output, args.timeout, args.memory_mib, args.cpu_seconds)
         report["process"] = process
         changed = [item[5] for item in identities if not COMMON.unchanged(*item[:5])]
         report["input"]["stable_after_run"] = not changed
@@ -358,8 +408,16 @@ def run(args):
             code = 130 if process["outcome"] == "interrupted" else 124
         elif process["exit_code"] != 0:
             report.update(status="worker_failed", reason="worker_signal_" + str(-process["exit_code"]) if process["exit_code"] < 0 else "worker_exit_" + str(process["exit_code"]))
+            # CodexAstraUlt: Only a normal explicit rejection may supply this
+            # telemetry. Malformed or absent diagnostics preserve the process
+            # failure and cannot trigger success inventory checks or a manifest.
+            if process["exit_code"] == 2:
+                try:
+                    report["failure_diagnostic"] = failure_diagnostic(output / "prepared/prepare-failure.json", output_limit_bytes)
+                except (Rejected, OSError, ValueError, KeyError, TypeError) as error:
+                    report["failure_diagnostic_rejection"] = str(error) if isinstance(error, Rejected) else type(error).__name__
         else:
-            resolved = validate_preparation(output / "prepared", read_json(output / "prepared/prepare-report.json"))
+            resolved = validate_preparation(output / "prepared", read_json(output / "prepared/prepare-report.json"), output_limit_bytes)
             if source_identity() != source_context:
                 raise Rejected("preparation_source_changed")
             manifest = {"schema_version": 1, "kind": "droidds_private_title_preparation_manifest", "stage": "prepared",

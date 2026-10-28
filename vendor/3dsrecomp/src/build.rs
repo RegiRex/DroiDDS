@@ -107,6 +107,23 @@ pub fn generate_resolved(
     generate_programs(title, programs, dir, Vec::new(), HintMode::Selected(hints), events)
 }
 
+/// CodexAstraUlt: Generate the same resolved C through a caller-owned sink.
+/// The callback receives fixed basenames and complete file bytes, must enforce
+/// its own output budget/overwrite policy, and may reject to stop generation.
+/// This function creates no directory or file; dir only identifies the location
+/// returned in Generated. No success event is sent after a consumer rejection.
+pub fn generate_resolved_to(
+    title: Title,
+    programs: Vec<(String, Program)>,
+    dir: PathBuf,
+    hints: HintPolicy<'_>,
+    events: &(dyn Fn(Event) + Sync),
+    consume: &mut dyn FnMut(&str, &[u8]) -> Result<(), String>,
+) -> Result<Generated, String> {
+    validate_resolved_names(&programs)?;
+    generate_programs_to(title, programs, dir, Vec::new(), HintMode::Selected(hints), events, consume)
+}
+
 // CodexAstraUlt: Code generation requires one first executable, unique module
 // identities, and names safe to embed verbatim in its C string literals (also
 // excluding question marks so trigraph-enabled compilers cannot create escapes).
@@ -134,11 +151,38 @@ fn validate_resolved_names(programs: &[(String, Program)]) -> Result<(), String>
 // selection cannot silently fork native instruction lowering or origin tables.
 fn generate_programs(
     title: Title,
+    programs: Vec<(String, Program)>,
+    dir: PathBuf,
+    files: Vec<overrides::File>,
+    hints: HintMode<'_>,
+    events: &(dyn Fn(Event) + Sync),
+) -> Result<Generated, String> {
+    // CodexAstraUlt: The historical writer keeps its path/overwrite behavior,
+    // but now releases generated chunks through the same streaming pipeline.
+    let folder = if files.is_empty() { dir.clone() } else { dir.join("hand") };
+    let mut created = false;
+    let target = dir.clone();
+    let mut consume = |name: &str, contents: &[u8]| {
+        if !created {
+            std::fs::create_dir_all(&folder).map_err(|error| format!("could not create {}, {error}", folder.display()))?;
+            created = true;
+        }
+        let path = target.join(name);
+        std::fs::write(&path, contents).map_err(|error| format!("could not write {}, {error}", path.display()))
+    };
+    generate_programs_to(title, programs, dir, files, hints, events, &mut consume)
+}
+
+// CodexAstraUlt: Both collecting-compatible and bounded-output callers share
+// discovery, hint handling, instruction lowering, origins and success events.
+fn generate_programs_to(
+    title: Title,
     mut programs: Vec<(String, Program)>,
     dir: PathBuf,
     files: Vec<overrides::File>,
     hints: HintMode<'_>,
     events: &(dyn Fn(Event) + Sync),
+    consume: &mut dyn FnMut(&str, &[u8]) -> Result<(), String>,
 ) -> Result<Generated, String> {
     let replaced: Vec<Override> = files.iter().flat_map(|file| file.overrides.iter().cloned()).collect();
     // whatever an override replaces has to be generated too, for it to call
@@ -181,24 +225,28 @@ fn generate_programs(
         .enumerate()
         .map(|(i, ((name, program), analysis))| codegen::Unit { module: (i > 0).then_some(name.as_str()), program, analysis })
         .collect();
-    let generated = codegen::generate(&units, &replaced);
-
-    let write = |path: &Path, contents: &[u8]| {
-        std::fs::write(path, contents).map_err(|error| format!("could not write {}, {error}", path.display()))
-    };
-    let folder = if files.is_empty() { dir.clone() } else { dir.join("hand") };
-    std::fs::create_dir_all(&folder).map_err(|error| format!("could not create {}, {error}", folder.display()))?;
-    for (name, contents) in &generated {
-        write(&dir.join(name), contents.as_bytes())?;
-    }
-    let mut sources: Vec<String> = generated.iter().map(|(name, _)| name.clone()).filter(|name| name.ends_with(".c")).collect();
+    // CodexAstraUlt: Account only accepted files and retain names, not complete
+    // source contents. A rejecting sink prevents all later output and success.
+    let (mut count, mut bytes) = (0, 0usize);
+    let mut sources = Vec::new();
+    codegen::generate_to(&units, &replaced, &mut |name, contents| {
+        consume(name, contents)?;
+        count += 1;
+        bytes += contents.len();
+        if name.ends_with(".c") {
+            sources.push(name.to_owned());
+        }
+        Ok(())
+    })?;
+    // CodexAstraUlt: Preserve the historical compile order: entries, numeric
+    // source chunks in emission order, then caller-provided override sources.
+    sources.sort_by_key(|name| name != "entries.c");
     for file in &files {
         let name = format!("hand/{}", file.path.file_name().unwrap_or_default().to_string_lossy());
-        write(&dir.join(&name), file.source.as_bytes())?;
+        consume(&name, file.source.as_bytes())?;
         sources.push(name);
     }
-    let bytes = generated.iter().map(|(_, contents)| contents.len()).sum();
-    events(Event::Generated { files: generated.len(), bytes, overrides: replaced.len() });
+    events(Event::Generated { files: count, bytes, overrides: replaced.len() });
     Ok(Generated { title, dir, sources })
 }
 

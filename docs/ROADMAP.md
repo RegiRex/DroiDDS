@@ -68,7 +68,9 @@ guest tracing reaches its evidence limit, without advancing the Android gate. --
 base resolution, compiler/runtime reader byte agreement, disabled discovery hints,
 C generation and a canonical SHA-256 preparation manifest. Run-019 closes the
 bounded audio investigation at an unobserved allocation request, with no generic
-audio fix justified. Private preparation is next; manifest consumption, native
+audio fix justified. The first private preparation hit the 512 MiB output
+allowance; the next run uses corrected streaming admission and an explicit
+1024 MiB allowance. Manifest consumption, native
 comparison, packaging and Thor boot remain required for 0.0.7.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,

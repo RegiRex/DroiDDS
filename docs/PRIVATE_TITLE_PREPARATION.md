@@ -8,7 +8,8 @@ same bytes, generates C with the pinned compiler, and records a SHA-256 manifest
 It does not compile or execute a private title, install a library, build an APK,
 or enforce the manifest in the runtime yet. The public app remains 0.0.6/code 7.
 Read the [implementation and validation record](builds/0.0.7-native-preparation.md)
-for actual compiler, worker and coordinator checks.
+and [streaming correction](builds/0.0.7-preparation-streaming.md) for actual
+compiler, worker and coordinator checks.
 
 Run-019 closes the [bounded voice-activation investigation](host-tests/dark-moon-2026-10-22.md#locally-executed-voice-activation-batch-run-019).
 The constructor initializes the measured flags; the manager repeatedly observes
@@ -16,6 +17,16 @@ an empty list and the selected allocation path is unobserved. No generic audio
 correction is justified. Resume that diagnosis when a later phase reaches an
 allocation request or populates the list; do not replay the unchanged prefix.
 Native preparation is the next independent local task toward 0.0.7.
+
+<!-- CodexAstraUlt: The first private preparation exposed an output-admission
+limit, so the next run uses the corrected streaming tool and a measured budget. -->
+The first private attempt on `5c73453` generated 522 files totaling 679,996,925
+bytes, then rejected the 512 MiB aggregate bound. It produced no success manifest
+and executed no guest. See the [reported result](host-tests/dark-moon-preparation-2026-10-28.md).
+The next task is one fresh preparation with the streaming correction and an
+explicit **1024 MiB** output allowance. Keep CPU, wall-time and address-space
+limits unchanged. This allowance is temporary host build storage, not APK size
+or game memory. Do not reuse the rejected output as validated input.
 
 ## Build and prepare
 
@@ -35,7 +46,8 @@ execution. Then prepare the existing authorized Dark Moon base image once:
 ```bash
 python3 tools/prepare_private_title.py \
   --input /path/to/owned-base.cci \
-  --output /path/outside-git/new-preparation-directory
+  --output /path/outside-git/new-preparation-directory \
+  --prepared-mib 1024
 ```
 
 Local Codex should use its known input path and choose an absent output under
@@ -44,13 +56,20 @@ prior configuration, saves, updates, DLC or mods. No additional USB or device
 readiness check is needed. The source image and old reports remain unchanged.
 
 The coordinator creates a read-only full input snapshot and owner-only output
-directory. Allow space for that copy plus 512 MiB of preparation output. Defaults
+directory. Allow space for that copy plus the selected output allowance and a
+64 KiB failure diagnostic. `--prepared-mib` accepts 1–1024 and still defaults to
+512; the explicit 1024 above is justified by the first measured output. Defaults
 are 130 wall seconds, 260 CPU seconds summed across worker threads, and 4 GiB
 virtual address space. The existing process supervisor retains bounded log tails
 and kills its worker group on timeout/interruption. CPU is per process, not a
-combined descendant budget. Each worker file has a 64 MiB limit; the 512 MiB
-aggregate inventory limit is checked after generation, not an OS disk quota.
-Do not raise limits or repeat private preparation without a concrete reason.
+combined descendant budget. Each component/source file has a 64 MiB limit; the
+success JSON descriptor is limited to 1 MiB. The worker now
+checks identity, generated-source and success-descriptor bytes before each file
+write, and releases each completed generated source instead of retaining all C.
+The coordinator independently verifies the same aggregate ceiling. This is not
+an OS disk quota or a bound on the compiler's individual function/table memory;
+the process address-space ceiling remains in force. Stop at the first rejection
+and retain partial output; do not automatically raise another limit or retry.
 
 ## What is validated
 
@@ -94,7 +113,11 @@ source identity does not attest an arbitrary worker binary. Use the locally
 built worker. Full decompressed-code hashing includes padding/tails; logical
 segment hashes alone are not a complete loaded-memory image.
 
-Failure preserves partial output and creates no success manifest. Keep it for
+Failure preserves partial output and creates no success manifest. Once output
+creation has begun, an ordinary rejection also attempts to save a bounded
+`prepared/prepare-failure.json` with the stage, accepted file/byte totals, selected
+limit and attempted next size. Its separate 64 KiB allowance is diagnostic only;
+kills, panics or storage failures need not leave that record. Keep output for
 diagnosis; do not weaken validation or omit a module to get a result. Review any
 generic correction with an original failing fixture before a matched retry.
 All snapshots, generated code, module bytes, raw reports and future private
@@ -102,7 +125,9 @@ libraries stay outside Git and CI.
 
 Return a short `dark-moon-preparation-summary.md` with source/tool/input identity,
 status and first rejection if any, resolved module count, generated file/byte
-counts, elapsed time/limits and the next concrete action. Omit personal paths,
+counts (including largest generated file), elapsed time/limits and the next
+concrete action. On rejection, include the bounded failure stage/counts if
+available. Omit personal paths,
 module names, game bytes and generated code from the shareable summary. A pass
 unblocks native compilation and a separate manifest-consumption/guarded host
 comparison stage; Android packaging and Thor boot remain later gates.

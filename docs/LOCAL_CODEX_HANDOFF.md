@@ -89,6 +89,14 @@ unchanged trace replay is justified. Follow [native-source preparation](PRIVATE_
 on current main. This checks resolved inputs and generates deterministic C;
 private native execution, runtime manifest enforcement and packaging remain
 separate implementation/acceptance steps.
+<!-- CodexAstraUlt: Replace the now-completed default preparation request with
+one measured retry through the corrected bounded writer. -->
+The first private preparation on `5c73453` rejected the 512 MiB allowance after
+generating 679,996,925 bytes; no manifest was published. The corrected compiler
+streams completed sources and checks admission before writes. The next local
+task is one fresh preparation with `--prepared-mib 1024`, retaining all other
+limits and the original/rejected outputs. See the
+[reported preparation result](host-tests/dark-moon-preparation-2026-10-28.md).
 Parallel builds may use separate outputs; USB stays with the connected session.
 These private-run records are owner text, not independent JSON validation.
 
@@ -220,8 +228,10 @@ its filesystem knowledge and avoiding unnecessary manual command transcription. 
 > diagnostic sources. Follow docs/PRIVATE_TITLE_PREPARATION.md using the existing
 > Dark Moon base image. Build with the installed pinned offline toolchain, run
 > the original-fixture preparation checks, then prepare the private title once
-> in a fresh directory outside Git. Return dark-moon-preparation-summary.md with
-> the outcome, generated counts and first rejection if any. Keep derived output local.
+> with --prepared-mib 1024 and unchanged CPU/wall/memory limits in a fresh
+> directory outside Git. Return dark-moon-preparation-summary.md with the
+> outcome, generated counts/largest file, and failure stage/counts if rejected.
+> Preserve the original and rejected output. Keep derived output local.
 
 The owner can paste this task into local Codex; they do not need to transcribe
 all build/run commands themselves. This document does not connect sessions or

@@ -6,7 +6,86 @@ use serde_json::{json, Value};
 use std::{fs, io::Write, path::Path};
 
 const MAX_FILE: u64 = 64 * 1024 * 1024;
-const MAX_OUTPUT: u64 = 512 * 1024 * 1024;
+// CodexAstraUlt: Keep the established default while admitting a measured larger
+// title only through an explicit bounded request. These are build output bytes,
+// not a runtime memory or package-size allocation.
+pub const DEFAULT_OUTPUT_LIMIT: u64 = 512 * 1024 * 1024;
+pub const MAX_OUTPUT_LIMIT: u64 = 1024 * 1024 * 1024;
+const MAX_OUTPUT_FILES: usize = 8192;
+// CodexAstraUlt: Match the coordinator's bounded success JSON reader, rather
+// than letting large module metadata pass the worker and fail its consumer.
+const MAX_DESCRIPTOR: u64 = 1024 * 1024;
+
+// CodexAstraUlt: Replace post-generation rejection with admission before each
+// file write, counting identity, generated C/headers and the success descriptor
+// together. A failed write may leave a partial file (including the descriptor),
+// but cannot qualify preparation; counts cover only fully written/synced files.
+struct Admission {
+    limit: u64,
+    files: usize,
+    bytes: u64,
+    stage: &'static str,
+    attempted_file: Option<u64>,
+    attempted_total: Option<u64>,
+}
+
+impl Admission {
+    fn new(limit: u64) -> Self {
+        Self {
+            limit,
+            files: 0,
+            bytes: 0,
+            stage: "identity",
+            attempted_file: None,
+            attempted_total: None,
+        }
+    }
+
+    fn write(&mut self, root: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
+        let count = bytes.len() as u64;
+        self.attempted_file = Some(count);
+        self.attempted_total = self.bytes.checked_add(count);
+        if count > MAX_FILE {
+            return Err("prepared component exceeds 64 MiB".into());
+        }
+        if self.stage == "metadata" && count > MAX_DESCRIPTOR {
+            return Err("preparation descriptor exceeds 1 MiB".into());
+        }
+        if self.files >= MAX_OUTPUT_FILES {
+            return Err("prepared output exceeds file count bound".into());
+        }
+        let total = self
+            .attempted_total
+            .filter(|total| *total <= self.limit)
+            .ok_or("prepared output exceeds aggregate bound")?;
+        write_new(root, name, bytes)?;
+        self.files += 1;
+        self.bytes = total;
+        self.attempted_file = None;
+        self.attempted_total = None;
+        Ok(())
+    }
+
+    // CodexAstraUlt: Failure evidence is a small, separate diagnostic allowance;
+    // it is never admitted as prepared output or sufficient for a manifest.
+    // Failure to save it cannot replace the original rejection reason.
+    fn record_failure(&self, output: &Path, reason: &str) {
+        let reason: String = reason.chars().take(4096).collect();
+        let value = json!({
+            "schema_version":1,"kind":"droidds_title_preparation_failure",
+            "stage":self.stage,"reason":reason,"output_limit_bytes":self.limit,
+            "accepted_files":self.files,"accepted_bytes":self.bytes,
+            "attempted_file_bytes":self.attempted_file,
+            "attempted_total_bytes":self.attempted_total
+        });
+        if let Ok(mut bytes) = serde_json::to_vec_pretty(&value) {
+            bytes.push(b'\n');
+            if bytes.len() <= 64 * 1024 {
+                let _ = write_new(output, "prepare-failure.json", &bytes);
+            }
+        }
+    }
+}
 
 // CodexAstraUlt: A fresh private output is mandatory; neither input nor a prior
 // preparation is ever replaced. The coordinator checks all parent components.
@@ -92,6 +171,15 @@ fn check_runtime(
 // CodexAstraUlt: One strict resolved collection feeds both identity material and
 // code generation. There is no second compiler load, mod overlay or hint search.
 pub fn prepare(input: &Path, output: &Path) -> Result<Value, String> {
+    prepare_with_limit(input, output, DEFAULT_OUTPUT_LIMIT)
+}
+
+// CodexAstraUlt: The supervisor chooses and records one output budget, enforced
+// here during emission and independently against the final exact inventory.
+pub fn prepare_with_limit(input: &Path, output: &Path, limit: u64) -> Result<Value, String> {
+    if limit == 0 || limit > MAX_OUTPUT_LIMIT {
+        return Err("output limit must be between 1 byte and 1 GiB".into());
+    }
     if output.symlink_metadata().is_ok() {
         return Err("preparation output must not exist".into());
     }
@@ -145,86 +233,90 @@ pub fn prepare(input: &Path, output: &Path) -> Result<Value, String> {
         "components":[],"artifacts":[],"sources":[]
     });
     directory(output)?;
-    directory(&output.join("identity"))?;
-    let mut components = Vec::new();
-    let mut total = 0u64;
-    for (path, kind, bytes) in [
-        (
-            "identity/ncch-header.bin",
-            "ncch_header",
-            resolved.ncch_header.as_slice(),
-        ),
-        (
-            "identity/exheader.bin",
-            "exheader",
-            resolved.exheader_bytes.as_slice(),
-        ),
-        (
-            "identity/code.bin",
-            "decompressed_code",
-            resolved.code.as_slice(),
-        ),
-    ] {
-        write_new(output, path, bytes)?;
-        total += bytes.len() as u64;
-        components.push(json!({"path":path,"kind":kind,"bytes":bytes.len()}));
-    }
-    for (index, module) in resolved.modules.iter().enumerate() {
-        let path = format!("identity/module-{index:04}.bin");
-        write_new(output, &path, &module.bytes)?;
-        total += module.bytes.len() as u64;
-        components.push(json!({"path":path,
+    let mut admission = Admission::new(limit);
+    let result: Result<Value, String> = (|| {
+        directory(&output.join("identity"))?;
+        let mut components = Vec::new();
+        for (path, kind, bytes) in [
+            (
+                "identity/ncch-header.bin",
+                "ncch_header",
+                resolved.ncch_header.as_slice(),
+            ),
+            (
+                "identity/exheader.bin",
+                "exheader",
+                resolved.exheader_bytes.as_slice(),
+            ),
+            (
+                "identity/code.bin",
+                "decompressed_code",
+                resolved.code.as_slice(),
+            ),
+        ] {
+            admission.write(output, path, bytes)?;
+            components.push(json!({"path":path,"kind":kind,"bytes":bytes.len()}));
+        }
+        for (index, module) in resolved.modules.iter().enumerate() {
+            let path = format!("identity/module-{index:04}.bin");
+            admission.write(output, &path, &module.bytes)?;
+            components.push(json!({"path":path,
             "kind":if module.is_static {"static_crs"} else {"cro"},
             "bytes":module.bytes.len(),"source_path":module.path,"module_name":module.name}));
-    }
-    drop(runtime);
-    let generated = build::generate_resolved(
-        resolved.title,
-        resolved.programs,
-        output.join("generated"),
-        build::HintPolicy::Disabled,
-        &|_| {},
-    )?;
-    // CodexAstraUlt: Enumerate actual generated files, reject unowned names and
-    // subtrees, and let the coordinator verify the exact inventory and hashes.
-    let mut artifacts = Vec::new();
-    for entry in fs::read_dir(&generated.dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let name = entry
-            .file_name()
-            .into_string()
-            .map_err(|_| "non-UTF8 artifact")?;
-        let metadata = entry.path().symlink_metadata().map_err(|e| e.to_string())?;
-        if !metadata.is_file()
-            || metadata.len() > MAX_FILE
-            || !name
-                .bytes()
-                .all(|v| v.is_ascii_alphanumeric() || b"_.-".contains(&v))
-            || !(name.ends_with(".c") || name.ends_with(".h"))
-        {
-            return Err("unexpected generated artifact".into());
         }
-        total += metadata.len();
-        if total > MAX_OUTPUT || artifacts.len() >= 4096 {
-            return Err("prepared output exceeds aggregate bound".into());
+        drop(runtime);
+        admission.stage = "generation";
+        directory(&output.join("generated"))?;
+        // CodexAstraUlt: Consume and release each completed source file. Admission
+        // stops before an overflowing file is written, rather than materializing
+        // and writing the entire title before checking its inventory.
+        let mut artifacts = Vec::new();
+        let mut consume = |name: &str, bytes: &[u8]| {
+            if name.is_empty()
+                || !name
+                    .bytes()
+                    .all(|v| v.is_ascii_alphanumeric() || b"_.-".contains(&v))
+                || !(name.ends_with(".c") || name.ends_with(".h"))
+            {
+                return Err("unexpected generated artifact".into());
+            }
+            if artifacts.len() >= 4096 {
+                return Err("prepared output exceeds generated file count bound".into());
+            }
+            let path = format!("generated/{name}");
+            admission.write(output, &path, bytes)?;
+            artifacts.push(json!({"path":path,"bytes":bytes.len()}));
+            Ok(())
+        };
+        let generated = build::generate_resolved_to(
+            resolved.title,
+            resolved.programs,
+            output.join("generated"),
+            build::HintPolicy::Disabled,
+            &|_| {},
+            &mut consume,
+        )?;
+        artifacts.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+        let mut sources: Vec<_> = generated
+            .sources
+            .iter()
+            .map(|s| format!("generated/{s}"))
+            .collect();
+        sources.sort();
+        if sources.is_empty() {
+            return Err("no generated C sources".into());
         }
-        artifacts.push(json!({"path":format!("generated/{name}"),"bytes":metadata.len()}));
+        report["components"] = json!(components);
+        report["artifacts"] = json!(artifacts);
+        report["sources"] = json!(sources);
+        admission.stage = "metadata";
+        let mut bytes = serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?;
+        bytes.push(b'\n');
+        admission.write(output, "prepare-report.json", &bytes)?;
+        Ok(report)
+    })();
+    if let Err(error) = &result {
+        admission.record_failure(output, error);
     }
-    artifacts.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
-    let mut sources: Vec<_> = generated
-        .sources
-        .iter()
-        .map(|s| format!("generated/{s}"))
-        .collect();
-    sources.sort();
-    if sources.is_empty() {
-        return Err("no generated C sources".into());
-    }
-    report["components"] = json!(components);
-    report["artifacts"] = json!(artifacts);
-    report["sources"] = json!(sources);
-    let mut bytes = serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?;
-    bytes.push(b'\n');
-    write_new(output, "prepare-report.json", &bytes)?;
-    Ok(report)
+    result
 }

@@ -225,3 +225,78 @@ fn resolved_generation_rejects_invalid_program_names_before_writing() {
     .is_err());
     assert!(!output.exists());
 }
+
+// CodexAstraUlt: The streaming adapter owns no filesystem writes. Its accepted
+// content, source order and final event match the historical disk writer.
+#[test]
+fn resolved_streaming_preserves_output_and_reports_only_accepted_files() {
+    let fixture = Fixture::new();
+    let reference = generate_resolved(
+        fixture.title(),
+        vec![("executable".into(), program())],
+        fixture.root.join("reference"),
+        HintPolicy::Explicit(&[BASE + 5]),
+        &|_| {},
+    )
+    .unwrap();
+    let output = fixture.root.join("sink-only");
+    let events = std::sync::Mutex::new(Vec::new());
+    let mut accepted = BTreeMap::new();
+    let generated = generate_resolved_to(
+        fixture.title(),
+        vec![("executable".into(), program())],
+        output.clone(),
+        HintPolicy::Explicit(&[BASE + 5]),
+        &|event| events.lock().unwrap().push(event),
+        &mut |name, bytes| {
+            assert!(accepted.insert(name.to_owned(), bytes.to_vec()).is_none());
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert!(!output.exists());
+    assert_eq!(accepted, files(&reference.dir));
+    assert_eq!(generated.sources, reference.sources);
+    assert_eq!(generated.dir, output);
+    assert_eq!(
+        events.into_inner().unwrap().last(),
+        Some(&Event::Generated {
+            files: accepted.len(),
+            bytes: accepted.values().map(Vec::len).sum(),
+            overrides: 0,
+        })
+    );
+}
+
+// CodexAstraUlt: A sink rejection remains the first concrete error and cannot
+// be followed by further callbacks, directory creation or a Generated event.
+#[test]
+fn resolved_streaming_rejection_never_reports_success() {
+    let fixture = Fixture::new();
+    let output = fixture.root.join("rejected-sink");
+    let events = std::sync::Mutex::new(Vec::new());
+    let mut seen = Vec::new();
+    let result = generate_resolved_to(
+        fixture.title(),
+        vec![("executable".into(), program())],
+        output.clone(),
+        HintPolicy::Disabled,
+        &|event| events.lock().unwrap().push(event),
+        &mut |name, _| {
+            seen.push(name.to_owned());
+            if name == "functions.h" {
+                Err("fixture rejected header".into())
+            } else {
+                Ok(())
+            }
+        },
+    );
+    assert!(matches!(result, Err(ref message) if message == "fixture rejected header"));
+    assert_eq!(seen, ["recomp.h", "functions.h"]);
+    assert!(!output.exists());
+    assert!(!events
+        .into_inner()
+        .unwrap()
+        .iter()
+        .any(|event| matches!(event, Event::Generated { .. })));
+}
