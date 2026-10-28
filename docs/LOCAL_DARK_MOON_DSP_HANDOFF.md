@@ -1,5 +1,12 @@
 # Local Dark Moon voice-publication investigation
 
+<!-- CodexAstraUlt: Preserve the completed task as history and direct new work
+to the guest producer after runs 017–018 found no voice writes in either bank. -->
+**Completed as a bounded diagnostic in batch-005, runs 017–018.** Read the
+[findings](host-tests/dark-moon-2026-10-22.md#locally-executed-voice-production-batch-runs-017018).
+The current task is the [guest voice-activation investigation](LOCAL_DARK_MOON_VOICE_ACTIVATION.md).
+Do not repeat the procedure below unchanged; it records the previous experiment.
+
 <!-- CodexAstraUlt: Trace the first guest-to-DSP voice handoff after inspected
 screens and repeated mixer updates locate silence before sample fetching. -->
 Read `AGENTS.md`, the latest [published findings](host-tests/dark-moon-2026-10-22.md),

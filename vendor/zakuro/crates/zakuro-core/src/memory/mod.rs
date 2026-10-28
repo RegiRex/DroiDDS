@@ -308,18 +308,29 @@ impl Memory {
             };
             let ptr = host.as_mut_ptr();
             let index = (page_vaddr >> PAGE_BITS) as usize;
-            if permission.contains(Permission::READ) {
-                self.read_table[index] = ptr;
-                if !guarded_page(&self.guards, index) {
-                    self.cpu_read_table[index] = ptr;
-                }
-            }
-            if permission.contains(Permission::WRITE) {
-                self.write_table[index] = ptr;
-                if !guarded_page(&self.write_guards, index) {
-                    self.cpu_write_table[index] = ptr;
-                }
-            }
+            // CodexAstraUlt: Replace grant-only updates: a narrower remap must
+            // revoke old access and old backing in every table. CPU entries
+            // remain null while GPU guards require the synchronized slow path.
+            self.read_table[index] = if permission.contains(Permission::READ) {
+                ptr
+            } else {
+                std::ptr::null_mut()
+            };
+            self.write_table[index] = if permission.contains(Permission::WRITE) {
+                ptr
+            } else {
+                std::ptr::null_mut()
+            };
+            self.cpu_read_table[index] = if guarded_page(&self.guards, index) {
+                std::ptr::null_mut()
+            } else {
+                self.read_table[index]
+            };
+            self.cpu_write_table[index] = if guarded_page(&self.write_guards, index) {
+                std::ptr::null_mut()
+            } else {
+                self.write_table[index]
+            };
         }
 
         self.mappings.insert(
@@ -888,6 +899,11 @@ impl Bus for Memory {
         }
     }
 }
+
+// CodexAstraUlt: Exercise permission changes through both interpreter accesses
+// and the exported page tables before enabling general native title modules.
+#[cfg(test)]
+mod remap_tests;
 
 #[cfg(test)]
 mod tests {

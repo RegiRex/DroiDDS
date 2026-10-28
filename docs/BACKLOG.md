@@ -105,6 +105,15 @@ local builder, matching data import, signing/save identity and host/Thor boot
 checks. It records the compiler/loader update mismatch and keeps private inputs
 on the owner's Linux computer. This is planned work after the 0.0.6 gate.
 
+<!-- CodexAstraUlt: Advance a concrete native prerequisite independently of
+the private guest activation trace, retaining the remaining delivery work. -->
+The [permission-remap correction](builds/0.0.7-memory-remap.md) now prevents
+revoked read/write access through stale fast pointers. General native-code
+freshness, deterministic compiler inputs, shared title identity and private
+packaging remain open. Continue those implementation tasks alongside the
+[bounded voice-activation diagnosis](LOCAL_DARK_MOON_VOICE_ACTIVATION.md);
+the silent interpreted prefix does not prove an audio defect or block this work.
+
 | Ticket | Scope and concrete output | Acceptance | Depends on | Pack mapping |
 | --- | --- | --- | --- | --- |
 | DDS-001 | Source map, exact dependency resolution, ABI/generation inventory, notice inventory, architecture decision records | Verifier/runtime mismatch addressed explicitly; actual ABI documented; proposed vs observed claims separate; missing license notice provenance tracked | This plan | NRR-0002/0005/0101/0301/0401 |

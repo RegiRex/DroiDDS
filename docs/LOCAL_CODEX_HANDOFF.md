@@ -72,10 +72,18 @@ scene with a brightening window; all bottom captures remain black. Its latest
 checkpoint has mixer updates/master volume 1.0, but no consumed voice settings
 or source samples. Both runs were killed; run-016's accounted CPU time exceeds
 its configured 131-second hard cap, consistent with enforcement but without
-kernel attribution. Follow the [voice-publication task](LOCAL_DARK_MOON_DSP_HANDOFF.md)
-using the new explicit CPU allowance. The coordinator correction leaves default
-limits and emulator behavior unchanged. Parallel builds may use separate outputs;
-USB stays with the connected session. No runtime audio fix is yet justified.
+kernel attribution.
+<!-- CodexAstraUlt: Advance from completed publication observations to the
+guest activation dependency while separating independent native-builder work. -->
+Batch-005's runs 017–018 now complete the 500-million-step budget with matching
+run-014 counters and no recorded runtime fault. They use the explicit CPU
+allowance and omit image capture; completion cannot be attributed to CPU limits
+alone. Both DSP banks receive no guest voice data. The observed source-state
+predicates skip voice work while a later resource continues advancing. Follow
+the [voice-activation task](LOCAL_DARK_MOON_VOICE_ACTIVATION.md) using the frozen
+run-018 runtime. No runtime audio fix is justified. Generic manifest/compiler/
+packaging development proceeds independently of this private diagnosis.
+Parallel builds may use separate outputs; USB stays with the connected session.
 These private-run records are owner text, not independent JSON validation.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
@@ -202,14 +210,12 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 <!-- CodexAstraUlt: Give the local session the executable next task, preserving
 its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
-> Safely obtain the current DroidDS source and execute
-> docs/LOCAL_DARK_MOON_DSP_HANDOFF.md using the existing Dark Moon file and
-> batch-004 reports. Work on an investigation branch, preserving existing changes.
-> Trace guest voice production, bank publication and DSP consumption in one
-> combined run with the documented 500-million-step and 260-CPU-second ceilings.
-> Complete the bounded investigation without pausing for intermediate counters.
-> Keep permissions and installed tools unchanged. Return
-> dark-moon-investigation-summary.md plus any reviewed generic commit/diff.
+> Read docs/LOCAL_DARK_MOON_VOICE_ACTIVATION.md from current RegiRex/DroiDDS main.
+> Execute it using the existing Dark Moon file, batch-005 reports and frozen
+> run-018 runtime. Preserve existing work. Identify the writer and prerequisite
+> for the measured voice predicates, then perform only the bounded run needed
+> to resolve that edge. Complete the investigation without pausing for intermediate
+> counters. Return dark-moon-investigation-summary.md and any reviewed generic fix.
 
 The owner can paste this task into local Codex; they do not need to transcribe
 all build/run commands themselves. This document does not connect sessions or

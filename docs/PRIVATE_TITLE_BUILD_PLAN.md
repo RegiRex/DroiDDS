@@ -26,6 +26,16 @@ It does not yet implement the native compiler/package steps below. Actual local
 title evidence is needed before selecting and fixing the first game blocker;
 public original fixtures validate the tool, not game compatibility.
 
+<!-- CodexAstraUlt: Keep public native-builder implementation moving after a
+repeatable interpreted prefix without inventing an audio failure as a new gate. -->
+As of 2026-10-28, [private runs 017–018](host-tests/dark-moon-2026-10-22.md#locally-executed-voice-production-batch-runs-017018)
+complete 500 million steps with matching counters and 95,458 draws. Voice
+production remains skipped by measured guest predicates while resource work
+continues. This does not establish a runtime audio defect or an interactive boot.
+The [activation investigation](LOCAL_DARK_MOON_VOICE_ACTIVATION.md) continues
+locally; generic manifest, compiler and package implementation need not wait for
+it. The permission-remap prerequisite below is now corrected and tested.
+
 ## One resolved title identity
 
 <!-- CodexAstraUlt: Prevent compiler/runtime disagreement about the executable,
@@ -75,11 +85,16 @@ Before enabling this builder, bind or explicitly disable the compiler's automati
 hint inputs; its current `apply_hints` reads owner-local information in addition
 to bundled hints. Module discovery must report parse failures instead of dropping
 them from the manifest. Neither behavior is exercised by the interpreter-only
-reconnaissance tool. Also add a focused executable-remap regression: the current
-`Memory::map` sets fast read/write pointers when a permission is present, without
-clearing disallowed pointers on a narrower remap. This is a source-review concern,
-not a reproduced title failure; test and correct it before general native module
-execution. Keep these tasks separate from the first measured private-title blocker.
+reconnaissance tool.
+<!-- CodexAstraUlt: Replace the untested remap concern with its demonstrated
+correction, keeping broader native code freshness and title evidence separate. -->
+The [permission-remap correction](builds/0.0.7-memory-remap.md) reproduces and
+fixes stale read/write fast pointers after a narrower successfully backed remap.
+It tests interpreter/bulk access, exported native tables and GPU guards.
+This closes that specific prerequisite; it does not enforce execute permissions,
+invalidate native code, or qualify general CRO/module lifecycle. Those tasks
+remain open before general native module execution. This is separate from the
+measured private-title voice predicates and is not a Dark Moon audio fix.
 
 The APK carries its expected manifest and generated native library in standard
 installer-owned native-library storage. Android lets the owner select matching
