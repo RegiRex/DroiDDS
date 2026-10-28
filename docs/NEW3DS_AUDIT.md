@@ -13,10 +13,10 @@ the full loader, HLE kernel or these fixes in its Android APK.**
 <!-- CodexAstraUlt: Preserve the upstream audit while recording corrected
 device layouts separately from unperformed New 3DS retail-title execution. -->
 **Current integration update:** the published
-[0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+[0.0.5 prerelease](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.5-probe.1)
 includes the parser, resolved memory, configuration and commitment corrections
 below, with real loader/kernel regressions. All required host/CI gates pass in
-[run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
+[run 39341905818](https://github.com/RegiRex/DroiDDS/actions/runs/39341905818),
 and public downloads are verified; see the
 [build record](builds/0.0.5-runtime-integration.md) and
 [0.0.5 integration corrections](#005-integration-corrections).

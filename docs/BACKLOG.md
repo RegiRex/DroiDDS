@@ -39,9 +39,9 @@ oracle. Compiler budget-boundary and Vulkan validation defects found during
 execution are corrected. Compiler admission and retained-object counts are
 limited; diagnostic evidence rejects unexpected software raster fallback and
 resource-limit events. All required source-bound host and CI gates pass; the
-[0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+[0.0.5 prerelease](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.5-probe.1)
 is published and its public downloads are verified after
-[run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818).
+[run 39341905818](https://github.com/RegiRex/DroiDDS/actions/runs/39341905818).
 The owner's [0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) now passes
 three actual guest routes, five memory layouts and runtime code guards. The
 hardware route uses CPU vertex shading and static-state Vulkan rasterization

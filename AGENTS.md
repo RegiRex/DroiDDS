@@ -1,4 +1,8 @@
-# DroidDS working instructions
+# DroiDDS working instructions
+
+<!-- CodexAstraUlt: Use the owner's renamed GitHub repository for current links
+and publication; preserve existing artifact identities in historical evidence. -->
+- The repository is `RegiRex/DroiDDS`. Use that spelling in current GitHub links.
 
 <!-- CodexAstraUlt: The owner now authorizes development and reuse from multiple
 open-source projects; continue from measured foundation results, not the old

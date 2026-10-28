@@ -17,7 +17,7 @@ the real loader, HLE services and PICA renderer. Its hardware route uses CPU
 vertex shading and static-state Vulkan rasterization with no software raster
 fallback. The uploaded JSON does not independently verify the installed APK.
 
-**[0.0.6 correction 2 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2); local/main/tag CI gates pass and its four
+**[0.0.6 correction 2 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.6-probe.2); local/main/tag CI gates pass and its four
 public assets are independently verified. Combined Thor evidence now supports
 progression into 0.0.7 development.** It retains every
 previous gate and adds an original interactive NCCH guest, automatic image/PCM
@@ -53,8 +53,8 @@ renderer. The report does not establish whether the picker or ADB exported it.
 <!-- CodexAstraUlt: Provide the independently verified interactive APK
 while retaining diagnostic signing and manual-device qualification. -->
 
-Download [DroidDS-0.0.6-android-arm64.apk](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk) from the
-[0.0.6 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2). All required local/main/tag CI gates pass;
+Download [DroidDS-0.0.6-android-arm64.apk](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk) from the
+[0.0.6 prerelease](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.6-probe.2). All required local/main/tag CI gates pass;
 the public APK, `BUILD_REPORT.json`, `SHA256SUMS` and
 `THIRD_PARTY_NOTICES.txt` are independently verified. See the
 [correction/release record](builds/0.0.6-frontend-correction.md) for source,
@@ -243,7 +243,7 @@ remain distinguishable from completed ones.
 <!-- CodexAstraUlt: Require explicit human observations alongside guest and
 Android counters; a checked box is a report of experience, not an automatic oracle. -->
 
-Install the [verified 0.0.6 APK](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk), then perform these checks.
+Install the [verified 0.0.6 APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk), then perform these checks.
 Use **0.0.6 · correction 2** (Android install code **7**) for this focused
 retest. The first 0.0.6 result passes automation and confirms both views, but
 measured touch, view recreation and corrected audio continuity remain open.

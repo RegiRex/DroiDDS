@@ -159,9 +159,9 @@ baselines require their exact local inputs, which are absent here.
 
 <!-- CodexAstraUlt: Link completed publication and the bounded uploaded device
 result without substituting host execution for later interactive testing. -->
-The [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+The [0.0.5 prerelease](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.5-probe.1)
 is published, all required host/CI gates pass in
-[run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818),
+[run 39341905818](https://github.com/RegiRex/DroiDDS/actions/runs/39341905818),
 and public downloads are verified. Exact results are in the
 [build record](builds/0.0.5-runtime-integration.md). The owner's
 [0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) now passes the runtime,

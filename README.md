@@ -1,4 +1,6 @@
-# DroidDS
+# DroiDDS
+
+<!-- CodexAstraUlt: Match the owner-renamed repository; preserve released artifact names. -->
 
 <!-- CodexAstraUlt: Replace the initial placeholder with the owner's recompilation project plan, its evidence limits, and the next implementation step. -->
 
@@ -37,7 +39,7 @@ state, so integration explicitly tests static pipeline state. Read
 
 <!-- CodexAstraUlt: Advance the published runtime with the independently
 validated Thor upload while preserving bounded fixture and game boundaries. -->
-**[0.0.5 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1);
+**[0.0.5 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.5-probe.1);
 its host/release checks, downloaded APK verification and
 [owner-supplied Thor runtime report](docs/device-tests/0.0.5-thor-runtime.md)
 pass.** It adds an original NCCH program
@@ -60,9 +62,9 @@ pipeline stall.
 
 <!-- CodexAstraUlt: Record verified publication after local and CI gates
 while retaining the unperformed manual Thor qualification. -->
-**[0.0.6 correction 2 is published](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.6-probe.2); local and CI gates pass, and all four public
+**[0.0.6 correction 2 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.6-probe.2); local and CI gates pass, and all four public
 downloads are independently verified. Combined Thor evidence now supports
-0.0.7 development.** [Download the Android ARM64 APK](https://github.com/RegiRex/DroidDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk).
+0.0.7 development.** [Download the Android ARM64 APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.6-probe.2/DroidDS-0.0.6-android-arm64.apk).
 Read the [correction and verification record](docs/builds/0.0.6-frontend-correction.md).
 It adds an original NCCH guest that uses real HID, GSP/PICA and DSP HLE paths for
 two images, D-pad/A/touch interaction and a tone. Automated native/interpreter

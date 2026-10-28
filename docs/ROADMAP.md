@@ -32,8 +32,8 @@ complete broad CPU, scheduler, module-lifecycle or PICA qualification. The
 header-decoding and application-memory gaps. Their actual loader/configuration
 corrections, original NCCH service/PICA execution and bounded shader admission
 ship in **0.0.5**. All required host and CI gates pass, and the public release
-downloads are verified. The [0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1),
-[successful release run](https://github.com/RegiRex/DroidDS/actions/runs/39341905818)
+downloads are verified. The [0.0.5 prerelease](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.5-probe.1),
+[successful release run](https://github.com/RegiRex/DroiDDS/actions/runs/39341905818)
 and [build record](builds/0.0.5-runtime-integration.md) provide the publication
 evidence. **The [0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md) now passes:**
 three guest routes, exact PICA output, five memory layouts and runtime code guards.

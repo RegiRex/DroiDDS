@@ -69,9 +69,9 @@ not authorize copying arbitrary GPL components from Azahar, MMJ or Uberhar.
 <!-- CodexAstraUlt: Advance the actual device runtime result while retaining
 the original fixtures' narrow scope and separate interactive/retail gates. -->
 The 0.0.4 Thor report passes its original diagnostic scope. The
-[0.0.5 prerelease](https://github.com/RegiRex/DroidDS/releases/tag/v0.0.5-probe.1)
+[0.0.5 prerelease](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.5-probe.1)
 is published with verified public downloads and passing required host/CI gates
-in [run 39341905818](https://github.com/RegiRex/DroidDS/actions/runs/39341905818).
+in [run 39341905818](https://github.com/RegiRex/DroiDDS/actions/runs/39341905818).
 See the [build record](builds/0.0.5-runtime-integration.md) and the passing
 [0.0.5 Thor report](device-tests/0.0.5-thor-runtime.md). The public fixture is NCCH;
 no 3DSX loader or retail baseline is claimed. Exact private Dark Moon, Xenoblade
