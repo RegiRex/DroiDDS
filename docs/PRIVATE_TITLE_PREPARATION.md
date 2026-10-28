@@ -16,17 +16,20 @@ The constructor initializes the measured flags; the manager repeatedly observes
 an empty list and the selected allocation path is unobserved. No generic audio
 correction is justified. Resume that diagnosis when a later phase reaches an
 allocation request or populates the list; do not replay the unchanged prefix.
-Native preparation is the next independent local task toward 0.0.7.
+Native preparation is an independent local stage toward 0.0.7.
 
 <!-- CodexAstraUlt: The first private preparation exposed an output-admission
 limit, so the next run uses the corrected streaming tool and a measured budget. -->
 The first private attempt on `5c73453` generated 522 files totaling 679,996,925
 bytes, then rejected the 512 MiB aggregate bound. It produced no success manifest
 and executed no guest. See the [reported result](host-tests/dark-moon-preparation-2026-10-28.md).
-The next task is one fresh preparation with the streaming correction and an
-explicit **1024 MiB** output allowance. Keep CPU, wall-time and address-space
-limits unchanged. This allowance is temporary host build storage, not APK size
-or game memory. Do not reuse the rejected output as validated input.
+The subsequent run-002 on `67525ef` succeeded with an explicit **1024 MiB**
+output allowance and unchanged CPU, wall-time and address-space limits. Its
+validated manifest and retained output are now inputs to
+[host native compilation](PRIVATE_TITLE_COMPILATION.md), the current local task.
+Do not repeat preparation for this unchanged input. The procedure below remains
+available for a new input/revision. The allowance is temporary host build storage,
+not APK size or game memory; the rejected run-001 remains unvalidated.
 
 ## Build and prepare
 
@@ -41,7 +44,7 @@ python3 tools/tests/test_prepare_private_title.py --worker target/release/droidd
 ```
 
 The second command uses original synthetic data and performs no private-title
-execution. Then prepare the existing authorized Dark Moon base image once:
+execution. For an input still requiring preparation, prepare it once:
 
 ```bash
 python3 tools/prepare_private_title.py \

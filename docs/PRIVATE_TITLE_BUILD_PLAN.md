@@ -44,9 +44,14 @@ base-title resolution, compiler/runtime reader byte comparisons, explicit disabl
 hints, deterministic C emission and a canonical SHA-256 preparation manifest.
 It records header/revision fields, complete decompressed code, logical segments,
 raw CRO/static descriptors, generated files, ABI and source/tool identity.
-The runtime does not yet consume/enforce this manifest. Private native compilation,
-general code-freshness protection, packaging/import/signing and Thor boot remain
-unfinished. No 0.0.7 game APK is claimed by source preparation.
+The owner's private preparation run-002 passes on `67525ef`.
+[Host native compilation](PRIVATE_TITLE_COMPILATION.md) now consumes that manifest,
+revalidates the preparation, compiles serially with bounded processes and verified
+object receipts, links an identity-bound host library, and statically audits it.
+Original fixtures pass; private compilation is the next local task. The runtime
+does not yet consume/enforce these manifests. General code-freshness protection,
+native execution, packaging/import/signing and Thor boot remain unfinished.
+No 0.0.7 game APK is claimed by preparation or host compilation.
 
 ## One resolved title identity
 
@@ -80,10 +85,11 @@ the updated revision.
 <!-- CodexAstraUlt: Reuse code emission and Android packaging primitives while
 keeping arbitrary imported data out of the native-library trust boundary. -->
 
-The generic Linux builder should use
-[`build::generate`](../vendor/3dsrecomp/src/build.rs) in an explicit, private,
-revision-keyed output directory. Generate from the validated resolved input,
-compile the emitted sources with the pinned NDK for Android ARM64, retain the
+The generic Linux builder now uses strict resolved preparation and
+[`build::generate_resolved_to`](../vendor/3dsrecomp/src/build.rs) in an explicit,
+private output directory, followed by bounded host compilation. The planned
+Android stage will compile the same validated sources with the pinned NDK for
+Android ARM64, retain the
 existing floating-point contract, and package an audited title library alongside
 the runtime. Reuse the ELF/dependency/alignment and APK audits from
 [the probe builder](../tools/build_android_probe.py), with an explicit per-title

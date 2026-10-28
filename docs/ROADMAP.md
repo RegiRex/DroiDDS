@@ -68,10 +68,12 @@ guest tracing reaches its evidence limit, without advancing the Android gate. --
 base resolution, compiler/runtime reader byte agreement, disabled discovery hints,
 C generation and a canonical SHA-256 preparation manifest. Run-019 closes the
 bounded audio investigation at an unobserved allocation request, with no generic
-audio fix justified. The first private preparation hit the 512 MiB output
-allowance; the next run uses corrected streaming admission and an explicit
-1024 MiB allowance. Manifest consumption, native
-comparison, packaging and Thor boot remain required for 0.0.7.
+audio fix justified. Private preparation run-002 passes with corrected streaming
+admission and an explicit 1024 MiB allowance.
+[Bounded host compilation](PRIVATE_TITLE_COMPILATION.md) now passes original
+fixture compilation/linking and static audits; it is the next private task.
+Runtime manifest consumption, code freshness, native comparison, packaging and
+Thor boot remain required for 0.0.7.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->

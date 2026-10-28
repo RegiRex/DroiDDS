@@ -116,10 +116,12 @@ record as already enforced by a native runtime or Android package. -->
 base inputs, excludes ambient hints, checks compiler/runtime reader agreement,
 emits C and binds its inputs/outputs in a SHA-256 manifest. Consuming that manifest
 before native execution and packaging remains work. Run-019 closes the bounded
-voice trace without demonstrating an audio defect. Private preparation exceeded
-the initial output allowance; the next local task uses corrected streaming
-admission with an explicit 1024 MiB allowance. No repeated unchanged interpreter
-prefix is required.
+voice trace without demonstrating an audio defect. Private preparation run-002
+passes with corrected streaming admission and an explicit 1024 MiB allowance.
+[Bounded host compilation](PRIVATE_TITLE_COMPILATION.md) is implemented and tested
+on originals, with verified object reuse and static library identity audits. The
+next task is private compilation; runtime code protection and native execution
+remain open. No repeated unchanged interpreter prefix is required.
 
 | Ticket | Scope and concrete output | Acceptance | Depends on | Pack mapping |
 | --- | --- | --- | --- | --- |

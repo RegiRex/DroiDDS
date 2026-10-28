@@ -85,17 +85,19 @@ native preparation tool the current local task rather than another silent run. -
 Run-019 then matches that prefix on the frozen run-018 runtime. It observes
 constructor initialization to `0x8000`, an empty manager list on all 1,704 visits,
 and no dispatch of the watched allocation/reset paths. No runtime audio fix or
-unchanged trace replay is justified. Follow [native-source preparation](PRIVATE_TITLE_PREPARATION.md)
-on current main. This checks resolved inputs and generates deterministic C;
-private native execution, runtime manifest enforcement and packaging remain
-separate implementation/acceptance steps.
+unchanged trace replay is justified. [Native-source preparation](PRIVATE_TITLE_PREPARATION.md)
+checks resolved inputs and generates deterministic C; private native execution,
+runtime manifest enforcement and packaging remain separate steps.
 <!-- CodexAstraUlt: Replace the now-completed default preparation request with
 one measured retry through the corrected bounded writer. -->
 The first private preparation on `5c73453` rejected the 512 MiB allowance after
-generating 679,996,925 bytes; no manifest was published. The corrected compiler
-streams completed sources and checks admission before writes. The next local
-task is one fresh preparation with `--prepared-mib 1024`, retaining all other
-limits and the original/rejected outputs. See the
+generating 679,996,925 bytes; no manifest was published. Run-002 on `67525ef`
+then passes with `--prepared-mib 1024`: 522 files, the same aggregate size and
+a largest file of 23,183,997 bytes. The owner reports a validated manifest and
+127 passing original-fixture checks, with other limits and old outputs preserved.
+The next task is [one bounded host compilation batch](PRIVATE_TITLE_COMPILATION.md)
+using that successful preparation. No new C generation or guest execution is
+needed. See the
 [reported preparation result](host-tests/dark-moon-preparation-2026-10-28.md).
 Parallel builds may use separate outputs; USB stays with the connected session.
 These private-run records are owner text, not independent JSON validation.
@@ -225,13 +227,13 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
 > Safely obtain current RegiRex/DroiDDS main, preserving local work and frozen
-> diagnostic sources. Follow docs/PRIVATE_TITLE_PREPARATION.md using the existing
-> Dark Moon base image. Build with the installed pinned offline toolchain, run
-> the original-fixture preparation checks, then prepare the private title once
-> with --prepared-mib 1024 and unchanged CPU/wall/memory limits in a fresh
-> directory outside Git. Return dark-moon-preparation-summary.md with the
-> outcome, generated counts/largest file, and failure stage/counts if rejected.
-> Preserve the original and rejected output. Keep derived output local.
+> diagnostic sources. Follow docs/PRIVATE_TITLE_COMPILATION.md using the successful
+> Dark Moon preparation run-002 and installed tools. Run the original-fixture
+> compilation checks, then one private compilation batch in a fresh directory
+> outside Git with the documented default limits. Stop at completion, the first
+> blocker or the batch deadline. Return dark-moon-compilation-summary.md with
+> object counts, status and any first blocker. Preserve previous outputs and
+> keep generated code, objects and the library local.
 
 The owner can paste this task into local Codex; they do not need to transcribe
 all build/run commands themselves. This document does not connect sessions or

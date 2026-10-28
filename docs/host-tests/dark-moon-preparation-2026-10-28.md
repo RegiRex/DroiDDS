@@ -1,4 +1,4 @@
-# Dark Moon native-source preparation: first attempt
+# Dark Moon native-source preparation
 
 <!-- CodexAstraUlt: Preserve the owner's local result separately from cloud
 fixture validation and from unperformed native execution or Android testing. -->
@@ -32,3 +32,27 @@ code semantics and keeps the default 512 MiB allowance. The measured size
 justifies one explicit 1024 MiB preparation attempt under the unchanged CPU,
 wall-time and memory limits. The [local procedure](../PRIVATE_TITLE_PREPARATION.md)
 is the next task; native compilation and runtime binding remain later gates.
+
+## Successful second attempt
+
+<!-- CodexAstraUlt: Advance from the owner's successful local preparation without
+claiming independent possession of its private manifest or binary equivalence. -->
+The owner subsequently reports success on `67525ef`, with `--prepared-mib 1024`:
+
+- **522 generated files**, totaling **679,996,925 bytes**.
+- Largest generated file: **23,183,997 bytes**.
+- No rejection; a validated preparation manifest was created.
+- All **127 original-fixture checks** reportedly passed.
+- Other limits, previous outputs and frozen sources were preserved. No private
+  game execution occurred. The local summary remains in preparation run-002.
+
+The file count and aggregate size match run-001. Per-file old/new hashes were not
+supplied, so that agreement is size evidence, not an independent private-output
+byte comparison. The cloud's original-fixture byte comparison is recorded
+[separately](../builds/0.0.7-preparation-streaming.md).
+
+This closes the private source-preparation gate. The next task is
+[bounded host native compilation](../PRIVATE_TITLE_COMPILATION.md), using the
+existing successful preparation rather than generating or copying the game again.
+Runtime identity enforcement, code freshness, native execution and Android boot
+remain separate gates.

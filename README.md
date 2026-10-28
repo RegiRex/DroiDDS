@@ -95,11 +95,13 @@ native execution, package production and private device qualification distinct. 
 [Native-source preparation](docs/PRIVATE_TITLE_PREPARATION.md) now resolves strict
 base-title inputs, compares compiler/runtime reader selections, disables ambient
 hints, emits C and records a SHA-256 manifest. Run-019 closes the bounded Dark Moon
-audio investigation without demonstrating an audio defect. The first private
-preparation exceeded its output allowance; the next task uses streamed generation
-and a measured explicit allowance, as described in the preparation procedure.
-Runtime manifest enforcement, private native comparison
-and Android packaging remain unfinished. This is progress toward 0.0.7, not a
+audio investigation without demonstrating an audio defect. Private preparation
+run-002 now passes. The next task uses the implemented
+[bounded host compiler](docs/PRIVATE_TITLE_COMPILATION.md): serial compilation,
+verified object reuse, identity exports and static library auditing. Original
+fixtures compile and link; private compilation is pending. Runtime manifest
+enforcement, private native comparison and Android packaging remain unfinished.
+This is progress toward 0.0.7, not a
 new game-playing APK.
 
 The corrected-device evidence now includes measured touch and view recreation

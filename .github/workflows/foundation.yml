@@ -48,6 +48,10 @@ jobs:
           cargo test --locked -p droidds-title-builder -- --test-threads=1
           cargo build --locked --release -p droidds-title-builder
           python3 tools/tests/test_prepare_private_title.py --worker target/release/droidds-prepare-title -v
+      # CodexAstraUlt: Link and statically audit actual original prepared C;
+      # compilation must not load a generated library or qualify private games.
+      - name: Verify bounded native compilation with original inputs
+        run: python3 tools/tests/test_compile_private_title.py --worker target/release/droidds-prepare-title -v
       - name: Record result in job summary
         if: always()
         shell: bash
