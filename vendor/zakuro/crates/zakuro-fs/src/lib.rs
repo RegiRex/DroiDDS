@@ -202,7 +202,9 @@ impl Dlc {
         let offset = self.contents.iter().find(|content| content.index == index)?.offset?;
         let data = self.image.data();
         let ncch = NcchHeader::parse(data.get(offset as usize..)?).ok()?;
-        if !ncch.has_romfs() || (!ncch.is_decrypted() && ncch.crypto_method() != 0) {
+        // CodexAstraUlt: Remove the method-zero exception so an encrypted inner
+        // NCCH cannot expose ciphertext as a clear DLC filesystem window.
+        if !ncch.has_romfs() || !ncch.is_decrypted() {
             return None;
         }
         let romfs = RomFs::parse(data, offset + ncch.romfs_offset).ok()?;
@@ -241,7 +243,9 @@ impl Title {
         let ncch_data = data.get(ncch_offset as usize..).ok_or(FsError::NoExecutablePartition)?;
         let ncch = NcchHeader::parse(ncch_data)?;
 
-        if !ncch.is_decrypted() && ncch.crypto_method() != 0 {
+        // CodexAstraUlt: Original method zero and fixed-key crypto also need
+        // decryption; only an explicit no-crypto flag permits plaintext parsing.
+        if !ncch.is_decrypted() {
             return Err(FsError::Encrypted(ncch.crypto_method()));
         }
 
@@ -382,6 +386,91 @@ mod addon_tests {
     const GAME: u64 = 0x0004_0000_00AB_CD00;
     const UPDATE: u64 = 0x0004_000E_00AB_CD00;
     const DLC: u64 = 0x0004_008C_00AB_CD00;
+
+    // CodexAstraUlt: Vary declarations on original plaintext fixtures to test
+    // admission only, without proprietary keys or an AES implementation.
+    fn declared_crypto_fixture(title_id: u64, method: u8, flags: u8) -> Vec<u8> {
+        let mut bytes = ncch(title_id, Some(&[1, 2, 3, 4]), &[("data.bin", b"original")]);
+        bytes[0x18B] = method;
+        bytes[0x18F] = flags;
+        bytes
+    }
+
+    // CodexAstraUlt: Original method zero, fixed-key and seed crypto still
+    // require decryption for both bare titles and inner NCCHs of clear CIAs.
+    #[test]
+    fn ncch_encryption_flags_reject_titles_and_updates() {
+        for method in [0, 1, 0x0A, 0x0B] {
+            for flags in [0, 1, 0x20, 0x21] {
+                let game = write("encrypted-admission", "game.cxi", &declared_crypto_fixture(GAME, method, flags));
+                let update = write("encrypted-admission", "update.cia", &cia(UPDATE, 1,
+                    &[(0, Some(&declared_crypto_fixture(UPDATE, method, flags)))]));
+                assert!(matches!(Title::load(&game), Err(FsError::Encrypted(value)) if value == method),
+                    "title method {method:#04x}, flags {flags:#04x} must reject encrypted payloads");
+                assert!(matches!(Update::load(&update), Err(FsError::Encrypted(value)) if value == method),
+                    "update method {method:#04x}, flags {flags:#04x} must reject encrypted payloads");
+                std::fs::remove_file(game).unwrap();
+                std::fs::remove_file(update).unwrap();
+            }
+        }
+    }
+
+    // CodexAstraUlt: The no-crypto flag overrides retained crypto method,
+    // fixed-key and seed bits without changing title or update payloads.
+    #[test]
+    fn ncch_no_crypto_flag_takes_precedence_for_titles_and_updates() {
+        for method in [0, 1, 0x0A, 0x0B] {
+            for flags in [4, 5, 0x24, 0x25] {
+                let game = write("decrypted-admission", "game.cxi", &declared_crypto_fixture(GAME, method, flags));
+                let update = write("decrypted-admission", "update.cia", &cia(UPDATE, 1,
+                    &[(0, Some(&declared_crypto_fixture(UPDATE, method, flags)))]));
+                assert_eq!(Title::load(&game).unwrap().code().unwrap(), [1, 2, 3, 4]);
+                assert_eq!(Update::load(&update).unwrap().title.code().unwrap(), [1, 2, 3, 4]);
+                std::fs::remove_file(game).unwrap();
+                std::fs::remove_file(update).unwrap();
+            }
+        }
+    }
+
+    // CodexAstraUlt: A clear outer CIA does not make an encrypted inner DLC
+    // NCCH readable; do not expose its RomFS window as plaintext data.
+    #[test]
+    fn ncch_encryption_flags_hide_dlc_romfs() {
+        for method in [0, 1, 0x0A, 0x0B] {
+            for flags in [0, 1, 0x20, 0x21] {
+                let path = write("encrypted-admission", "dlc.cia", &cia(DLC, 1,
+                    &[(0, Some(&declared_crypto_fixture(DLC, method, flags)))]));
+                let dlc = Dlc::load(&path).unwrap();
+                assert!(dlc.romfs(0).is_none(),
+                    "DLC method {method:#04x}, flags {flags:#04x} must not expose encrypted data");
+                drop(dlc);
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+
+    // CodexAstraUlt: Preserve access to actual plaintext DLC when its header
+    // retains the earlier method, fixed-key or seed settings.
+    #[test]
+    fn ncch_no_crypto_flag_takes_precedence_for_dlc_romfs() {
+        for method in [0, 1, 0x0A, 0x0B] {
+            for flags in [4, 5, 0x24, 0x25] {
+                let path = write("decrypted-admission", "dlc.cia", &cia(DLC, 1,
+                    &[(0, Some(&declared_crypto_fixture(DLC, method, flags)))]));
+                let dlc = Dlc::load(&path).unwrap();
+                let (offset, size) = dlc.romfs(0).unwrap();
+                let image = dlc.image();
+                let window = &image.data()[offset as usize..(offset + size) as usize];
+                let romfs = RomFs::parse_level3(window, 0).unwrap();
+                let file = romfs.lookup("data.bin").unwrap();
+                let at = romfs.file_data_offset(&file) as usize;
+                assert_eq!(&window[at..at + file.data_size as usize], b"original");
+                drop(image);
+                drop(dlc);
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
 
     /// a game runs its update's code and exheader, and has the update's
     /// RomFS besides its own.

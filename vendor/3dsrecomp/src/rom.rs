@@ -433,9 +433,10 @@ impl Title {
             return error("the executable partition has no NCCH header");
         }
         let flags = &header[0x188..0x190];
-        // the partition is readable as it is when it says so, or when it was
-        // never encrypted
-        if flags[7] & 0x04 == 0 && flags[3] != 0 {
+        // CodexAstraUlt: Remove the method-zero plaintext exception: zero
+        // selects original NCCH encryption, and fixed keys still need AES.
+        // Until import performs decryption, only the no-crypto flag admits data.
+        if flags[7] & 0x04 == 0 {
             return error("the dump is encrypted, it has to be decrypted first");
         }
         let program_id = u64_at(&header, 0x118);
@@ -788,6 +789,47 @@ pub(crate) mod tests {
         assert_eq!(read("CRO/field.cro"), b"field");
         drop(title);
         std::fs::remove_file(path).unwrap();
+    }
+
+    // CodexAstraUlt: These original plaintext fixtures deliberately vary the
+    // declared crypto flags to test admission, not AES decryption. Method zero
+    // selects original NCCH encryption; fixed/seed flags do not make it clear.
+    #[test]
+    fn ncch_encryption_flags_require_decryption_in_both_compiler_loaders() {
+        for method in [0, 1, 0x0A, 0x0B] {
+            for flags in [0, 1, 0x20, 0x21] {
+                let path = rom("encrypted-admission", &[1, 2, 3, 4], &[]);
+                let mut bytes = std::fs::read(&path).unwrap();
+                bytes[0x18B] = method;
+                bytes[0x18F] = flags;
+                std::fs::write(&path, bytes).unwrap();
+                for loaded in [Title::load(&path), Title::load_strict(&path)] {
+                    assert!(matches!(loaded, Err(error) if error.to_string() == "the dump is encrypted, it has to be decrypted first"),
+                        "method {method:#04x}, flags {flags:#04x} must reject before parsing encrypted payloads");
+                }
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+
+    // CodexAstraUlt: Explicitly decrypted dumps can retain their former method,
+    // fixed-key and seed bits; the no-crypto flag must remain authoritative.
+    #[test]
+    fn ncch_no_crypto_flag_takes_precedence_in_both_compiler_loaders() {
+        for method in [0, 1, 0x0A, 0x0B] {
+            for flags in [4, 5, 0x24, 0x25] {
+                let path = rom("decrypted-admission", &[1, 2, 3, 4], &[]);
+                let mut bytes = std::fs::read(&path).unwrap();
+                bytes[0x18B] = method;
+                bytes[0x18F] = flags;
+                std::fs::write(&path, bytes).unwrap();
+                for loaded in [Title::load(&path), Title::load_strict(&path)] {
+                    let title = loaded.unwrap();
+                    assert_eq!(title.code().unwrap(), [1, 2, 3, 4]);
+                }
+                std::fs::remove_file(path).unwrap();
+            }
+        }
     }
 
     /// a literal and a run, the smallest stream that exercises both.

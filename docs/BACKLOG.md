@@ -141,6 +141,12 @@ remain open. No repeated unchanged interpreter prefix is required.
 | DDS-014 | Private Android control-title slice and reusable device runner | Actual Thor AOT execution, graphics/audio/input/save; repeated cold/warm normal-speed measurements; memory and teardown gates pass; one device operator | 011/012/013 | NRR-0803–0808 |
 | DDS-015 | Dark Moon-specific diagnosis and correction | Matching opening moon/ghost clips; CPU/HLE/PICA route evidence; minimized reproducer for each fault; no-glitch acceptance separate from speed; long-run memory evidence | 014; early diagnosis in 011 | Owner goal; TEST-006/013/014 |
 | DDS-016 | Stage-specific performance and product qualification | 1×/2×/4× matrix, sustained thermals/memory, Thor physical-display test; regression title matrix; each claimed improvement has a matched baseline | 014; Dark Moon claims require 015 | PERF/TEST; later M6/M7 work |
+| DDS-017 | [Automatic encrypted-title import](ENCRYPTED_TITLE_IMPORT.md): one bounded normalization stage shared by compiler/runtime, explicit local keys/seeds, original and decoded identity binding | Original encrypted fixtures decode exactly; wrong/missing keys, seeds and hashes reject; no secrets in reports; cancellation/space bounds; one matched private revision and separate Android qualification | 013; runtime manifest consumption for native execution | Owner import-usability request; optional to current decrypted-title gate |
+
+<!-- CodexAstraUlt: Add the owner's automatic-decryption request as a separate
+import task; it does not reopen the successful decrypted-title preparation. -->
+DDS-017 is planned; automatic decryption is not yet implemented. The current
+decrypted Dark Moon preparation and compilation remain valid without this feature.
 
 ## Foundation context and continuation
 
