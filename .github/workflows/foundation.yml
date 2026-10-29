@@ -52,6 +52,16 @@ jobs:
       # compilation must not load a generated library or qualify private games.
       - name: Verify bounded native compilation with original inputs
         run: python3 tools/tests/test_compile_private_title.py --worker target/release/droidds-prepare-title -v
+      # CodexAstraUlt: Require real admitted native execution and fail-stop fence
+      # regressions before exposing the host-only private comparison procedure.
+      - name: Verify guarded native host execution with original inputs
+        run: |
+          cargo fmt -p droidds-native-title-tools -- --check
+          cargo clippy --locked -p droidds-native-title-tools --all-targets --no-deps -- -D warnings
+          cargo test --locked -p zakuro-core -p droidds-title-tools -p droidds-native-title-tools -- --test-threads=1
+          cargo build --locked --release -p droidds-native-title-tools
+          cargo build --locked --release -p droidds-runtime-probe --features producer
+          python3 tools/check_native_title_pipeline.py --output "$RUNNER_TEMP/droidds-native-host-original"
       - name: Record result in job summary
         if: always()
         shell: bash

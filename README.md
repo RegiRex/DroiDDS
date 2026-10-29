@@ -96,11 +96,13 @@ native execution, package production and private device qualification distinct. 
 base-title inputs, compares compiler/runtime reader selections, disables ambient
 hints, emits C and records a SHA-256 manifest. Run-019 closes the bounded Dark Moon
 audio investigation without demonstrating an audio defect. Private preparation
-run-002 now passes. The next task uses the implemented
-[bounded host compiler](docs/PRIVATE_TITLE_COMPILATION.md): serial compilation,
-verified object reuse, identity exports and static library auditing. Original
-fixtures compile and link; private compilation is pending. Runtime manifest
-enforcement, private native comparison and Android packaging remain unfinished.
+run-002 now passes. The [bounded host compiler](docs/PRIVATE_TITLE_COMPILATION.md)
+has completed the private library: 521/521 objects, linked and statically audited.
+[Guarded native host comparison](docs/PRIVATE_TITLE_NATIVE_RUN.md) adds manifest/
+table admission and an immutable-base fence, with dynamic modules interpreted.
+Original fixtures execute and match both routes; the next task is the first
+private native comparison using the existing library. General mutable native
+code, private boot evidence and Android packaging remain unfinished.
 This is progress toward 0.0.7, not a
 new game-playing APK.
 

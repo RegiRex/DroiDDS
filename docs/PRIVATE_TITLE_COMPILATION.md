@@ -10,11 +10,12 @@ execute the game, build/install an APK or use USB. The public app remains
 
 <!-- CodexAstraUlt: Advance the first healthy private deadline into bounded
 receipt reuse without restarting generation or silently raising resource caps. -->
-Compilation run-001 on `8e06139` now reports **133/521 validated objects**, with
-388 remaining and no linked library. It stopped at the default 30-minute batch
-deadline with no earlier compiler failure. The current local task is the
-[bounded resume below](#continue-the-existing-dark-moon-compilation). The initial
-procedure remains available for other fresh inputs. See the
+Compilation run-001 on `8e06139` first reported 133/521 validated objects at its
+default deadline. The three bounded resumes now finish **521/521 objects** and a
+linked, statically validated library, without loading or executing it. The current
+local task is [guarded native comparison](PRIVATE_TITLE_NATIVE_RUN.md); do not
+repeat compilation. The procedures below remain for fresh inputs or unfinished
+compilations. See the
 [private compilation record](host-tests/dark-moon-compilation-2026-10-28.md).
 
 ## Initial compilation batch
@@ -108,6 +109,9 @@ change optimization, skip a source, or automatically repeat a failed command.
 
 <!-- CodexAstraUlt: Give the local agent a finite continuation that reuses the
 validated objects and returns one result instead of another manual deadline relay. -->
+This continuation has completed successfully. The instructions below record the
+bounded procedure used; the current task is [native comparison](PRIVATE_TITLE_NATIVE_RUN.md).
+
 Use the same preparation, compiler selection and existing compilation output from
 run-001. No checkout update, C generation, preparation-worker rebuild, or unchanged
 fixture-test rerun is required. The compilation coordinator rechecks the source,
@@ -150,9 +154,10 @@ attempt directories and `compiled-manifest.json`, which names and hashes the
 linked `libdroidds_title.so`. Static ELF inspection checks host architecture,
 load permissions, dependencies, required exported metadata, ABI 4/generation 3
 and exact preparation/contract hashes. Inspection never loads the library.
-Runtime pointer-table validation and general code freshness remain unfinished;
-the manifest records `runtime_binding_enforced=false` and
-`guest_execution_performed=false`.
+The compilation manifest retains `runtime_binding_enforced=false` and
+`guest_execution_performed=false`. The separate [native comparison tool](PRIVATE_TITLE_NATIVE_RUN.md)
+now implements runtime table admission and an immutable-base diagnostic fence;
+general mutable-code execution and Android qualification remain unfinished.
 
 Return a short `dark-moon-compilation-summary.md` containing:
 

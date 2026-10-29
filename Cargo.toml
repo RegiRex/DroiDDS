@@ -11,6 +11,9 @@ members = ["crates/droidds-foundation", "crates/droidds-android-probe",
            # CodexAstraUlt: Native-source preparation is a separate host tool;
            # no compiler dependency is added to the Android or diagnostic worker.
            "crates/droidds-title-builder",
+           # CodexAstraUlt: Sealed, identity-bound native host diagnostics are
+           # distinct from the established interpreter reconnaissance worker.
+           "crates/droidds-native-title-tools",
            "crates/droidds-runtime-probe", "vendor/zakuro/crates/zakuro-core",
            "vendor/zakuro/crates/zakuro-fs", "vendor/zakuro/crates/zakuro-gpu"]
 # CodexAstraUlt: Preserve the default host command while Android explicitly

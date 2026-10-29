@@ -95,15 +95,15 @@ generating 679,996,925 bytes; no manifest was published. Run-002 on `67525ef`
 then passes with `--prepared-mib 1024`: 522 files, the same aggregate size and
 a largest file of 23,183,997 bytes. The owner reports a validated manifest and
 127 passing original-fixture checks, with other limits and old outputs preserved.
-The first [host compilation batch](PRIVATE_TITLE_COMPILATION.md) now stops at its
-default 30-minute deadline with 133/521 validated objects, 388 remaining and no
-earlier compiler failure. No linked library exists yet. The owner reports 61
-passing original-fixture checks and preserved outputs. The next task is up to
-three serial default-budget resumes against the same output, continuing only
-after verified progress and a healthy batch deadline. Return one consolidated
-summary; preserve the original reports. No new C generation or guest execution
-is needed. See the [preparation result](host-tests/dark-moon-preparation-2026-10-28.md)
-and [compilation record](host-tests/dark-moon-compilation-2026-10-28.md).
+The first [host compilation batch](PRIVATE_TITLE_COMPILATION.md) reached its
+30-minute deadline with 133/521 validated objects and no earlier failure. Three
+additional bounded resumes now complete **521/521 objects** and a linked,
+statically validated library. The owner reports preserved outputs and no library
+loading or guest execution. The next task is one [guarded native comparison](PRIVATE_TITLE_NATIVE_RUN.md),
+reusing the successful preparation and original compilation directory. Build only
+the new host worker; preserve all title objects and reports. See the
+[preparation result](host-tests/dark-moon-preparation-2026-10-28.md) and
+[compilation record](host-tests/dark-moon-compilation-2026-10-28.md).
 Parallel builds may use separate outputs; USB stays with the connected session.
 These private-run records are owner text, not independent JSON validation.
 

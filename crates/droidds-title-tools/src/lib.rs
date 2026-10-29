@@ -341,6 +341,11 @@ fn first_blocker(system: &System) -> Option<Value> {
             DiagnosticFault::Breakpoint { pc, imm } => {
                 json!({"kind":"breakpoint", "pc":pc, "immediate":imm})
             }
+            // CodexAstraUlt: Preserve exhaustive diagnostics while the ordinary
+            // interpreter worker leaves this native-only fence disabled.
+            DiagnosticFault::NativeCodeFence { pc } => {
+                json!({"kind":"native_code_fence", "pc":pc})
+            }
         });
     }
     if let Some(number) = system.unimplemented_svcs.first() {

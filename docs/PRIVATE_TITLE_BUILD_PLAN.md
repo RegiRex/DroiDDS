@@ -48,9 +48,13 @@ The owner's private preparation run-002 passes on `67525ef`.
 [Host native compilation](PRIVATE_TITLE_COMPILATION.md) now consumes that manifest,
 revalidates the preparation, compiles serially with bounded processes and verified
 object receipts, links an identity-bound host library, and statically audits it.
-Original fixtures pass; private compilation is the next local task. The runtime
-does not yet consume/enforce these manifests. General code-freshness protection,
-native execution, packaging/import/signing and Thor boot remain unfinished.
+Private compilation now passes with 521/521 objects and a linked/static-validated
+library. [Guarded Linux comparison](PRIVATE_TITLE_NATIVE_RUN.md) now consumes the
+manifests, checks the full pointer graph and actual runtime bytes, and executes
+the immutable base under a host fence while dynamic modules remain interpreted.
+Original fixtures pass this native route. The first private native comparison,
+general mutable-code execution, packaging/import/signing and Thor boot remain
+unfinished; the existing private library does not need regeneration.
 No 0.0.7 game APK is claimed by preparation or host compilation.
 
 ## One resolved title identity

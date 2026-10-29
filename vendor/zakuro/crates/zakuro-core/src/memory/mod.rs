@@ -4,6 +4,9 @@ pub mod config;
 // CodexAstraUlt: One resolved layout feeds construction and guest reporting.
 pub mod layout;
 pub mod physical;
+// CodexAstraUlt: Host diagnostic fencing is opt-in and separate from guest
+// permissions and normal renderer guards.
+mod fence;
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -101,6 +104,21 @@ pub struct Memory {
     /// while a loop is watched for changing nothing, what each byte the CPU
     /// wrote held before its first write, see crate::idle.
     write_log: Option<Box<WriteLog>>,
+    // CodexAstraUlt: A fixed base-text fence owns no guest-code snapshots.
+    // The epoch makes unchanged-map checks constant time between guest steps.
+    base_code_fence: Option<BaseCodeFence>,
+    fence_mapping_epoch: u64,
+}
+
+// CodexAstraUlt: Keep admitted mapping identity while Linux enforces immutable
+// physical backing, including direct native pointers and GPU physical aliases.
+struct BaseCodeFence {
+    text_start: u32,
+    mapped_bytes: u32,
+    physical_offset: usize,
+    fcram_start: usize,
+    fcram_bytes: usize,
+    verified_epoch: std::cell::Cell<u64>,
 }
 
 /// what the CPU's writes wrote over, byte by byte.
@@ -170,6 +188,11 @@ impl Memory {
     /// the memory map as a saved state had it, with nothing the GPU drew
     /// held back from the CPU.
     pub fn load_map(&mut self, state: MapState) -> Result<(), String> {
+        // CodexAstraUlt: State replacement is outside this immutable-code
+        // diagnostic; reject before changing any allocation or table entries.
+        if self.base_code_fence.is_some() {
+            return Err("native_base_code_fence_disallows_state_restore".into());
+        }
         // CodexAstraUlt: Validate every operation that can fail before replacing
         // allocation state or page pointers; load_state also calls this first.
         self.validate_map(&state)?;
@@ -241,6 +264,90 @@ impl Memory {
             mappings: BTreeMap::new(),
             faults: BTreeMap::new(),
             write_log: None,
+            base_code_fence: None,
+            fence_mapping_epoch: 0,
+        }
+    }
+
+    /// CodexAstraUlt: Arm only after initial title loading, before guest/GPU
+    /// execution or exposing persistent native table pointers. The original
+    /// FCRAM allocation stays live until all four internal tables are rebased.
+    pub fn install_base_code_fence(&mut self, text_start: u32, mapped_bytes: u32) -> Result<(), String> {
+        if self.base_code_fence.is_some() {
+            return Err("native_base_code_fence_already_installed".into());
+        }
+        if text_start & PAGE_MASK != 0 || mapped_bytes == 0 || mapped_bytes & PAGE_MASK != 0 ||
+            text_start.checked_add(mapped_bytes).is_none() || mapped_bytes > 64 * 1024 * 1024 {
+            return Err("native_base_code_fence_invalid_guest_range".into());
+        }
+        let old_start = self.phys.fcram.as_ptr() as usize;
+        let bytes = self.phys.fcram.len();
+        let first = self.read_table[(text_start >> PAGE_BITS) as usize] as usize;
+        let offset = first.checked_sub(old_start).ok_or("native_base_code_fence_requires_fcram")?;
+        if offset.checked_add(mapped_bytes as usize).is_none_or(|end| end > bytes) {
+            return Err("native_base_code_fence_requires_fcram".into());
+        }
+        let mut admitted = BaseCodeFence { text_start, mapped_bytes, physical_offset: offset,
+            fcram_start: old_start, fcram_bytes: bytes, verified_epoch: std::cell::Cell::new(u64::MAX) };
+        self.verify_fence_pages(&admitted)?;
+        let mut aligned = self.phys.fcram.fenced_copy(offset, mapped_bytes as usize)?;
+        let new_start = aligned.as_mut_ptr() as usize;
+        // CodexAstraUlt: Preserve nulls/GPU guards and non-FCRAM backing. No
+        // allocation or fallible operation remains before the old buffer drops.
+        for table in [&mut self.read_table, &mut self.write_table, &mut self.cpu_read_table, &mut self.cpu_write_table] {
+            for pointer in table {
+                let old = *pointer as usize;
+                if old >= old_start && old - old_start < bytes {
+                    *pointer = (new_start + (old - old_start)) as *mut u8;
+                }
+            }
+        }
+        self.phys.fcram = aligned;
+        admitted.fcram_start = new_start;
+        admitted.verified_epoch.set(self.fence_mapping_epoch);
+        self.base_code_fence = Some(admitted);
+        Ok(())
+    }
+
+    /// CodexAstraUlt: Absence is valid for unchanged normal frontends. Restricted
+    /// native libraries separately require the fence to be active before entry.
+    pub fn base_code_fence_active(&self) -> bool { self.base_code_fence.is_some() }
+
+    /// CodexAstraUlt: No code hashing occurs per instruction. An actual map/guard
+    /// change triggers bounded pointer/permission checks; other calls are O(1).
+    pub fn verify_base_code_fence(&self) -> Result<(), String> {
+        let Some(fence) = &self.base_code_fence else { return Ok(()) };
+        if !self.phys.fcram.is_fenced_mapping() || self.phys.fcram.as_ptr() as usize != fence.fcram_start ||
+            self.phys.fcram.len() != fence.fcram_bytes {
+            return Err("native_base_code_fence_backing_changed".into());
+        }
+        if self.fence_mapping_epoch == u64::MAX || fence.verified_epoch.get() != self.fence_mapping_epoch {
+            self.verify_fence_pages(fence)?;
+            fence.verified_epoch.set(self.fence_mapping_epoch);
+        }
+        Ok(())
+    }
+
+    fn verify_fence_pages(&self, fence: &BaseCodeFence) -> Result<(), String> {
+        for offset in (0..fence.mapped_bytes).step_by(PAGE_SIZE as usize) {
+            let address = fence.text_start + offset;
+            let index = (address >> PAGE_BITS) as usize;
+            let expected = fence.fcram_start + fence.physical_offset + offset as usize;
+            let physical = FCRAM_PADDR + fence.physical_offset as u32 + offset;
+            let mapping_ok = self.mapping_at(address).is_some_and(|mapping|
+                mapping.permission == Permission::RX &&
+                mapping.paddr.checked_add(address - mapping.base) == Some(physical));
+            if self.read_table[index] as usize != expected || self.cpu_read_table[index] as usize != expected ||
+                !self.write_table[index].is_null() || !self.cpu_write_table[index].is_null() || !mapping_ok {
+                return Err("native_base_code_fence_mapping_changed".into());
+            }
+        }
+        Ok(())
+    }
+
+    fn fence_mapping_changed(&mut self) {
+        if self.base_code_fence.is_some() {
+            self.fence_mapping_epoch = self.fence_mapping_epoch.saturating_add(1);
         }
     }
 
@@ -294,6 +401,9 @@ impl Memory {
         permission: Permission,
         state: MemoryState,
     ) {
+        // CodexAstraUlt: An opted-in native fence revalidates after mappings
+        // change, before another native dispatch can use a stale virtual origin.
+        self.fence_mapping_changed();
         // services hand out blocks sized to their contents rather than to a
         // page, so round up rather than refusing.
         let vaddr = vaddr & !PAGE_MASK;
@@ -371,6 +481,7 @@ impl Memory {
     }
 
     pub fn unmap(&mut self, vaddr: VAddr, size: u32) {
+        self.fence_mapping_changed();
         for page in 0..size / PAGE_SIZE {
             let index = ((vaddr + page * PAGE_SIZE) >> PAGE_BITS) as usize;
             self.read_table[index] = std::ptr::null_mut();
@@ -632,6 +743,7 @@ impl Memory {
     /// to draw its lens flare. the rest of a page the range shares is read
     /// the slow way while it is guarded, without asking.
     pub fn guard_cpu_reads(&mut self, vaddr: VAddr, len: u32) {
+        self.fence_mapping_changed();
         add_guard(&mut self.guards, &mut self.cpu_read_table, vaddr, len);
     }
 
@@ -641,6 +753,7 @@ impl Memory {
     /// something else where a buffer it is done with was, Tomodachi Life its
     /// objects, which the drawing written back later would have broken.
     pub fn guard_cpu_writes(&mut self, vaddr: VAddr, len: u32) {
+        self.fence_mapping_changed();
         add_guard(&mut self.write_guards, &mut self.cpu_write_table, vaddr, len);
     }
 
@@ -685,6 +798,7 @@ impl Memory {
     /// they stay guarded.
     fn unguard(&mut self, addr: VAddr, len: u32) {
         let Some(sync) = self.gpu_sync else { return };
+        self.fence_mapping_changed();
         for (from, to) in take_guards(&mut self.guards, addr, len) {
             // SAFETY: the system set it while it runs the CPU, which is the
             // only thing reading through this
@@ -719,6 +833,7 @@ impl Memory {
     /// as unguard does for reads, before the write lands over it.
     fn unguard_writes(&mut self, addr: VAddr, len: u32) {
         let Some(sync) = self.gpu_sync else { return };
+        self.fence_mapping_changed();
         for (from, to) in take_guards(&mut self.write_guards, addr, len) {
             // SAFETY: as in unguard
             unsafe { (sync.sync_write)(sync.gpu, sync.linear_base, self, from, to - from) };
@@ -904,6 +1019,10 @@ impl Bus for Memory {
 // and the exported page tables before enabling general native title modules.
 #[cfg(test)]
 mod remap_tests;
+// CodexAstraUlt: Process-isolated protection controls run only on the supported
+// Linux host; ordinary target memory behavior remains covered by the prior tests.
+#[cfg(all(test, target_os = "linux"))]
+mod fence_tests;
 
 #[cfg(test)]
 mod tests {

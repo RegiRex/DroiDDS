@@ -70,13 +70,13 @@ C generation and a canonical SHA-256 preparation manifest. Run-019 closes the
 bounded audio investigation at an unobserved allocation request, with no generic
 audio fix justified. Private preparation run-002 passes with corrected streaming
 admission and an explicit 1024 MiB allowance.
-[Bounded host compilation](PRIVATE_TITLE_COMPILATION.md) passes original fixture
-compilation/linking and static audits. The first private batch reaches its
-30-minute deadline with 133/521 validated objects and no earlier compiler failure;
-388 remain and no private library is linked. Bounded receipt-based resume is the
-next local task; see the [compilation record](host-tests/dark-moon-compilation-2026-10-28.md).
-Runtime manifest consumption, code freshness, native comparison, packaging and
-Thor boot remain required for 0.0.7.
+[Bounded host compilation](PRIVATE_TITLE_COMPILATION.md) now completes the private
+library: 521/521 objects after three bounded resumes, linked and statically
+validated without execution. See the [compilation record](host-tests/dark-moon-compilation-2026-10-28.md).
+[Guarded Linux native comparison](PRIVATE_TITLE_NATIVE_RUN.md) adds manifest/table
+admission and an immutable-base fence, with dynamic modules interpreted. It is
+the next private task. General mutable-code execution, native/private comparison
+evidence, packaging and Thor boot remain required follow-up work for 0.0.7.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->

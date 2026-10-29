@@ -633,6 +633,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "droidds-native-title-tools"
+version = "0.0.1"
+dependencies = [
+ "droidds-runtime-probe",
+ "libc",
+ "memmap2",
+ "recomp-abi",
+ "serde",
+ "serde_json",
+ "zakuro-common",
+ "zakuro-core",
+ "zakuro-cpu",
+ "zakuro-fs",
+]
+
+[[package]]
 name = "droidds-runtime-probe"
 version = "0.0.6"
 dependencies = [
@@ -1855,6 +1871,7 @@ dependencies = [
  "bitflags 2.13.2",
  "chrono",
  "env_logger",
+ "libc",
  "log",
  "lz4_flex",
  "postcard",

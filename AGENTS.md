@@ -94,6 +94,19 @@ rewriting its missing A observation or qualifying private games from a fixture. 
   saves and reports outside Git. A host interpreter/software outcome is neither
   native qualification nor an Android 0.0.7 boot milestone. Stop at the first
   unsupported runtime behavior; never qualify progress by silently skipping it.
+<!-- CodexAstraUlt: Preserve the completed private build and the restricted
+native admission path instead of reopening compilation or using legacy loading. -->
+- Dark Moon's owner-reported host compilation now completes 521/521 objects and
+  a linked/static-validated library. Read docs/PRIVATE_TITLE_NATIVE_RUN.md and
+  docs/builds/0.0.7-native-host-comparison.md for the next private host test.
+  Reuse its preparation/library; do not regenerate or recompile title code.
+  The new host-only path admits manifests and full ELF pointer tables, seals
+  library bytes and binds actual runtime components before loading. Its Linux
+  4 KiB fence permits immutable base native execution while CROs stay interpreted.
+  It fails closed on code writes/remaps; general mutable-code deoptimization and
+  Android qualification remain open. A signal alone does not establish cause.
+  Compare exact guest-cycle checkpoints, subtract callback-interpreted work from
+  compiled-dispatch totals, and never qualify a native run with zero native work.
 - Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,
   commitment/configuration, heap-bound and restore-preflight corrections. The
   host compiler is also vendored to repair conditional-flow budget accounting;

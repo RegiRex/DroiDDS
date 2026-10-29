@@ -132,7 +132,8 @@ impl System {
         out.extend_from_slice(&self.kernel.program_id.to_le_bytes());
         section(&mut out, &state);
         let phys = &self.memory.phys;
-        for memory in [&phys.fcram, &phys.vram, &phys.dsp_ram, &phys.axi_wram] {
+        // CodexAstraUlt: Read either ordinary or fenced FCRAM through its slice.
+        for memory in [phys.fcram.as_ref(), phys.vram.as_ref(), phys.dsp_ram.as_ref(), phys.axi_wram.as_ref()] {
             section(&mut out, memory);
         }
         Ok(out)
@@ -141,6 +142,11 @@ impl System {
     /// puts the console back as a saved state had it. nothing changes when
     /// the state is not one this game and this Zakuro can take.
     pub fn load_state(&mut self, bytes: &[u8]) -> Result<(), String> {
+        // CodexAstraUlt: The immutable base-code diagnostic cannot restore RAM
+        // or mappings; reject before parsing or modifying any live state.
+        if self.memory.base_code_fence_active() {
+            return Err("native_base_code_fence_disallows_state_restore".into());
+        }
         let mut reader = Reader(bytes);
         if reader.take(MAGIC.len())? != MAGIC {
             return Err("it is not a saved state".into());
@@ -175,7 +181,8 @@ impl System {
         // all of it read, the console takes it
         self.idle_interrupted(true);
         let phys = &mut self.memory.phys;
-        for (memory, store) in memories.iter().zip([&mut phys.fcram, &mut phys.vram, &mut phys.dsp_ram, &mut phys.axi_wram]) {
+        // CodexAstraUlt: The unfenced restore route retains its existing bytes.
+        for (memory, store) in memories.iter().zip([phys.fcram.as_mut(), phys.vram.as_mut(), phys.dsp_ram.as_mut(), phys.axi_wram.as_mut()]) {
             store.copy_from_slice(memory);
         }
         self.memory.load_map(saved.map)?;

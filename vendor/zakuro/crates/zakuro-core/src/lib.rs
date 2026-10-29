@@ -146,6 +146,9 @@ pub enum FrameOutcome {
 pub enum DiagnosticFault {
     UndefinedInstruction { pc: u32, opcode: u32, thumb: bool },
     Breakpoint { pc: u32, imm: u32 },
+    // CodexAstraUlt: Explicit mapping/fence failure; a process signal remains a
+    // separate unclassified worker failure and is never promoted to this record.
+    NativeCodeFence { pc: u32 },
 }
 
 /// a screen's picture as RGBA, and its width and height.
@@ -405,6 +408,14 @@ impl System {
             return StepOutcome::Faulted;
         }
 
+        // CodexAstraUlt: Check before scheduler/GPU work and any guest dispatch;
+        // failed immutable-base admission stops this diagnostic immediately.
+        if self.memory.verify_base_code_fence().is_err() {
+            self.diagnostic_fault.get_or_insert(DiagnosticFault::NativeCodeFence { pc: self.cpu.regs[15] });
+            self.broke = true;
+            return StepOutcome::Faulted;
+        }
+
         // fire the end-of-frame work on schedule even when a tool is stepping,
         // or a title waiting on vertical blank would never be woken.
         if self.cpu.cycles >= self.next_frame_boundary {
@@ -622,6 +633,13 @@ impl System {
     /// has to look at, when the library has code there. what it returns
     /// stands in for what one interpreted step would.
     fn run_recompiled(&mut self, deadline: Option<u64>) -> Option<Option<Exit>> {
+        // CodexAstraUlt: Work earlier in step may change maps/guards. Recheck
+        // immediately before native entry without per-instruction code hashing.
+        if self.memory.verify_base_code_fence().is_err() {
+            self.diagnostic_fault.get_or_insert(DiagnosticFault::NativeCodeFence { pc: self.cpu.regs[15] });
+            self.broke = true;
+            return Some(None);
+        }
         let library = self.recompiled.as_ref()?;
         if !library.has_code(self.cpu.regs[15] | self.cpu.cpsr.thumb as u32) {
             return None;
@@ -670,6 +688,11 @@ impl System {
             recompiled::Stop::Svc(number) => Some(Exit::Supervisor(number)),
             recompiled::Stop::Exit(exit) => Some(exit),
             recompiled::Stop::Left => None,
+            recompiled::Stop::CodeFence => {
+                self.diagnostic_fault.get_or_insert(DiagnosticFault::NativeCodeFence { pc: self.cpu.regs[15] });
+                self.broke = true;
+                None
+            },
         })
     }
 

@@ -2,6 +2,9 @@
 
 use zakuro_common::memory_map::*;
 use super::layout::MemoryLayout;
+// CodexAstraUlt: Retain heap storage by default; isolated host diagnostics may
+// replace FCRAM with owned aligned pages before any guest execution.
+use super::fence::FcramBacking;
 
 /// which of the kernel's three FCRAM regions an allocation comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -20,7 +23,7 @@ pub struct PhysicalBlock {
 
 /// backing store for every physical memory the CPU can reach.
 pub struct PhysicalMemory {
-    pub fcram: Box<[u8]>,
+    pub fcram: FcramBacking,
     pub vram: Box<[u8]>,
     pub dsp_ram: Box<[u8]>,
     /// AXI WRAM.
@@ -53,7 +56,7 @@ impl PhysicalMemory {
         let base_pages = base / PAGE_SIZE;
 
         PhysicalMemory {
-            fcram: vec![0; total as usize].into_boxed_slice(),
+            fcram: FcramBacking::new(total as usize),
             vram: vec![0; VRAM_SIZE as usize].into_boxed_slice(),
             dsp_ram: vec![0; DSP_RAM_SIZE as usize].into_boxed_slice(),
             axi_wram: vec![0; AXI_WRAM_SIZE as usize].into_boxed_slice(),
@@ -222,10 +225,12 @@ impl PhysicalMemory {
     /// for, the way the page tables hold it.
     pub fn paddr_of(&self, pointer: *const u8) -> Option<u32> {
         [
-            (VRAM_PADDR, &self.vram),
-            (DSP_RAM_PADDR, &self.dsp_ram),
-            (AXI_WRAM_PADDR, &self.axi_wram),
-            (FCRAM_PADDR, &self.fcram),
+            // CodexAstraUlt: The physical-address lookup accepts either FCRAM
+            // backing without exposing ownership or assuming heap allocation.
+            (VRAM_PADDR, self.vram.as_ref()),
+            (DSP_RAM_PADDR, self.dsp_ram.as_ref()),
+            (AXI_WRAM_PADDR, self.axi_wram.as_ref()),
+            (FCRAM_PADDR, self.fcram.as_ref()),
         ]
         .into_iter()
         .find_map(|(base, store)| {
@@ -271,7 +276,9 @@ impl PhysicalMemory {
     }
 
     pub fn host_slice_mut(&mut self, paddr: u32, size: u32) -> Option<&mut [u8]> {
-        let (base, store): (u32, &mut Box<[u8]>) = match paddr {
+        // CodexAstraUlt: Both heap and fenced FCRAM expose the same bounded
+        // slice; the kernel still protects fenced bytes from physical aliases.
+        let (base, store): (u32, &mut [u8]) = match paddr {
             p if (VRAM_PADDR..VRAM_PADDR + VRAM_SIZE).contains(&p) => (VRAM_PADDR, &mut self.vram),
             p if (DSP_RAM_PADDR..DSP_RAM_PADDR + DSP_RAM_SIZE).contains(&p) => {
                 (DSP_RAM_PADDR, &mut self.dsp_ram)

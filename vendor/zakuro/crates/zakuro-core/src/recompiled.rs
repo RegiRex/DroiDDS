@@ -29,6 +29,9 @@ pub struct Library {
     /// picks. a jump through a register looks its target up, which is a
     /// search through every function otherwise.
     found: Box<[Found]>,
+    // CodexAstraUlt: An isolated immutable-base diagnostic never places CRO
+    // native units and requires an active physical code fence before execution.
+    executable_only: bool,
 }
 
 /// a slot of Library::found, an address and the code found for it.
@@ -54,6 +57,9 @@ pub enum Stop {
     /// the budget ran out, or execution left for code the library does not
     /// have.
     Left,
+    // CodexAstraUlt: The opted-in code fence is absent or its mapping changed;
+    // no guest instruction was executed by this declined native dispatch.
+    CodeFence,
 }
 
 /// what the callbacks reach through the context.
@@ -159,8 +165,20 @@ impl Library {
     }
 
     fn new(code: recomp_abi::Library) -> Library {
-        Library { code, fallbacks: Cell::new(0), found: Library::nothing_found() }
+        Library { code, fallbacks: Cell::new(0), found: Library::nothing_found(), executable_only: false }
     }
+
+    /// CodexAstraUlt: Retain ABI4 generated code but keep movable CRO units in
+    /// the interpreter. This is a fail-stop diagnostic, not mutable-code support.
+    pub fn restrict_to_executable(&mut self) {
+        for index in 0..self.code.modules().len() {
+            self.code.place(index, 0);
+        }
+        self.found = Library::nothing_found();
+        self.executable_only = true;
+    }
+
+    pub fn executable_only(&self) -> bool { self.executable_only }
 
     /// every slot of found empty, an address no code starts at in each.
     fn nothing_found() -> Box<[Found]> {
@@ -220,6 +238,9 @@ impl Library {
     /// zero when it unloads it, and checks the module's code once it is in
     /// memory.
     pub fn place(&mut self, name: &str, base: u32, memory: &mut Memory) {
+        // CodexAstraUlt: Module load/unload still proceeds in the emulated
+        // machine, but this diagnostic never exposes a CRO native entry.
+        if self.executable_only { return; }
         let Some(index) = self.code.module_index(name) else { return };
         self.code.place(index, base);
         // what was found before may have moved or gone
@@ -237,6 +258,11 @@ impl Library {
     /// runs recompiled code from the cpu's pc for about budget instructions,
     /// returning how many ran and why it stopped.
     pub fn run(&self, cpu: &mut Cpu, memory: &mut Memory, budget: u64) -> (u64, Stop) {
+        // CodexAstraUlt: Protect low-level callers too. A fenced run must use
+        // the immutable-base policy, and mapping checks precede every dispatch.
+        if self.executable_only != memory.base_code_fence_active() || memory.verify_base_code_fence().is_err() {
+            return (0, Stop::CodeFence);
+        }
         let cycles = cpu.cycles;
         let (read_pages, write_pages) = memory.page_tables();
         let mut ctx = Context {
@@ -304,6 +330,79 @@ impl Library {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: This original ABI fixture tests policy only; public
+    // integration tests separately qualify actual generated guest execution.
+    unsafe extern "C" fn fixture_entry(ctx: *mut Context) {
+        // SAFETY: Library::run owns and initializes this live context.
+        unsafe {
+            (*ctx).r[0] = 42;
+            (*ctx).r[15] += 4;
+            (*ctx).budget -= 1;
+            (*ctx).exit = EXIT_BUDGET;
+        }
+    }
+
+    #[test]
+    fn executable_restriction_removes_existing_and_future_module_entries() {
+        // CodexAstraUlt: Match the published ABI record without exposing the
+        // dependency's private Rust fields or modifying its source/ABI.
+        #[repr(C)]
+        struct ModuleFixture {
+            name: *const std::ffi::c_char,
+            base: *mut u32,
+            size: u32,
+            count: u32,
+            entries: *const recomp_abi::Entry,
+        }
+        let base_entries = [recomp_abi::Entry { address: 0x0010_0000, code: fixture_entry }];
+        let module_entries = [recomp_abi::Entry { address: 0, code: fixture_entry }];
+        let mut placed = 0u32;
+        let modules = [ModuleFixture { name: c"original_fixture".as_ptr(), base: &mut placed,
+            size: 16, count: 1, entries: module_entries.as_ptr() }];
+        // SAFETY: These original ABI records and their referenced storage remain
+        // live until after Library is dropped; the code pointers use its ABI.
+        let linked = unsafe { recomp_abi::Linked::new(0, recomp_abi::ABI,
+            base_entries.as_ptr().cast(), 1, modules.as_ptr().cast(), 1) };
+        let mut library = Library::linked(&linked).unwrap();
+        let mut memory = Memory::new(false, 64 * 1024 * 1024);
+        library.place("original_fixture", 0x0020_0000, &mut memory);
+        assert!(library.has_code(0x0020_0000));
+        assert_eq!(placed, 0x0020_0000);
+        library.restrict_to_executable();
+        assert!(library.executable_only());
+        assert_eq!(placed, 0);
+        assert!(!library.has_code(0x0020_0000));
+        assert!(library.has_code(0x0010_0000));
+        library.place("original_fixture", 0x0030_0000, &mut memory);
+        assert_eq!(placed, 0);
+        assert!(!library.has_code(0x0030_0000));
+    }
+
+    #[test]
+    fn restricted_library_declines_without_a_fence_before_running_code() {
+        let entries = [recomp_abi::Entry { address: 0x0010_0000, code: fixture_entry }];
+        // SAFETY: The fixture's entry remains live for the library; no module
+        // table exists, and a properly aligned nonnull empty pointer is supplied.
+        let linked = unsafe { recomp_abi::Linked::new(0, recomp_abi::ABI,
+            entries.as_ptr().cast(), 1, std::ptr::NonNull::<recomp_abi::Module>::dangling().as_ptr().cast(), 0) };
+        let mut library = Library::linked(&linked).unwrap();
+        let mut memory = Memory::new(false, 64 * 1024 * 1024);
+        let mut cpu = Cpu::new();
+        cpu.regs[15] = 0x0010_0000;
+        let (ran, _) = library.run(&mut cpu, &mut memory, 2);
+        assert_eq!(ran, 1);
+        assert_eq!(cpu.regs[0], 42);
+        cpu.regs[15] = 0x0010_0000;
+        cpu.regs[0] = 9;
+        library.restrict_to_executable();
+        let before = cpu.cycles;
+        let (ran, stop) = library.run(&mut cpu, &mut memory, 2);
+        assert_eq!(ran, 0);
+        assert!(matches!(stop, Stop::CodeFence));
+        assert_eq!(cpu.regs[0], 9);
+        assert_eq!(cpu.cycles, before);
+    }
 
     #[test]
     fn arm_and_thumb_code_use_every_slot() {

@@ -56,3 +56,27 @@ or the precise first blocker if stopped.
 
 See [the compilation procedure](../PRIVATE_TITLE_COMPILATION.md) for the exact
 resume command and artifact contract.
+
+## Successful bounded continuation
+
+<!-- CodexAstraUlt: Record the owner's completed private library without
+claiming cloud possession of the library, its digest, or any guest execution. -->
+Reported on 2026-10-29 (America/New_York): compilation succeeded on the third
+additional batch, with **521/521 validated objects**. The local consolidated
+summary is in `dark-moon-compilation-20261028-resume-001`.
+
+| Additional batch | Reused | New | Remaining |
+| --- | ---: | ---: | ---: |
+| 1 | 133 | 177 | 211 |
+| 2 | 310 | 164 | 47 |
+| 3 | 474 | 47 | 0 |
+
+The library was linked and statically validated, never loaded or executed. All
+prior outputs were preserved. The owner did not supply the private library's
+size/hash or full manifest in this message; those must be read from the retained
+local artifacts during the next admission. No additional compilation is needed.
+
+This closes the private host compilation gate. The next task is the
+[guarded Linux native comparison](../PRIVATE_TITLE_NATIVE_RUN.md). Private native
+execution, interactive boot, Android packaging and Thor performance remain
+unqualified by this compilation result.
