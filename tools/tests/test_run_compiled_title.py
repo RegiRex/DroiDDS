@@ -94,11 +94,153 @@ def worker_report(req=None, status="budget_exhausted"):
             "private_images_or_audio_exported": False,
             "model_requested": req["model"], "model_resolved": req["model"]},
         "checkpoints": [{"requested_cycle": 100000, "exact_cycle": True, "state": state()}],
+        "synchronized_checkpoints": [],
         "observed": {"steps": 100 if native else 1000, "cycles": 2000000, "frames": 0,
             "cycles_after_budget": 0, "interpreted_instructions": 10 if native else 1000,
             "recompiled_instructions": 990 if native else 0,
             "native_callback_fallback_instructions": 0, "guest_debug_bytes_discarded": 0,
             "services_seen": [], "state": final}}
+
+
+# CodexAstraUlt: Synthetic post-SVC data lets negative controls independently
+# vary boundary identity, CPU flags and native work before the sampled event.
+def synchronized_point(cycle=100100, requested=100000, ordinal=3, native=False):
+    return {"requested_cycle": requested,
+            "boundary": {"ordinal": ordinal, "cycle": cycle, "number": 0x28,
+                         "svc_pc": 0x100080, "thread_guest_id": 0},
+            "instructions": {"interpreted": 10 if native else 1000,
+                             "recompiled": 900 if native else 0, "callback_interpreted": 0},
+            "state": state(cycle)}
+
+
+class SynchronizedComparisonTests(unittest.TestCase):
+    """CodexAstraUlt: Raw differences survive supplemental fully saved samples."""
+
+    def pair(self):
+        left, right = worker_report(request("interpreter")), worker_report()
+        left["synchronized_checkpoints"] = [synchronized_point()]
+        right["synchronized_checkpoints"] = [synchronized_point(native=True)]
+        return left, right
+
+    def test_matching_svc_sample_admits_both_reports(self):
+        left, right = self.pair()
+        for report in (left, right):
+            RUNNER.validate_worker(report, request(report["route"]), 0)
+        result = RUNNER.synchronized_comparison(left, right)
+        self.assertEqual(result["status"], "matched")
+        self.assertEqual(result["matched_boundaries"][0]["native_instructions_observed"], 900)
+        self.assertEqual(len(result["missing_boundaries"]), 3)
+
+    def test_raw_cpsr_difference_is_retained_after_synchronized_match(self):
+        left, right = self.pair()
+        right["checkpoints"][0]["state"]["cpsr"] ^= 1 << 29
+        self.assertEqual(RUNNER.comparison(left, right)["status"], "different")
+        self.assertEqual(RUNNER.synchronized_comparison(left, right)["status"], "matched")
+        self.assertEqual(RUNNER.comparison(left, right)["mismatches"][0]["different_fields"], ["cpsr"])
+
+    def test_real_flag_memory_or_scheduler_difference_at_svc_cannot_match(self):
+        for field, value in (("cpsr", 0x20000010), ("reschedule_pending", True),
+                             ("memory", {**state()["memory"], "fcram_fnv1a64": "f" * 16})):
+            left, right = self.pair()
+            right["synchronized_checkpoints"][0]["state"][field] = value
+            with self.subTest(field=field):
+                result = RUNNER.synchronized_comparison(left, right)
+                self.assertEqual(result["status"], "different")
+                self.assertEqual(result["mismatches"][0]["different_fields"], [field])
+
+    def test_event_identity_difference_is_not_aligned_away(self):
+        for field, value in (("ordinal", 4), ("cycle", 100101), ("number", 0x29),
+                             ("svc_pc", 0x100084), ("thread_guest_id", 1)):
+            left, right = self.pair()
+            point = right["synchronized_checkpoints"][0]
+            point["boundary"][field] = value
+            if field == "cycle":
+                point["state"]["cycles"] = value
+            with self.subTest(field=field):
+                result = RUNNER.synchronized_comparison(left, right)
+                self.assertEqual(result["status"], "different")
+                self.assertEqual(result["mismatches"][0]["reason"], "boundary_identity_differs")
+
+    def test_native_work_after_a_sample_cannot_qualify_that_sample(self):
+        for compiled, callbacks in ((0, 0), (900, 900)):
+            left, right = self.pair()
+            right["synchronized_checkpoints"][0]["instructions"].update(
+                recompiled=compiled, callback_interpreted=callbacks)
+            right["observed"]["native_callback_fallback_instructions"] = callbacks
+            self.assertGreater(right["observed"]["recompiled_instructions"] - callbacks, 0)
+            result = RUNNER.synchronized_comparison(left, right)
+            self.assertEqual(result["status"], "inconclusive")
+            self.assertEqual(result["zero_native_work_boundaries"], [100000])
+
+    def test_absent_boundaries_do_not_qualify(self):
+        left, right = self.pair()
+        for report in (left, right):
+            report["synchronized_checkpoints"] = []
+        result = RUNNER.synchronized_comparison(left, right)
+        self.assertEqual(result["status"], "inconclusive")
+        self.assertEqual(len(result["missing_boundaries"]), 4)
+        right["synchronized_checkpoints"] = [synchronized_point(native=True)]
+        result = RUNNER.synchronized_comparison(left, right)
+        self.assertEqual(result["status"], "inconclusive")
+        self.assertFalse(result["missing_boundaries"][0]["interpreter_observed"])
+        self.assertTrue(result["missing_boundaries"][0]["native_observed"])
+
+    def test_partial_routes_cannot_qualify(self):
+        left, right = self.pair()
+        for status in ("blocked", "internal_error", "load_error"):
+            right["status"] = status
+            with self.subTest(status=status), self.assertRaises(ValueError):
+                RUNNER.synchronized_comparison(left, right)
+
+    def test_partial_failure_preserves_a_completed_syscall_overrun(self):
+        # CodexAstraUlt: HLE can charge extra cycles before a panic leaves the
+        # final envelope empty; preserve that event without treating it as a pass.
+        _, right = self.pair()
+        right["limits"]["max_cycles"] = 100000
+        right.update(status="internal_error", reason="native_worker_panicked", observed={})
+        req = request()
+        req["limits"]["max_cycles"] = 100000
+        self.assertEqual(RUNNER.validate_worker(right, req, 1), right)
+
+    def test_malformed_or_unbound_samples_reject(self):
+        for mutation in ("missing", "five", "cycle", "bool", "empty", "threshold", "pc", "counts", "fallback"):
+            _, right = self.pair()
+            point = right["synchronized_checkpoints"][0]
+            if mutation == "missing":
+                del right["synchronized_checkpoints"]
+            elif mutation == "five":
+                right["synchronized_checkpoints"] *= 5
+            elif mutation == "cycle":
+                point["state"]["cycles"] += 1
+            elif mutation == "bool":
+                point["boundary"]["ordinal"] = True
+            elif mutation == "empty":
+                point["state"] = {}
+            elif mutation == "threshold":
+                point["requested_cycle"] = 500000
+            elif mutation == "pc":
+                point["boundary"]["svc_pc"] += 1
+            elif mutation == "counts":
+                point["instructions"]["recompiled"] = 991
+            else:
+                point["instructions"]["callback_interpreted"] = 901
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                RUNNER.validate_worker(right, request(), 0)
+
+    def test_stale_boundary_or_reversed_counts_reject(self):
+        for mutation in ("ordinal", "counts", "cycle"):
+            _, right = self.pair()
+            second = synchronized_point(500100, 500000, 4, True)
+            right["synchronized_checkpoints"].append(second)
+            if mutation == "ordinal":
+                second["boundary"]["ordinal"] = 3
+            elif mutation == "counts":
+                second["instructions"]["recompiled"] = 899
+            else:
+                second["boundary"]["cycle"] = 100100
+                second["state"]["cycles"] = 100100
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                RUNNER.validate_worker(right, request(), 0)
 
 
 class SealedInputTests(unittest.TestCase):

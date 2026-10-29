@@ -121,8 +121,11 @@ passes with corrected streaming admission and an explicit 1024 MiB allowance.
 [Bounded host compilation](PRIVATE_TITLE_COMPILATION.md) is implemented and tested
 on originals, with verified object reuse and static library identity audits. The
 private compilation now completes 521/521 objects after three bounded resumes,
-with a linked/static-validated library and no execution. The next task is
-[guarded native comparison](PRIVATE_TITLE_NATIVE_RUN.md), using new manifest/table
+with a linked/static-validated library. The first
+[private native comparison](host-tests/dark-moon-native-2026-10-29.md) executes
+1,999,970 native instructions with raw flag/scheduling differences. The next task
+uses corrected scheduling and supplemental post-SVC comparisons in the
+[guarded native coordinator](PRIVATE_TITLE_NATIVE_RUN.md), retaining manifest/table
 admission and an immutable-base fence while modules stay interpreted. General
 mutable-code support and private execution qualification remain open. See the
 [compilation record](host-tests/dark-moon-compilation-2026-10-28.md).

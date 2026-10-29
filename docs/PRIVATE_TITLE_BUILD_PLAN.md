@@ -52,8 +52,10 @@ Private compilation now passes with 521/521 objects and a linked/static-validate
 library. [Guarded Linux comparison](PRIVATE_TITLE_NATIVE_RUN.md) now consumes the
 manifests, checks the full pointer graph and actual runtime bytes, and executes
 the immutable base under a host fence while dynamic modules remain interpreted.
-Original fixtures pass this native route. The first private native comparison,
-general mutable-code execution, packaging/import/signing and Thor boot remain
+Original fixtures pass this native route. The first private comparison now
+executes 1,999,970 native instructions with raw CPU/scheduling differences; see
+the [result and correction](host-tests/dark-moon-native-2026-10-29.md).
+Private parity, general mutable-code execution, packaging/import/signing and Thor boot remain
 unfinished; the existing private library does not need regeneration.
 No 0.0.7 game APK is claimed by preparation or host compilation.
 

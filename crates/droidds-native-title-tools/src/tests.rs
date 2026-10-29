@@ -95,6 +95,24 @@ impl Fixture {
     fn native_library(&self) -> File {
         let source = self.root.join("generated");
         let generated = droidds_runtime_probe::producer::emit(&source).unwrap();
+        self.compile_library(&source, &source, &generated["sources"])
+    }
+
+    // CodexAstraUlt: A custom original instruction stream goes through the
+    // production compiler, retaining real liveness/budget synchronization.
+    fn prepared_native_library(&self) -> File {
+        let prepared = self.root.join("prepared");
+        let generated = droidds_title_builder::prepare(&self.input, &prepared).unwrap();
+        self.compile_library(
+            &prepared,
+            &prepared.join("generated"),
+            &generated["sources"],
+        )
+    }
+
+    // CodexAstraUlt: Share the same native compile flags for both authored
+    // fixtures. Only fresh test output is linked and sealed for the worker.
+    fn compile_library(&self, source: &Path, include: &Path, sources: &Value) -> File {
         let output = self.root.join("original.so");
         let mut command = Command::new("cc");
         command
@@ -109,8 +127,8 @@ impl Fixture {
             ])
             .arg(&output)
             .arg("-I")
-            .arg(&source);
-        for name in generated["sources"].as_array().unwrap() {
+            .arg(include);
+        for name in sources.as_array().unwrap() {
             command.arg(source.join(name.as_str().unwrap()));
         }
         let result = command
@@ -323,6 +341,106 @@ fn exact_cycle_checkpoint_and_budget_stop_are_separate_from_guest_exit() {
         report["observed"]["state"]
     );
     assert_eq!(report["library_loaded"], false);
+    assert!(report["synchronized_checkpoints"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+}
+
+// CodexAstraUlt: The actual generator may elide dead flags at a forced budget
+// exit. Preserve that raw difference, then independently compare the materialized
+// state at a later matching SVC without regenerating or changing the library.
+#[test]
+fn original_loop_retains_raw_flag_difference_and_matches_after_svc_sync() {
+    let _serial = SERIAL.lock().unwrap();
+    let mut image = fixture::image(0, 0, false);
+    let words = [
+        0xe59f_1028u32, // ldr r1, [pc, #40]: original 40000-iteration bound.
+        0xe1a0_0000,
+        0xe1a0_0000,
+        0xe1a0_0000,
+        0xe1a0_0000,
+        0xe280_0001, // add r0, r0, #1.
+        0xe150_0001, // cmp r0, r1.
+        0xe1a0_0000,
+        0xe1a0_0000,
+        0x1aff_fffau32, // bne back to add; five instructions per iteration.
+        0xef00_0028,    // GetSystemTick includes a 150-cycle service cost.
+        0xef00_0003,    // ExitProcess.
+        40_000,
+    ];
+    for (index, word) in words.into_iter().enumerate() {
+        image[0x800 + index * 4..0x804 + index * 4].copy_from_slice(&word.to_le_bytes());
+    }
+    let fixture = Fixture::from_image(image);
+    let original = fs::read(&fixture.input).unwrap();
+    let file = fixture.prepared_native_library();
+    let library = SealedFile::open(file.as_raw_fd(), request::LIBRARY_LIMIT, None).unwrap();
+    let mut reports = Vec::new();
+    for route in ["interpreter", "native"] {
+        let mut request = fixture.typed();
+        request.route = route.into();
+        request.limits.max_steps = 500_000;
+        request.limits.max_cycles = 2_000_000;
+        let mut report = envelope(Some(&request));
+        execute(
+            &request,
+            &library,
+            &fixture.bundle,
+            &fixture.root.join(route),
+            &mut report,
+            Instant::now(),
+            |_| {},
+        )
+        .unwrap();
+        assert_eq!(report["status"], "guest_exited", "{report:#}");
+        assert_eq!(report["checkpoints"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            report["synchronized_checkpoints"].as_array().unwrap().len(),
+            1
+        );
+        reports.push(report);
+    }
+    assert_ne!(
+        reports[0]["checkpoints"][0]["state"]["cpsr"],
+        reports[1]["checkpoints"][0]["state"]["cpsr"]
+    );
+    for report in &reports {
+        let sample = &report["synchronized_checkpoints"][0];
+        assert_eq!(sample["requested_cycle"], 100_000);
+        assert_eq!(sample["boundary"]["ordinal"], 1);
+        assert_eq!(sample["boundary"]["cycle"], 200_156);
+        assert_eq!(sample["boundary"]["cycle"], sample["state"]["cycles"]);
+        assert_eq!(sample["boundary"]["number"], 0x28);
+        assert_eq!(sample["boundary"]["svc_pc"], fixture::TEXT + 40);
+        assert_eq!(sample["boundary"]["thread_guest_id"], 0);
+        assert_eq!(sample["state"]["cpsr"], 0x6000_001f);
+    }
+    assert_eq!(
+        reports[0]["synchronized_checkpoints"][0]["boundary"],
+        reports[1]["synchronized_checkpoints"][0]["boundary"]
+    );
+    assert_eq!(
+        reports[0]["synchronized_checkpoints"][0]["state"],
+        reports[1]["synchronized_checkpoints"][0]["state"]
+    );
+    assert_eq!(
+        reports[0]["synchronized_checkpoints"][0]["instructions"]["interpreted"],
+        200_006
+    );
+    assert_eq!(
+        reports[1]["synchronized_checkpoints"][0]["instructions"]["recompiled"],
+        200_006
+    );
+    assert_eq!(
+        reports[1]["synchronized_checkpoints"][0]["instructions"]["callback_interpreted"],
+        0
+    );
+    assert_eq!(
+        reports[0]["observed"]["state"],
+        reports[1]["observed"]["state"]
+    );
+    assert_eq!(fs::read(&fixture.input).unwrap(), original);
 }
 
 // CodexAstraUlt: Native fixture generation intentionally excludes the authored

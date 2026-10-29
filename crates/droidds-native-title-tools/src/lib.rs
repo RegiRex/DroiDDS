@@ -21,7 +21,7 @@ fn envelope(request: Option<&Request>) -> Value {
         "schema_version":1,"kind":KIND,"tool_version":env!("CARGO_PKG_VERSION"),
         "status":"load_error","reason":"request_not_admitted","blocker":null,
         "route":null,"preparation_sha256":null,"contract_sha256":null,"library_sha256":null,
-        "limits":null,"checkpoints":[],"observed":{},"library_loaded":false,"library_load_attempted":false,
+        "limits":null,"checkpoints":[],"synchronized_checkpoints":[],"observed":{},"library_loaded":false,"library_load_attempted":false,
         "runtime_binding_enforced":false,"guest_execution_performed":false,"guest_execution_attempted":false,
         "configuration":{
             "renderer":"software","native_discovery":false,"strict_diagnostics":true,
@@ -31,6 +31,7 @@ fn envelope(request: Option<&Request>) -> Value {
             "parent_admission":"sealed_local_coordinator_request_not_plugin_sandbox",
             "state_fingerprint":"noncryptographic_fnv1a64_diagnostic_only",
             "checkpoint_schedule":CHECKPOINTS,"private_images_or_audio_exported":false,
+            "synchronized_checkpoint_policy":"first_post_svc_at_or_after_pending_cycle_no_budget_extension",
             "failed_attempt_counters_may_be_incomplete":true
         }
     });
@@ -355,6 +356,10 @@ fn execute(
     if request.route == "native" {
         install_native(&mut system, request, library_file, report)?;
     }
+    // CodexAstraUlt: Generated code materializes modified locals before an SVC.
+    // Observe that existing boundary without altering guest code, replacing raw
+    // budget observations, or extending the configured execution budget.
+    system.enable_native_comparison_boundaries();
     let neutral = hid::InputState::default();
     system.set_input(neutral);
     hid::update(&mut system, neutral);
@@ -368,6 +373,8 @@ fn execute(
         .filter(|cycle| *cycle <= request.limits.max_cycles)
         .collect();
     let mut next_checkpoint = 0;
+    let mut next_synchronized_checkpoint = 0;
+    let mut last_svc_ordinal = 0;
     let (status, reason, fault) = loop {
         if let Some(fault) = blocker(&system) {
             break ("blocked", "runtime_blocker", fault);
@@ -440,6 +447,41 @@ fn execute(
             report["checkpoints"].as_array_mut().expect("checkpoint envelope").push(json!({
                 "requested_cycle":cycle,"exact_cycle":system.cpu.cycles == cycle,"state":captured}));
             next_checkpoint += 1;
+        }
+        // CodexAstraUlt: Retain at most one full fingerprint for a newly seen
+        // SVC, even when it crosses several pending thresholds. Keep its actual
+        // cycle and dispatch identity; missing boundaries remain missing.
+        if let Some(boundary) = system
+            .native_comparison_boundary()
+            .filter(|boundary| boundary.ordinal != last_svc_ordinal)
+        {
+            last_svc_ordinal = boundary.ordinal;
+            if let Some(requested_cycle) = schedule
+                .get(next_synchronized_checkpoint)
+                .copied()
+                .filter(|cycle| boundary.cycle >= *cycle)
+            {
+                audio.drain(&mut system);
+                report["synchronized_checkpoints"]
+                    .as_array_mut()
+                    .expect("synchronized checkpoint envelope")
+                    .push(json!({
+                        "requested_cycle":requested_cycle,
+                        "boundary":{"ordinal":boundary.ordinal,"cycle":boundary.cycle,
+                            "number":boundary.number,"svc_pc":boundary.svc_pc,
+                            "thread_guest_id":boundary.thread_guest_id},
+                        "instructions":{"interpreted":system.interpreted_instructions,
+                            "recompiled":system.recompiled_instructions,
+                            "callback_interpreted":system.recompiled.as_ref().map_or(0,|library|library.fallbacks())},
+                        "state":state::capture(&system,&audio)
+                    }));
+                while schedule
+                    .get(next_synchronized_checkpoint)
+                    .is_some_and(|cycle| *cycle <= boundary.cycle)
+                {
+                    next_synchronized_checkpoint += 1;
+                }
+            }
         }
     };
     audio.drain(&mut system);

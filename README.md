@@ -100,8 +100,11 @@ run-002 now passes. The [bounded host compiler](docs/PRIVATE_TITLE_COMPILATION.m
 has completed the private library: 521/521 objects, linked and statically audited.
 [Guarded native host comparison](docs/PRIVATE_TITLE_NATIVE_RUN.md) adds manifest/
 table admission and an immutable-base fence, with dynamic modules interpreted.
-Original fixtures execute and match both routes; the next task is the first
-private native comparison using the existing library. General mutable native
+Original fixtures execute and match both routes. The first
+[private native run](docs/host-tests/dark-moon-native-2026-10-29.md) executes
+1,999,970 native instructions with raw CPU/scheduler differences. The next task
+uses corrected scheduling and supplemental synchronized comparisons, reusing
+the existing library. General mutable native
 code, private boot evidence and Android packaging remain unfinished.
 This is progress toward 0.0.7, not a
 new game-playing APK.

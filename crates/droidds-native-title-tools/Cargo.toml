@@ -24,3 +24,6 @@ memmap2.workspace = true
 
 [dev-dependencies]
 droidds-runtime-probe = { path = "../droidds-runtime-probe", features = ["producer"] }
+# CodexAstraUlt: Generate an authored loop through the actual preparation path;
+# this reuses the existing workspace compiler without new external versions.
+droidds-title-builder = { path = "../droidds-title-builder" }

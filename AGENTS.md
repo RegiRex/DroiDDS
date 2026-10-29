@@ -107,6 +107,16 @@ native admission path instead of reopening compilation or using legacy loading. 
   Android qualification remain open. A signal alone does not establish cause.
   Compare exact guest-cycle checkpoints, subtract callback-interpreted work from
   compiled-dispatch totals, and never qualify a native run with zero native work.
+<!-- CodexAstraUlt: Retain the owner's actual native mismatch and the corrected
+scheduler/materialized observation path without turning raw differences into a pass. -->
+- The first private comparison on `b61a986` reports 1,999,970 native instructions
+  and differences in CPSR/reschedule_pending at 100,000 cycles. Read
+  docs/host-tests/dark-moon-native-2026-10-29.md and
+  docs/builds/0.0.7-native-boundaries.md. New shared scheduling fixes deadline/phase
+  differences. Generation-3 budget exits can omit dead locals; retain raw results
+  and compare supplemental post-SVC samples by complete event identity with
+  positive native work before each qualifying sample. Do not mask flags, extend
+  budgets for missing samples, or claim general native parity from convergence.
 - Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,
   commitment/configuration, heap-bound and restore-preflight corrections. The
   host compiler is also vendored to repair conditional-flow budget accounting;

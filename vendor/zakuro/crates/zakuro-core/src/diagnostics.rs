@@ -19,6 +19,41 @@ pub const WAIT_OBJECT_CAPACITY: usize = 8;
 pub const PENDING_CAPACITY: usize = 64;
 const SVC_COUNT_CAPACITY: usize = 128;
 
+// CodexAstraUlt: A completed SVC is an observable boundary at which generated
+// code has materialized flags. This constant-size marker carries no guest data,
+// instruction bytes, host pointers or historical event collection.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct NativeComparisonBoundary {
+    pub ordinal: u64,
+    pub cycle: u64,
+    pub number: u32,
+    pub svc_pc: u32,
+    pub thread_guest_id: Option<u32>,
+}
+
+impl System {
+    // CodexAstraUlt: Allocation happens only on explicit diagnostic opt-in;
+    // repeated enable calls preserve the existing ordinal and observation.
+    pub fn enable_native_comparison_boundaries(&mut self) {
+        if self.native_comparison_boundary.is_none() {
+            self.native_comparison_boundary = Some(Box::new(NativeComparisonBoundary::default()));
+        }
+    }
+
+    pub fn native_comparison_boundary(&self) -> Option<NativeComparisonBoundary> {
+        self.native_comparison_boundary.as_deref().copied().filter(|boundary| boundary.ordinal != 0)
+    }
+
+    // CodexAstraUlt: Store the post-dispatch cycle, including HLE cycle charges,
+    // while keeping the SVC's pre-dispatch PC and originating guest identity.
+    pub(crate) fn record_native_comparison_boundary(&mut self, entry: Option<(u32, u32, Option<u32>)>) {
+        if let (Some(marker), Some((number, svc_pc, thread_guest_id))) = (&mut self.native_comparison_boundary, entry) {
+            **marker = NativeComparisonBoundary { ordinal: marker.ordinal.saturating_add(1),
+                cycle: self.cpu.cycles, number, svc_pc, thread_guest_id };
+        }
+    }
+}
+
 // CodexAstraUlt: Return registers are scalar ABI observations, not uniformly
 // ResultCodes: for example GetSystemTick returns a value and blocked calls have
 // no observed return until the originating thread resumes.

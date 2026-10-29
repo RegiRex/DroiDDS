@@ -75,8 +75,11 @@ library: 521/521 objects after three bounded resumes, linked and statically
 validated without execution. See the [compilation record](host-tests/dark-moon-compilation-2026-10-28.md).
 [Guarded Linux native comparison](PRIVATE_TITLE_NATIVE_RUN.md) adds manifest/table
 admission and an immutable-base fence, with dynamic modules interpreted. It is
-the next private task. General mutable-code execution, native/private comparison
-evidence, packaging and Thor boot remain required follow-up work for 0.0.7.
+now followed by a [private result](host-tests/dark-moon-native-2026-10-29.md):
+1,999,970 native instructions and raw CPU/scheduler differences. The next private
+task tests corrected scheduling and synchronized comparisons with the existing
+library. Native parity, general mutable-code execution, packaging and Thor boot
+remain required follow-up work for 0.0.7.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->

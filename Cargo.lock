@@ -637,6 +637,7 @@ name = "droidds-native-title-tools"
 version = "0.0.1"
 dependencies = [
  "droidds-runtime-probe",
+ "droidds-title-builder",
  "libc",
  "memmap2",
  "recomp-abi",

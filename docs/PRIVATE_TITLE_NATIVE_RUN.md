@@ -3,11 +3,12 @@
 <!-- CodexAstraUlt: Advance the completed private library to a bounded host
 execution gate without rebuilding its generated code or promoting Android boot. -->
 Dark Moon now has **521/521 validated objects** and a linked, statically validated
-Linux library. The owner reports that it has never been loaded or executed.
-See the [compilation record](host-tests/dark-moon-compilation-2026-10-28.md).
-The next local task is one guarded interpreter/native comparison using that
-existing preparation and compilation. No new title source generation or title
-compilation is required. The public APK remains 0.0.6/code 7.
+Linux library. Its [first native comparison](host-tests/dark-moon-native-2026-10-29.md)
+executes 1,999,970 native instructions but differs from the interpreter in CPSR
+and pending scheduling at the first 100,000-cycle checkpoint. The next local task
+is one comparison with the [scheduler correction and synchronized observations](builds/0.0.7-native-boundaries.md),
+reusing the existing preparation and compilation. No new title source generation
+or title compilation is required. The public APK remains 0.0.6/code 7.
 Read the [implementation and executed original-fixture record](builds/0.0.7-native-host-comparison.md).
 
 ## Local procedure
@@ -44,8 +45,11 @@ result for native execution. No USB or device operation is part of this test.
 Return one `dark-moon-native-comparison-summary.md` in a new report location,
 including source/worker/input/library identities, admission outcome, each route's
 status/reason and counters, exact matched checkpoints, mismatching field names or
-the first blocker, configured limits, and the preservation result. Include whether
-native instructions actually ran. Keep private inputs, code, objects, raw reports,
+the first blocker, configured limits, and the preservation result. Include both
+`comparison` and `synchronized_comparison`, their matched/missing boundaries, and
+actual native work before each synchronized match. At the first raw difference,
+include both CPSR values (hex), `registers[15]` (hex) and `reschedule_pending`.
+Keep private inputs, code, objects, raw reports,
 and libraries outside Git; omit personal paths and private content from the summary.
 
 ## What the new path validates
@@ -119,6 +123,17 @@ audio fingerprints; it does not serialize every saved thread or HLE object.
 FNV fingerprints are noncryptographic diagnostic observations. A match covers
 only that bounded observation, and requires positive native instruction counts.
 A difference needs investigation; it does not by itself identify a compiler bug.
+
+<!-- CodexAstraUlt: Generation-3 budget exits can omit dead locals; retain their
+raw differences and add a distinct comparison at fully saved SVC boundaries. -->
+The supplemental `synchronized_comparison` records at most four states after the
+first new SVC at or after those thresholds, coalescing thresholds crossed by one
+SVC. It requires the same SVC ordinal, actual cycle, number, originating PC/thread
+and recorded state. Generated native work must have occurred before a qualifying
+sample. A missing boundary remains explicit; no limits increase to obtain one.
+Raw checkpoint differences stay unchanged even if a synchronized sample matches.
+The synchronized samples do not include every saved thread or HLE object and
+cannot establish general harmlessness of omitted state at earlier budget exits.
 
 `compared / matched`, `different`, and `inconclusive` are diagnostic outcomes,
 not successful game boot. A blocked or killed route cannot qualify comparison.

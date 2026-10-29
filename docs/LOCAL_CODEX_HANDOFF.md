@@ -98,8 +98,9 @@ a largest file of 23,183,997 bytes. The owner reports a validated manifest and
 The first [host compilation batch](PRIVATE_TITLE_COMPILATION.md) reached its
 30-minute deadline with 133/521 validated objects and no earlier failure. Three
 additional bounded resumes now complete **521/521 objects** and a linked,
-statically validated library. The owner reports preserved outputs and no library
-loading or guest execution. The next task is one [guarded native comparison](PRIVATE_TITLE_NATIVE_RUN.md),
+statically validated library. The first [private native result](host-tests/dark-moon-native-2026-10-29.md)
+now records 1,999,970 native instructions and raw CPSR/scheduling differences.
+The next task is one [corrected guarded comparison](PRIVATE_TITLE_NATIVE_RUN.md),
 reusing the successful preparation and original compilation directory. Build only
 the new host worker; preserve all title objects and reports. See the
 [preparation result](host-tests/dark-moon-preparation-2026-10-28.md) and
@@ -232,13 +233,13 @@ matched cold/warm and long-run evidence before claiming those problems solved.
 its filesystem knowledge and avoiding unnecessary manual command transcription. -->
 
 > Safely obtain current RegiRex/DroiDDS main, preserving local work and frozen
-> diagnostic sources. Follow docs/PRIVATE_TITLE_COMPILATION.md using the successful
-> Dark Moon preparation run-002 and installed tools. Run the original-fixture
-> compilation checks, then one private compilation batch in a fresh directory
-> outside Git with the documented default limits. Stop at completion, the first
-> blocker or the batch deadline. Return dark-moon-compilation-summary.md with
-> object counts, status and any first blocker. Preserve previous outputs and
-> keep generated code, objects and the library local.
+> diagnostic sources. Follow docs/PRIVATE_TITLE_NATIVE_RUN.md. Rebuild and test
+> only the host worker with the pinned offline/locked toolchain. Reuse Dark Moon
+> preparation run-002 and the completed original compilation run-001. Run one
+> default comparison in a fresh directory outside Git. Preserve all old outputs;
+> do not regenerate title sources or recompile objects. Return
+> dark-moon-native-comparison-summary.md with both raw and synchronized results,
+> first-difference CPU values, counters, missing boundaries and preservation.
 
 The owner can paste this task into local Codex; they do not need to transcribe
 all build/run commands themselves. This document does not connect sessions or

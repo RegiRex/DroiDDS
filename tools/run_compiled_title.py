@@ -201,6 +201,54 @@ def validate_state(state):
     return state
 
 
+# CodexAstraUlt: Generation 3 may omit budget-dead locals at an arbitrary
+# cycle stop. A post-SVC sample has fully synchronized changed locals; bind its
+# event identity and cumulative counters instead of silently masking raw flags.
+def validate_synchronized_points(report, maximum_cycle):
+    points = report.get("synchronized_checkpoints")
+    require(isinstance(points, list) and len(points) <= 4, "invalid_synchronized_checkpoints")
+    schedule = (100000, 500000, 1000000, 2000000)
+    index, ordinal, previous_cycle = 0, 0, 0
+    previous_counts = {"interpreted": 0, "recompiled": 0, "callback_interpreted": 0}
+    final = report.get("observed", {})
+    totals = {"interpreted": "interpreted_instructions", "recompiled": "recompiled_instructions",
+              "callback_interpreted": "native_callback_fallback_instructions"}
+    for point in points:
+        require(isinstance(point, dict) and set(point) == {"requested_cycle", "boundary", "instructions", "state"},
+                "invalid_synchronized_checkpoint_fields")
+        requested = uint(point["requested_cycle"], "synchronized_requested_cycle", maximum_cycle)
+        require(index < len(schedule) and requested == schedule[index], "invalid_synchronized_checkpoint_order")
+        boundary = point["boundary"]
+        require(isinstance(boundary, dict) and set(boundary) ==
+                {"ordinal", "cycle", "number", "svc_pc", "thread_guest_id"}, "invalid_synchronized_boundary")
+        current_ordinal = uint(boundary["ordinal"], "svc_ordinal")
+        # CodexAstraUlt: A failed worker can retain a completed syscall that
+        # charged past its cycle limit before the final counter envelope existed.
+        # Such partial evidence stays bounded/typed but can never qualify parity.
+        cycle = uint(boundary["cycle"], "svc_cycle", final.get("cycles", 2**64 - 1))
+        require(current_ordinal > ordinal and cycle > previous_cycle and cycle >= requested,
+                "invalid_synchronized_boundary_order")
+        uint(boundary["number"], "svc_number", 2**24 - 1)
+        pc = uint(boundary["svc_pc"], "svc_pc", 2**32 - 1)
+        require(pc % 2 == 0, "unaligned_synchronized_svc_pc")
+        if boundary["thread_guest_id"] is not None:
+            uint(boundary["thread_guest_id"], "svc_thread_guest_id", 2**32 - 1)
+        require(validate_state(point["state"])["cycles"] == cycle, "synchronized_state_cycle_mismatch")
+        counts = point["instructions"]
+        require(isinstance(counts, dict) and set(counts) == set(totals), "invalid_synchronized_instruction_counts")
+        for name, final_name in totals.items():
+            count = uint(counts[name], "synchronized_" + name, final.get(final_name, 2**64 - 1))
+            require(count >= previous_counts[name], "synchronized_instruction_count_reversed")
+        require(counts["callback_interpreted"] <= counts["recompiled"], "synchronized_fallback_accounting_mismatch")
+        if report["route"] == "interpreter":
+            require(counts["recompiled"] == counts["callback_interpreted"] == 0,
+                    "synchronized_interpreter_reported_native")
+        ordinal, previous_cycle, previous_counts = current_ordinal, cycle, counts
+        while index < len(schedule) and schedule[index] <= cycle:
+            index += 1
+    return points
+
+
 def validate_worker(report, request, exit_code):
     """CodexAstraUlt: Bind the report to this invocation before comparing states."""
     require(isinstance(report, dict) and type(report.get("schema_version")) is int
@@ -225,6 +273,7 @@ def validate_worker(report, request, exit_code):
             "invalid_worker_reason")
     observed = report.get("observed")
     require(isinstance(observed, dict), "invalid_worker_observed")
+    validate_synchronized_points(report, request["limits"]["max_cycles"])
     if not good:
         require(observed == {}, "invalid_worker_incomplete_observations")
         checkpoints = report.get("checkpoints")
@@ -339,6 +388,44 @@ or a proof of complete emulation correctness. Route counters never enter equalit
             "scope": "bounded CPU/state fingerprint comparison; not a boot or correctness proof"}
 
 
+# CodexAstraUlt: This supplements, never rewrites, arbitrary-cycle evidence.
+# Even identical sampled states qualify only at the same fully synchronized SVC,
+# with generated native work already observed before the matching boundary.
+def synchronized_comparison(interpreter, native):
+    for report in (interpreter, native):
+        require(report["status"] in ("guest_exited", "budget_exhausted"), "incomplete_synchronized_route")
+        validate_synchronized_points(report, report["limits"]["max_cycles"])
+    left = {point["requested_cycle"]: point for point in interpreter["synchronized_checkpoints"]}
+    right = {point["requested_cycle"]: point for point in native["synchronized_checkpoints"]}
+    eligible = [cycle for cycle in (100000, 500000, 1000000, 2000000)
+                if cycle <= min(interpreter["limits"]["max_cycles"], native["limits"]["max_cycles"])]
+    matches, mismatches, missing, unqualified = [], [], [], []
+    for requested in eligible:
+        a, b = left.get(requested), right.get(requested)
+        if a is None or b is None:
+            missing.append({"requested_cycle": requested,
+                            "interpreter_observed": a is not None, "native_observed": b is not None})
+            continue
+        if a["boundary"] != b["boundary"]:
+            mismatches.append({"requested_cycle": requested, "reason": "boundary_identity_differs",
+                               "interpreter": a["boundary"], "native": b["boundary"]})
+            continue
+        generated = b["instructions"]["recompiled"] - b["instructions"]["callback_interpreted"]
+        if a["state"] != b["state"]:
+            mismatches.append({"requested_cycle": requested, "cycle": a["boundary"]["cycle"],
+                               "reason": "state_differs", "different_fields": sorted(
+                name for name in a["state"] if a["state"][name] != b["state"][name])})
+        elif generated > 0:
+            matches.append({"requested_cycle": requested, "cycle": a["boundary"]["cycle"],
+                            "native_instructions_observed": generated, "boundary": a["boundary"]})
+        else:
+            unqualified.append(requested)
+    return {"status": "different" if mismatches else "matched" if matches else "inconclusive",
+            "matched_boundaries": matches, "mismatches": mismatches, "missing_boundaries": missing,
+            "zero_native_work_boundaries": unqualified,
+            "scope": "sampled post-SVC state only; raw checkpoint differences remain unresolved"}
+
+
 def source_identity():
     """CodexAstraUlt: Extend historical provenance with the actual native worker/fence sources."""
     result = COMMON.source_identity()
@@ -390,6 +477,7 @@ def run(args):
     """CodexAstraUlt: Failed admission cannot fall through to a native load."""
     report = {"schema_version": 1, "kind": "droidds_private_native_comparison",
               "status": "rejected", "reason": "preflight", "routes": {}, "comparison": None,
+              "synchronized_comparison": None,
               "limitations": ["Linux host base-code diagnostic fence; dynamic modules stay interpreted.",
                               "SIGSEGV alone does not identify a code write or its cause.",
                               "No Android/Thor performance or interactive boot qualification.",
@@ -456,6 +544,8 @@ def run(args):
             else:
                 report["comparison"] = comparison(report["routes"]["interpreter"]["worker_report"],
                                                    report["routes"]["native"]["worker_report"])
+                report["synchronized_comparison"] = synchronized_comparison(
+                    report["routes"]["interpreter"]["worker_report"], report["routes"]["native"]["worker_report"])
                 report["status"], report["reason"] = "compared", report["comparison"]["status"]
             INPUTS.verify_unchanged(admitted)
             require(COMPILE.identity(worker, COMMON.MAX_WORKER_BYTES) == worker_identity, "native_worker_changed")

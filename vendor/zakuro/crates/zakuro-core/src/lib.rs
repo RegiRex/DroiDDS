@@ -211,6 +211,9 @@ pub struct System {
     diagnostic_fault: Option<DiagnosticFault>,
     // CodexAstraUlt: Heap storage exists only when a diagnostic tool enables it.
     diagnostic_trace: Option<Box<diagnostics::TraceState>>,
+    // CodexAstraUlt: One optional completed-SVC marker gives comparison tools
+    // a natural materialized boundary without retaining an event trace.
+    native_comparison_boundary: Option<Box<diagnostics::NativeComparisonBoundary>>,
     /// branches into unmapped memory, keyed by target.
     pub prefetch_aborts: BTreeMap<u32, u32>,
     /// the last few instruction addresses, so a fault can say how it got there.
@@ -318,6 +321,7 @@ impl System {
             undefined_seen: BTreeMap::new(),
             diagnostic_fault: None,
             diagnostic_trace: None,
+            native_comparison_boundary: None,
             prefetch_aborts: BTreeMap::new(),
             history: [0; HISTORY_LENGTH],
             history_index: 0,
@@ -427,6 +431,11 @@ impl System {
             self.audio_frame();
         }
 
+        // CodexAstraUlt: Both CPU routes observe due waits before the next
+        // guest instruction. Reuse this deadline through dispatch; only a
+        // scheduler pass can change it before guest execution starts.
+        let mut event = self.kernel.next_event();
+        self.queue_due_scheduling(event);
         if self.kernel.reschedule_pending || self.kernel.current_thread.is_none() {
             // CodexAstraUlt: Keep scheduling unchanged; observe transitions and
             // completed wait return registers only for an explicitly enabled trace.
@@ -444,6 +453,7 @@ impl System {
             if self.diagnostic_trace.is_some() {
                 self.trace_schedule(previous_thread, wait_result);
             }
+            event = self.kernel.next_event();
         }
 
         if self.kernel.current_thread.is_none() {
@@ -520,7 +530,7 @@ impl System {
 
         // CodexAstraUlt: A compiled block's entry is not its eventual SVC PC.
         let mut native_dispatch = false;
-        let exit = match self.run_recompiled(deadline) {
+        let exit = match self.run_recompiled(deadline, event) {
             Some(exit) => {
                 native_dispatch = true;
                 // its writes do not go through the log a watch keeps
@@ -558,12 +568,26 @@ impl System {
         if exit.is_some() {
             self.idle_interrupted(true);
         }
+        // CodexAstraUlt: Account for the elapsed CPU work before a syscall can
+        // make another thread runnable. Empty native quanta cannot become a
+        // retroactive scheduling request because of a later CreateThread.
+        self.queue_due_scheduling(event);
+        let dispatch_cycles = self.cpu.cycles;
+        let mut comparison_boundary = None;
         match exit {
             None => {}
             Some(Exit::Supervisor(number)) => {
                 // CodexAstraUlt: Capture ABI metadata around the real dispatch,
                 // preserving blocked returns until their thread actually resumes.
                 let entry = self.trace_svc_entry((!native_dispatch).then_some(pc), number);
+                // CodexAstraUlt: Save identity before ExitProcess or a wait can
+                // change the current thread; publish only after this step's
+                // syscall and its extra cycle accounting have completed.
+                comparison_boundary = self.native_comparison_boundary.as_ref().map(|_| (
+                    number,
+                    self.cpu.regs[15].wrapping_sub(if self.cpu.cpsr.thumb { 2 } else { 4 }),
+                    self.kernel.current().map(|thread| thread.guest_id),
+                ));
                 kernel::svc::dispatch(self, number);
                 self.trace_svc_exit(entry);
             }
@@ -613,12 +637,12 @@ impl System {
         }
         let _ = pc;
 
-        // give the scheduler a chance on a regular cadence so that a thread
-        // which never makes a syscall cannot monopolise the core.
-        if self.cpu.cycles >= self.next_preempt {
-            self.next_preempt = self.cpu.cycles + PREEMPT_INTERVAL;
-            self.kernel.reschedule_pending = true;
+        // CodexAstraUlt: Some HLE calls charge additional cycles. Catch those
+        // up too, using the syscall's resulting deadlines and runnable state.
+        if self.cpu.cycles != dispatch_cycles {
+            self.queue_due_scheduling(self.kernel.next_event());
         }
+        self.record_native_comparison_boundary(comparison_boundary);
 
         if self.exited {
             StepOutcome::Exited
@@ -629,10 +653,26 @@ impl System {
         }
     }
 
+    // CodexAstraUlt: Advance from the previous quantum, not the host dispatch's
+    // return cycle. A lone thread need not unwind or schedule every 8192 ticks;
+    // its phase still agrees with the interpreter when another thread appears.
+    fn queue_due_scheduling(&mut self, event: Option<u64>) {
+        if self.cpu.cycles >= self.next_preempt {
+            let elapsed = (self.cpu.cycles - self.next_preempt) / PREEMPT_INTERVAL + 1;
+            self.next_preempt = self.next_preempt.saturating_add(elapsed.saturating_mul(PREEMPT_INTERVAL));
+            if self.kernel.others_runnable() {
+                self.kernel.reschedule_pending = true;
+            }
+        }
+        if event.is_some_and(|tick| tick <= self.cpu.cycles) {
+            self.kernel.reschedule_pending = true;
+        }
+    }
+
     /// runs recompiled code from the pc up to the next thing the scheduler
     /// has to look at, when the library has code there. what it returns
     /// stands in for what one interpreted step would.
-    fn run_recompiled(&mut self, deadline: Option<u64>) -> Option<Option<Exit>> {
+    fn run_recompiled(&mut self, deadline: Option<u64>, event: Option<u64>) -> Option<Option<Exit>> {
         // CodexAstraUlt: Work earlier in step may change maps/guards. Recheck
         // immediately before native entry without per-instruction code hashing.
         if self.memory.verify_base_code_fence().is_err() {
@@ -647,7 +687,6 @@ impl System {
         let mut limit = self.next_frame_boundary.min(self.next_audio_frame);
         // a thread or a timer due wants the scheduler at its tick, a run
         // that reached it has it look first
-        let event = self.kernel.next_event();
         if let Some(tick) = event {
             if tick <= self.cpu.cycles {
                 self.kernel.reschedule_pending = true;
@@ -674,9 +713,6 @@ impl System {
         let (ran, stop) = library.run(&mut self.cpu, &mut self.memory, budget);
         self.memory.clear_gpu_sync();
         self.recompiled_instructions += ran;
-        if event.is_some_and(|tick| self.cpu.cycles >= tick) {
-            self.kernel.reschedule_pending = true;
-        }
         if ran == 0 && matches!(stop, recompiled::Stop::Left) {
             // not enough budget left for a whole block
             if let Some(hints) = &mut self.hints {
@@ -1374,6 +1410,11 @@ fn grow(pixels: &[u8], width: u32, scale: u32) -> Vec<u8> {
     }
     out
 }
+
+#[cfg(test)]
+// CodexAstraUlt: Original ABI fixtures compare scheduler boundaries without
+// importing private title code or relying on generated-code timing accidents.
+mod scheduling_tests;
 
 #[cfg(test)]
 mod tests {
