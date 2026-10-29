@@ -8,7 +8,16 @@ that retained output into a **Linux host library**. It does not load the library
 execute the game, build/install an APK or use USB. The public app remains
 0.0.6/code 7. Read the [implementation record](builds/0.0.7-native-compilation.md).
 
-## Run one compilation batch
+<!-- CodexAstraUlt: Advance the first healthy private deadline into bounded
+receipt reuse without restarting generation or silently raising resource caps. -->
+Compilation run-001 on `8e06139` now reports **133/521 validated objects**, with
+388 remaining and no linked library. It stopped at the default 30-minute batch
+deadline with no earlier compiler failure. The current local task is the
+[bounded resume below](#continue-the-existing-dark-moon-compilation). The initial
+procedure remains available for other fresh inputs. See the
+[private compilation record](host-tests/dark-moon-compilation-2026-10-28.md).
+
+## Initial compilation batch
 
 <!-- CodexAstraUlt: Use the existing successful preparation and installed tools;
 do not repeat C generation or install another compiler stack for this task. -->
@@ -91,9 +100,46 @@ Previous attempts and reports remain intact; a lock prevents two coordinators
 from using that output simultaneously. A changed recipe, source, compiler or
 object rejects reuse. A completed build is revalidated without relinking.
 
-For this first private compilation, run **one batch** and stop at completion,
+For an initial compilation, run **one batch** and stop at completion,
 the first rejection/failed command, or the batch deadline. Do not raise limits,
 change optimization, skip a source, or automatically repeat a failed command.
+
+## Continue the existing Dark Moon compilation
+
+<!-- CodexAstraUlt: Give the local agent a finite continuation that reuses the
+validated objects and returns one result instead of another manual deadline relay. -->
+Use the same preparation, compiler selection and existing compilation output from
+run-001. No checkout update, C generation, preparation-worker rebuild, or unchanged
+fixture-test rerun is required. The compilation coordinator rechecks the source,
+toolchain, contract and all completed receipts on every resume. Its six bound
+Python sources are unchanged between `8e06139` and `17f3cba`.
+
+```bash
+python3 tools/compile_private_title.py \
+  --preparation /path/to/dark-moon-preparation-20261028-run-002 \
+  --output /path/to/dark-moon-compilation-20261028-run-001 \
+  --resume
+```
+
+Use the actual existing private directories and repeat the original `--cc` option
+if one was used. Keep all other options at their original default values. The
+output above must be the directory with `compile-plan.json`, `receipts/` and
+`attempts/`, not a new directory named for the next attempt.
+
+Run at most **three additional batches**, each retaining the default 1800-second
+batch deadline and all other existing limits. After each, read the new attempt's
+report. Another resume is allowed only for `incomplete / batch_budget` with
+unchanged identities and a strictly increased validated-object count. Stop at
+the first complete linked/static-validated library, any other failure/rejection,
+zero progress, interruption, or the third batch. Do not automatically retry a
+compiler error, change flags, discard objects, or raise an allowance. Verification
+and reporting can extend elapsed time beyond the combined 90-minute batch budgets.
+
+Preserve the initial summary and each attempt report. Write one new consolidated
+`dark-moon-compilation-summary.md` outside the managed build directory, recording
+reused/new/ready/remaining counts and the final outcome for every additional batch.
+The coordinator owns its build directory and storage accounting; it must not gain
+extra unrelated reports. Keep all private sources, objects and libraries local.
 
 ## Result and next gate
 
