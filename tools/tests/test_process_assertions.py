@@ -26,6 +26,16 @@ class ProcessAssertionTests(unittest.TestCase):
         with mock.patch.object(Path, "read_text", return_value="123 (original (child)) Z 1 2 3"):
             assert_process_stopped(self, 123)
 
+    def test_reaped_after_open_during_file_read_is_accepted(self):
+        # CodexAstraUlt: Linux can open a proc entry before its task disappears,
+        # then return ESRCH from the read itself, as observed on the CI runner.
+        with mock.patch.object(Path, "open") as opened:
+            stream = opened.return_value.__enter__.return_value
+            stream.read.side_effect = ProcessLookupError(3, "No such process")
+            assert_process_stopped(self, 123)
+        opened.assert_called_once()
+        stream.read.assert_called_once_with()
+
     def test_other_read_errors_are_not_mistaken_for_successful_cleanup(self):
         for error in (PermissionError, OSError):
             with self.subTest(error=error), mock.patch.object(Path, "read_text", side_effect=error):
