@@ -269,7 +269,7 @@ def git_section(package: dict, emitted: set[str]) -> str:
     return result
 
 
-def assemble(metadata: dict, ndk: Path, sysroot: Path, rust_version: str) -> str:
+def assemble(metadata: dict, ndk: Path, sysroot: Path, rust_version: str, title_player: bool = False) -> str:
     """CodexAstraUlt: Include conservative build provenance without asserting linkage."""
     if not rust_version.startswith("rustc 1.95.0 "):
         raise ValueError("Notices must come from pinned Rust 1.95.0")
@@ -302,13 +302,21 @@ def assemble(metadata: dict, ndk: Path, sysroot: Path, rust_version: str) -> str
             for key, entry in REGISTRY_NOTICES.items()):
         raise ValueError("Locked registry archive inventory changed; review notices before release")
     emitted: set[str] = set()
-    output = ["DroidDS Android runtime probe - third-party notices\n\n",
+    # CodexAstraUlt: The generic title player can contain owner-generated title
+    # code. Do not label that code as an original public probe fixture; support
+    # code and supplied third-party notices keep the same exact provenance gates.
+    title_origin = ("Title-specific code comes from the locally supplied input; 3dsrecomp's\n"
+                    "generated support code is covered by its declared MIT terms.\n\n"
+                    if title_player else
+                    "The generated ARM/Thumb fixtures are original DroidDS synthetic code;\n"
+                    "3dsrecomp's generated support code is covered by its declared MIT terms.\n"
+                    "No retail game data is distributed in the public probe.\n\n")
+    output = [("DroiDDS Android title player" if title_player else "DroidDS Android runtime probe")
+              + " - third-party notices\n\n",
               "CodexAstraUlt: Generated from locked fetched sources and the build's toolchain.\n",
               "This preserves all resolved Cargo dependency notices, including host-only,\n",
               "procedural-macro and other-target packages. Inclusion does not assert that\n",
-              "every package is linked into the APK. The generated ARM/Thumb fixtures are\n",
-              "original DroidDS synthetic code; 3dsrecomp's generated support code is\n",
-              "covered by its declared MIT terms. No retail game data is distributed.\n\n",
+              "every package is linked into the APK.\n", title_origin,
               "The APK contains Zakuro CPU/common plus maintained core/filesystem/GPU copies,\n",
               "recomp-abi and their enabled dependencies,\n",
               "plus Rust runtime support, NDK-linked support and original DroidDS code.\n",
@@ -346,11 +354,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ndk", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    # CodexAstraUlt: Labels change for the separate app; inventory checks do not.
+    parser.add_argument("--title-player", action="store_true")
     args = parser.parse_args()
     try:
         metadata = json.loads(command(["cargo", "metadata", "--locked", "--format-version", "1"]))
         sysroot = Path(command(["rustc", "--print", "sysroot"]))
-        text = assemble(metadata, args.ndk.resolve(), sysroot, command(["rustc", "--version"]))
+        text = assemble(metadata, args.ndk.resolve(), sysroot, command(["rustc", "--version"]), args.title_player)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(text, encoding="utf-8")
         count = sum(bool(package["source"]) or package["name"] in LOCAL_UPSTREAM_PACKAGES

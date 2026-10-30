@@ -1,5 +1,18 @@
 # DroidDS implementation queue
 
+<!-- CodexAstraUlt: Advance generic product work independently of another
+private trace, while retaining the separate device and owned-title gates. -->
+Current work for **0.0.7-preview.1** implements the generic portions of
+DDS-012/013: admitted title sessions, durable runtime storage, matching import,
+Android controls/audio/lifecycle, resumable ARM64 compilation and per-title
+packaging. Original-input cloud checks exercise the actual runtime and Vulkan.
+See [the interface contract](ANDROID_TITLE_CONTRACT.md) and
+[builder procedure](ANDROID_TITLE_BUILD.md). DDS-014's actual owned-title Thor
+launch, install/update preservation and measured playback remain the next
+consolidated local gate. The [roadmap](ROADMAP.md) defines the playable beta
+requirements; another isolated unchanged interpreter trace is not a prerequisite
+for this generic implementation.
+
 <!-- CodexAstraUlt: Reduce the supplied 119-ticket catalog to bounded work packages with explicit tests and links back to the source requirements. -->
 
 <!-- CodexAstraUlt: Record the delivered CPU subset and the resolved current

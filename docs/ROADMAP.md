@@ -1,5 +1,27 @@
 # DroidDS delivery roadmap
 
+<!-- CodexAstraUlt: The owner prioritizes completing the Android product path
+in the cloud before further isolated private traces, and targets a first beta. -->
+As of **2026-10-29**, the public app remains **0.0.6**. Private host preparation,
+compilation and initial native execution are implemented, but an interactive
+owned-game Android boot and sustained playable route are not established.
+The next development candidate is **0.0.7-preview.1**: the generic per-title
+Android session, matching-data import, durable saves, full controls and an ARM64
+package builder, exercised with an original interactive guest. This candidate
+does not by itself close the owned-game boot milestone.
+The [candidate build record](builds/0.0.7-android-title-candidate.md) records
+the completed local APK, actual original guest/Vulkan checks and remaining
+device qualification.
+
+Cloud work now proceeds across those product components in parallel with native
+correctness and scheduler optimization. Another Dark Moon checkpoint is not a
+prerequisite for implementing them. Follow the concrete
+[Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
+next local batch around the integrated candidate: install/update retention,
+private ARM64 compilation using retained prepared C, and the first actual title
+launch on Thor. Keep private-only evidence and device execution separate from
+the substantial development that can be completed with original inputs here.
+
 <!-- CodexAstraUlt: Replace the research pack's broad serial implementation sequence with evidence-gated work and early Android, memory and correctness risk checks. -->
 
 <!-- CodexAstraUlt: Record the first CPU implementation without promoting full
@@ -78,15 +100,19 @@ admission and an immutable-base fence, with dynamic modules interpreted. It is
 now followed by a [private result](host-tests/dark-moon-native-2026-10-29.md):
 1,999,970 native instructions and raw CPU/scheduler differences. The next private
 task tests corrected scheduling and synchronized comparisons with the existing
-library. Native parity, general mutable-code execution, packaging and Thor boot
-remain required follow-up work for 0.0.7.
+library. Native parity, general mutable-code execution and Thor boot remain
+required follow-up work for 0.0.7. The new Android player and package builder
+advance independently with original inputs; see the candidate scope above.
 
 <!-- CodexAstraUlt: Ground upcoming private-title work in exact identity,
 local signing and durable data ownership before claiming a game build. -->
 The [0.0.7 private title build plan](PRIVATE_TITLE_BUILD_PLAN.md) specifies the
 local builder, matching data import, signing/save identity and host/Thor boot
 checks. It records the compiler/loader update mismatch and keeps private inputs
-on the owner's Linux computer. This is planned work after the 0.0.6 gate.
+on the owner's Linux computer. The generic implementation now follows
+[the Android contract](ANDROID_TITLE_CONTRACT.md); the
+[builder procedure](ANDROID_TITLE_BUILD.md) reuses retained prepared C.
+Private Android qualification remains outstanding.
 
 ## Versioned path to 0.1.0
 
@@ -109,7 +135,7 @@ for an arbitrary version number.
 
 **First visible 3DS homebrew on Android: target 0.0.6. First owned retail-game
 boot on Android: target 0.0.7. First repeatable playable game segment: target
-0.0.8. Version 0.1.0 is the first qualified, limited early alpha.**
+0.0.8. Version 0.1.0 is the first qualified, limited beta.**
 
 ### What the existing builds do
 
@@ -165,11 +191,11 @@ start ownership, memory bounds and mobile compatibility before game workloads. -
 | **0.0.7 — first owned-game boot on Android** | Finish the local per-title build/package path, exact game/update/module identity checks and private data import. Establish persistent signing/package identity and durable save locations. Package the private control title that passed the host baseline. | A reproducible private APK launches the matching owned title into an interactive menu or identified opening scene on the Thor. Native execution and interpreter fallback are measured. Wrong revisions are rejected safely; replacement builds preserve identity and app data. This is a boot milestone, not sustained playability. Attempt the equivalent Dark Moon checkpoint and record any blockers. |
 | **0.0.8 — first playable game segment** | Make one defined control-title route repeatably playable with controls, touch, audio, saving/loading and lifecycle recovery. Fix reproducible CPU/service/PICA problems. Continue Dark Moon moon/ghost/opening diagnosis and targeted corrections. | The same gameplay route can be played, saved, exited normally and resumed on the Thor at 1× with correct output. Compare native/interpreter and graphics paths where relevant. A title screen or a single cutscene is insufficient. Report Dark Moon's visual, speed and crash status separately. |
 | **0.0.9 — sustained and cold-run qualification** | Stress the existing resource limits, cold generic-rendering coverage, cache handling, logging cost and repeated teardown. Optimize measured bottlenecks. Measure 1× first, then 2×/4×; qualify Thor display options separately. | Required draws survive delayed/failed/full shader workers. Memory settles during the chosen workload and recovers over normal exits. Collect repeated frame-time/speed/audio/thermal evidence and a 30-minute route. Record which resolutions meet the playability target and which remain limited. Limits and safe cleanup are strengthened here, not introduced for the first time. |
-| **0.1.0 — limited early alpha** | Deliver the usable Android runtime plus repeatable local title-building instructions, stable updates/saves and a measured compatibility list. | At least one explicitly named owned title/revision has repeatable playable gameplay on the tested Thor configuration, including the sustained route and save/restart tests below. Publish exact supported scope, known failures, resolution results and Dark Moon status. Full-library compatibility is not implied. |
+| **0.1.0 — limited first beta** | Deliver the usable Android runtime plus repeatable local title-building instructions, stable updates/saves and a measured compatibility list. | At least one explicitly named owned title/revision has repeatable playable gameplay on the tested Thor configuration, including the sustained route and save/restart tests below. Publish exact supported scope, known failures, resolution results and Dark Moon status. Full-library compatibility is not implied. |
 
 ### What 0.1.0 means
 
-<!-- CodexAstraUlt: Define an assessable first-alpha contract without promising
+<!-- CodexAstraUlt: Define an assessable first-beta contract without promising
 perfect Dark Moon, universal performance, or retail-derived public artifacts. -->
 
 For a title to be listed as playable in 0.1.0, record its exact revision, driver,
@@ -186,7 +212,7 @@ Dark Moon remains a priority throughout the private-game stages, starting with
 early host reconnaissance rather than waiting until 0.0.9. Its target remains
 correct moon/ghost rendering and fully playable speed, with the broader 2×/4×
 headroom goals. We cannot promise those outcomes by 0.1.0 before the selected
-runtime can execute and profile that title. If it remains blocked, the alpha
+runtime can execute and profile that title. If it remains blocked, the beta
 must say exactly where and why; another title's pass cannot clear Dark Moon.
 
 HD texture packs, broad library compatibility, Retroid-specific qualification,

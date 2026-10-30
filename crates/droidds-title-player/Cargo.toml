@@ -1,0 +1,22 @@
+# CodexAstraUlt: A separate persistent title bridge owns no fixture or compiler;
+# the generic runtime admits installer-owned native code and matching input.
+[package]
+name = "droidds-title-player"
+version = "0.0.7"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+droidds-title-runtime = { path = "../droidds-title-runtime" }
+serde_json.workspace = true
+
+# CodexAstraUlt: Authored containers exercise the exported ownership boundary;
+# these already-pinned tools never enter the Android production dependency path.
+[dev-dependencies]
+droidds-runtime-probe = { path = "../droidds-runtime-probe" }
+zakuro-fs.workspace = true
+sha2.workspace = true

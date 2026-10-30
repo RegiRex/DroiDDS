@@ -1,0 +1,27 @@
+# CodexAstraUlt: Generic admitted title sessions share the existing core without
+# a desktop frontend, host compiler or fixture data in production builds.
+[package]
+name = "droidds-title-runtime"
+version = "0.0.7"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# CodexAstraUlt: Explicit host Vulkan execution requires an installed ICD;
+# ordinary CPU/unit builds do not silently substitute a software GPU claim.
+[features]
+vulkan-tests = []
+
+[dependencies]
+zakuro-core.workspace = true
+zakuro-fs.workspace = true
+zakuro-common.workspace = true
+zakuro-cpu.workspace = true
+recomp-abi.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+droidds-runtime-probe = { path = "../droidds-runtime-probe", features = ["producer"] }
+droidds-title-builder = { path = "../droidds-title-builder" }

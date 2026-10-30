@@ -20,6 +20,10 @@ use zakuro_cpu::Bus;
 static SERIAL: Mutex<()> = Mutex::new(());
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
+// CodexAstraUlt: Additional generated CPU cases cover mode changes and actual
+// callback interpretation through this same admitted worker and sealed library.
+mod cpu_coverage;
+
 // CodexAstraUlt: Each fixture owns its temporary directory and cleanup. These
 // directories contain only synthetic data; private outputs are never touched.
 struct Fixture {

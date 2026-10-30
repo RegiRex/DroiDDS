@@ -435,15 +435,36 @@ impl Kernel {
         if !any_blocked {
             return None;
         }
+        // CodexAstraUlt: Select the earliest armed candidate before traversing
+        // any wait lists. A waited minimum resolves the query regardless of
+        // timer registration order; otherwise the exact filtered scan below
+        // handles unobserved timers without a cross-step cache or allocation.
+        let earliest = self.timers.iter().filter_map(|&id| {
+            match self.objects.get(id) {
+                Some(KObject::Timer(timer)) => timer.fire_at.map(|at| (at, id)),
+                _ => None,
+            }
+        }).min_by_key(|&(at, _)| at);
+        let Some((at, id)) = earliest else { return best };
+        if best.is_some_and(|earliest| earliest <= at) {
+            return best;
+        }
+        if self.threads.iter().any(|t| t.status.is_blocked() && t.wait_objects.contains(&id)) {
+            return Some(at);
+        }
         for &id in &self.timers {
-            let waited = self.threads.iter().any(|t| t.status.is_blocked() && t.wait_objects.contains(&id));
-            if !waited {
+            // CodexAstraUlt: Reject unarmed or later timers before scanning
+            // thread wait lists. They cannot improve this minimum, and avoiding
+            // those nested scans reduces exact per-instruction deadline work
+            // without caching mutable kernel state across steps.
+            let Some(KObject::Timer(timer)) = self.objects.get(id) else { continue };
+            let Some(at) = timer.fire_at else { continue };
+            if best.is_some_and(|earliest| earliest <= at) {
                 continue;
             }
-            if let Some(KObject::Timer(timer)) = self.objects.get(id) {
-                if let Some(at) = timer.fire_at {
-                    best = Some(best.map_or(at, |b: u64| b.min(at)));
-                }
+            let waited = self.threads.iter().any(|t| t.status.is_blocked() && t.wait_objects.contains(&id));
+            if waited {
+                best = Some(at);
             }
         }
         best
@@ -803,3 +824,8 @@ mod tests {
         assert_eq!(kernel.objects.refcount(object), 1);
     }
 }
+
+#[cfg(test)]
+// CodexAstraUlt: Independent original deadline enumeration protects the timer
+// candidate filter against registration, wait-state, ordering and mutation gaps.
+mod deadline_tests;

@@ -4,6 +4,20 @@
 and publication; preserve existing artifact identities in historical evidence. -->
 - The repository is `RegiRex/DroiDDS`. Use that spelling in current GitHub links.
 
+<!-- CodexAstraUlt: Continue the owner's requested cloud product development
+before another isolated local trace; candidate publication does not close boot. -->
+- Current development adds the 0.0.7-preview.1 generic per-title Android player.
+  Read docs/ANDROID_TITLE_CONTRACT.md and docs/ANDROID_TITLE_BUILD.md. Keep the
+  original-fixture candidate distinct from qualified owned-game boot and the
+  roadmap's 0.1.0 limited beta. Complete cloud implementation/testing first and
+  consolidate private compilation/device validation into one local batch.
+  Preserve the completed Linux objects/library and prepared C: Android needs
+  separate ARM64 objects, not regeneration or replacement of those artifacts.
+  The six historical host compilation-contract helpers remain byte-identical
+  to 857ff47; use the separate Android adapter. New title signing identity is
+  explicit and separate from the probe. Preserve keys outside source/release
+  bundles. Public title releases admit only the exact authored homebrew guest.
+
 <!-- CodexAstraUlt: The owner now authorizes development and reuse from multiple
 open-source projects; continue from measured foundation results, not the old
 planning-only state. -->

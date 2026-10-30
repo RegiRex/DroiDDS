@@ -8,6 +8,19 @@ An Android ARM64 3DS recompilation project built around **3dsrecomp + Zakuro**.
 The desktop builder will translate supported guest CPU code into native libraries;
 a shared runtime will retain 3DS services, graphics, audio and interpreter fallback.
 
+<!-- CodexAstraUlt: Lead with the current product work instead of making readers
+infer progress from the historical probe and private tracing records below. -->
+**Current development: 0.0.7-preview.1, the first generic Android title player.**
+The new path builds a separate per-title ARM64 app, imports its matching game
+data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
+controls, touch and audio. Cloud checks use an original interactive guest;
+an owned-game Android boot and playable beta remain unqualified. The previously
+published app is 0.0.6. See the [current roadmap](docs/ROADMAP.md),
+[title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
+[local Android builder](docs/ANDROID_TITLE_BUILD.md).
+The [candidate build record](docs/builds/0.0.7-android-title-candidate.md)
+records the completed local APK and executed host checks.
+
 <!-- CodexAstraUlt: Replace planning-only status after the first verified host
 build; keep its small CPU proof separate from Android and game qualification. -->
 **Status, 2026-10-17: the first Linux CPU foundation build, 0.0.1, passes.**
@@ -104,10 +117,9 @@ Original fixtures execute and match both routes. The first
 [private native run](docs/host-tests/dark-moon-native-2026-10-29.md) executes
 1,999,970 native instructions with raw CPU/scheduler differences. The next task
 uses corrected scheduling and supplemental synchronized comparisons, reusing
-the existing library. General mutable native
-code, private boot evidence and Android packaging remain unfinished.
-This is progress toward 0.0.7, not a
-new game-playing APK.
+the existing library. General mutable native code and private boot evidence
+remain unfinished. Android packaging now has its own implementation and
+qualification path described above; host results alone do not qualify it.
 
 The corrected-device evidence now includes measured touch and view recreation
 plus the owner's steady-tone confirmation. Automated success alone cannot qualify

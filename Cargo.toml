@@ -14,6 +14,9 @@ members = ["crates/droidds-foundation", "crates/droidds-android-probe",
            # CodexAstraUlt: Sealed, identity-bound native host diagnostics are
            # distinct from the established interpreter reconnaissance worker.
            "crates/droidds-native-title-tools",
+           # CodexAstraUlt: The per-title Android player uses a generic runtime
+           # and a separate FFI library; probe fixtures remain a separate app.
+           "crates/droidds-title-runtime", "crates/droidds-title-player",
            "crates/droidds-runtime-probe", "vendor/zakuro/crates/zakuro-core",
            "vendor/zakuro/crates/zakuro-fs", "vendor/zakuro/crates/zakuro-gpu"]
 # CodexAstraUlt: Preserve the default host command while Android explicitly
@@ -49,6 +52,9 @@ bytemuck = { version = "1", features = ["derive"] }
 parking_lot = "0.12"
 serde_json = "1.0"
 libc = "0.2"
+# CodexAstraUlt: Standard SHA-256 binds imported data and installed native code
+# in the Android title adapter; the exact version participates in Cargo.lock.
+sha2 = "=0.10.9"
 
 # CodexAstraUlt: Keep symbols for diagnosing this first host proof. Do not enable
 # fast-math or alter the upstream generated-C semantic flags for speed claims.

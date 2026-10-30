@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "comment": "CodexAstraUlt: Reviewed exact Cargo registry versions for the 0.0.5 runtime integration; hashes preserve supplied notices and inline attributions, including other-target/build-only packages. A dependency change requires source and license review.",
+  "comment": "CodexAstraUlt: Reviewed exact Cargo registry versions for the runtime and title player, including SHA-256 import dependencies; hashes preserve supplied notices and inline attributions, including other-target/build-only packages. A dependency change requires source and license review.",
   "registry": "registry+https://github.com/rust-lang/crates.io-index",
   "packages": [
     {
@@ -223,6 +223,17 @@
       "files": {},
       "source_comments": {},
       "declaration_only": "MIT"
+    },
+    {
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "license": "MIT OR Apache-2.0",
+      "checksum": "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71",
+      "files": {
+        "LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+        "LICENSE-MIT": "d5c22aa3118d240e877ad41c5d9fa232f9c77d757d4aac0c2f943afc0a95e0ef"
+      },
+      "source_comments": {}
     },
     {
       "name": "block-buffer",
@@ -537,6 +548,17 @@
     },
     {
       "name": "cpufeatures",
+      "version": "0.2.17",
+      "license": "MIT OR Apache-2.0",
+      "checksum": "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280",
+      "files": {
+        "LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+        "LICENSE-MIT": "ae9baa7beea910273c2f384c2a6b721fb7bd02bda3436074a1072e4ee689f985"
+      },
+      "source_comments": {}
+    },
+    {
+      "name": "cpufeatures",
       "version": "0.3.1",
       "license": "MIT OR Apache-2.0",
       "checksum": "5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566",
@@ -602,6 +624,17 @@
     },
     {
       "name": "crypto-common",
+      "version": "0.1.7",
+      "license": "MIT OR Apache-2.0",
+      "checksum": "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a",
+      "files": {
+        "LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+        "LICENSE-MIT": "3521672491a3479422d5fe1aca6645dd2984090f85da6e5205abfb18fb7a6897"
+      },
+      "source_comments": {}
+    },
+    {
+      "name": "crypto-common",
       "version": "0.2.2",
       "license": "MIT OR Apache-2.0",
       "checksum": "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453",
@@ -641,6 +674,17 @@
       "files": {
         "LICENSE-APACHE": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
         "LICENSE-MIT": "2710a622a896bba67356913d4d0492cab5465f61b2ecce6d880aeb483834fb50"
+      },
+      "source_comments": {}
+    },
+    {
+      "name": "digest",
+      "version": "0.10.7",
+      "license": "MIT OR Apache-2.0",
+      "checksum": "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292",
+      "files": {
+        "LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+        "LICENSE-MIT": "9e0dfd2dd4173a530e238cb6adb37aa78c34c6bc7444e0e10c1ab5d8881f63ba"
       },
       "source_comments": {}
     },
@@ -835,6 +879,16 @@
       "files": {
         "LICENSE-APACHE": "275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427",
         "LICENSE-MIT": "6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd"
+      },
+      "source_comments": {}
+    },
+    {
+      "name": "generic-array",
+      "version": "0.14.7",
+      "license": "MIT",
+      "checksum": "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a",
+      "files": {
+        "LICENSE": "c09aae9d3c77b531f56351a9947bc7446511d6b025b3255312d3e3442a9a7583"
       },
       "source_comments": {}
     },
@@ -1521,6 +1575,17 @@
       "source_comments": {}
     },
     {
+      "name": "sha2",
+      "version": "0.10.9",
+      "license": "MIT OR Apache-2.0",
+      "checksum": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
+      "files": {
+        "LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+        "LICENSE-MIT": "b4eb00df6e2a4d22518fcaa6a2b4646f249b3a3c9814509b22bd2091f1392ff1"
+      },
+      "source_comments": {}
+    },
+    {
       "name": "shlex",
       "version": "2.0.1",
       "license": "MIT OR Apache-2.0",
@@ -1841,6 +1906,17 @@
       "files": {
         "LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
         "LICENSE-MIT": "e4c9b06fa850cb9b540a5e400e9f6394cf15efcf4098144de477d1d3dae10150"
+      },
+      "source_comments": {}
+    },
+    {
+      "name": "version_check",
+      "version": "0.9.5",
+      "license": "MIT/Apache-2.0",
+      "checksum": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a",
+      "files": {
+        "LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "LICENSE-MIT": "b7e650f3fce5c53249d1cdc608b54df156a97edd636cf9d23498d0cfe7aec63e"
       },
       "source_comments": {}
     },

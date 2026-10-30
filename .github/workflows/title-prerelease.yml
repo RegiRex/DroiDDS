@@ -1,0 +1,216 @@
+# CodexAstraUlt: A deliberately tagged original title candidate has a separate
+# package, build and release inventory. Private title packages never enter CI.
+name: Android original title prerelease
+
+on:
+  push:
+    tags: ["v*-preview.*"]
+
+permissions:
+  contents: read
+
+# CodexAstraUlt: A failing gate on the left of tee remains a failed job.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: title-prerelease-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      RUSTUP_TOOLCHAIN: "1.95.0"
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Require reviewed original candidate identity
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, "tools")
+          from prepare_title_release import identity
+          tag = os.environ["RELEASE_TAG"]
+          identity(tag, os.environ["GITHUB_SHA"])
+          if not (Path("docs/releases") / (tag[1:] + ".md")).is_file():
+              raise SystemExit("Reviewed candidate release notes are required")
+          PY
+      - name: Install pinned toolchains and host Vulkan validation
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt,clippy
+          rustup target add --toolchain 1.95.0 aarch64-linux-android
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;27.3.13750724"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends binutils libvulkan1 mesa-vulkan-drivers vulkan-validationlayers
+          cargo fetch --locked
+          drivers=(/usr/share/vulkan/icd.d/lvp_icd*.json)
+          test "${#drivers[@]}" -eq 1
+          test -f "${drivers[0]}"
+          mkdir -m 700 "$RUNNER_TEMP/droidds-title-vulkan"
+          printf 'VK_DRIVER_FILES=%s\n' "${drivers[0]}" >> "$GITHUB_ENV"
+          printf 'XDG_RUNTIME_DIR=%s\n' "$RUNNER_TEMP/droidds-title-vulkan" >> "$GITHUB_ENV"
+          printf '%s\n' 'VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation' 'VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT' >> "$GITHUB_ENV"
+          printf '%s\n' "$ANDROID_HOME/ndk/27.3.13750724/shader-tools/linux-x86_64" >> "$GITHUB_PATH"
+      - name: Execute Python admission and publication controls
+        id: python
+        run: python3 -m unittest discover -s tools/tests -v
+      - name: Retain original CPU and integrated renderer gates
+        id: regressions
+        run: |
+          python3 tools/build_foundation.py --output "$RUNNER_TEMP/title-foundation" --jobs 2
+          python3 tools/build_runtime_probe.py --output "$RUNNER_TEMP/title-runtime-regressions" --jobs 2
+      - name: Execute generic runtime, native boundary and player gates
+        id: runtime
+        run: |
+          cargo fmt -p droidds-title-runtime -p droidds-title-player -- --check
+          cargo clippy --offline --locked -p droidds-title-runtime -p droidds-title-player --all-targets --no-deps -- -D warnings
+          cargo test --offline --locked -p zakuro-core -p droidds-title-tools -p droidds-native-title-tools -p droidds-title-builder -p droidds-title-runtime -p droidds-title-player -- --test-threads=1
+          VK_LOADER_DEBUG=layer cargo test --offline --locked -p droidds-title-runtime --features vulkan-tests generic_native_vulkan_session_matches_original_image_and_audio_oracles -- --test-threads=1 --nocapture 2>&1 | tee "$RUNNER_TEMP/title-vulkan-validation.log"
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, "tools")
+          from build_runtime_probe import validate_diagnostics
+          log = (Path(os.environ["RUNNER_TEMP"]) / "title-vulkan-validation.log").read_text()
+          validate_diagnostics(log)
+          if "1 passed; 0 failed" not in log:
+              raise SystemExit("The original generic Vulkan test did not execute")
+          PY
+          cargo build --offline --locked --release -p droidds-native-title-tools -p droidds-title-builder
+          cargo build --offline --locked --release -p droidds-runtime-probe --features producer
+          python3 tools/check_native_title_pipeline.py --output "$RUNNER_TEMP/title-native-pipeline"
+          python3 tools/tests/test_compile_android_title.py --sdk "$ANDROID_HOME" --worker target/release/droidds-prepare-title -v
+      # CodexAstraUlt: The actual generic preparation and ARM64 compiler consume
+      # only a fresh image emitted from reviewed original sources. Re-labeling a
+      # private package cannot satisfy the release script's fixed image identity.
+      - name: Prepare and compile the original interactive title for Android
+        id: compiler
+        run: |
+          target/release/droidds-runtime-probe emit-homebrew --output "$RUNNER_TEMP/title-original"
+          python3 tools/prepare_private_title.py --input "$RUNNER_TEMP/title-original/homebrew-fixture.cxi" --output "$RUNNER_TEMP/title-preparation"
+          python3 tools/compile_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --output "$RUNNER_TEMP/title-compilation" --sdk "$ANDROID_HOME"
+      - name: Execute the actual title player C ABI on both host routes
+        id: ffi
+        run: |
+          cargo build --offline --locked --release -p droidds-title-player
+          python3 tools/compile_private_title.py --preparation "$RUNNER_TEMP/title-preparation" --output "$RUNNER_TEMP/title-host-compilation" --batch-seconds 120 --command-seconds 30 --cpu-seconds 30 --memory-mib 1024 --output-mib 64
+          python3 - <<'PY'
+          import json, os, shutil, sys
+          from pathlib import Path
+          sys.path.insert(0, "tools")
+          from build_android_title import identity, canonical
+          from prepare_title_release import title_manifest as checked_manifest
+          from private_runtime_inputs import admitted_inputs, verify_unchanged
+          from compile_android_title import title_manifest
+          base = Path(os.environ["RUNNER_TEMP"])
+          native = base / "title-host-native"
+          native.mkdir()
+          target = native / "libdroidds_title.so"
+          with admitted_inputs(base / "title-preparation", base / "title-host-compilation") as admitted:
+              value = title_manifest(admitted)
+              shutil.copyfile(admitted["library_path"], target)
+              target.chmod(0o444)
+              checked_manifest(value, identity(target))
+              (base / "title-host-manifest.json").write_bytes(canonical(value))
+              verify_unchanged(admitted)
+          PY
+          timeout 60s python3 tools/check_title_ffi.py --library target/release/libdroidds_title_player.so --manifest "$RUNNER_TEMP/title-host-manifest.json" --input "$RUNNER_TEMP/title-original/homebrew-fixture.cxi" --native-dir "$RUNNER_TEMP/title-host-native" --scratch-dir "$RUNNER_TEMP/title-ffi-interpreter"
+          timeout 60s python3 tools/check_title_ffi.py --library target/release/libdroidds_title_player.so --manifest "$RUNNER_TEMP/title-host-manifest.json" --input "$RUNNER_TEMP/title-original/homebrew-fixture.cxi" --native-dir "$RUNNER_TEMP/title-host-native" --scratch-dir "$RUNNER_TEMP/title-ffi-native" --native
+      - name: Build signed installable original title candidate
+        id: apk
+        run: |
+          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 8 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
+      - name: Verify and sanitize exactly four public assets
+        id: bundle
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          python3 tools/prepare_title_release.py --build "$RUNNER_TEMP/title-android" --output "$RUNNER_TEMP/title-release" --sdk "$ANDROID_HOME" --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
+      - name: Record bounded public gate outcomes
+        if: always()
+        env:
+          PYTHON_OUTCOME: ${{ steps.python.outcome }}
+          REGRESSIONS_OUTCOME: ${{ steps.regressions.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          COMPILER_OUTCOME: ${{ steps.compiler.outcome }}
+          FFI_OUTCOME: ${{ steps.ffi.outcome }}
+          APK_OUTCOME: ${{ steps.apk.outcome }}
+          BUNDLE_OUTCOME: ${{ steps.bundle.outcome }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os
+          for name in ("python", "regressions", "runtime", "compiler", "ffi", "apk", "bundle"):
+              print(name + ": " + os.environ.get(name.upper() + "_OUTCOME", "unknown"))
+          print("Original title only. Device execution: not_run. Retail boot: not_qualified.")
+          print("Build logs, signing keys, private profiles and generated sources are not release assets.")
+          PY
+      - name: Store only verified public assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: original-title-prerelease
+          path: |
+            ${{ runner.temp }}/title-release/DroiDDS-0.0.7-preview.1-original-android-arm64.apk
+            ${{ runner.temp }}/title-release/BUILD_REPORT.json
+            ${{ runner.temp }}/title-release/SHA256SUMS
+            ${{ runner.temp }}/title-release/THIRD_PARTY_NOTICES.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Remove only this job's ephemeral diagnostic key
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/title-android/diagnostic-title.keystore"
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: original-title-prerelease
+          path: ${{ runner.temp }}/title-release-assets
+      - name: Install manifest and signature verification tools
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;35.0.0"'
+      - name: Independently verify downloaded signed assets
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          python3 tools/prepare_title_release.py --verify-bundle "$RUNNER_TEMP/title-release-assets" --sdk "$ANDROID_HOME" --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
+      - name: Create draft, verify actual uploaded bytes, then publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          existing=$(gh api "repos/$GH_REPO/releases" --paginate --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .id")
+          if [ -n "$existing" ]; then
+            echo "A release or draft already exists for this tag; refusing replacement." >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" "$RUNNER_TEMP/title-release-assets/"* --verify-tag --draft --prerelease --latest=false --title "DroiDDS ${RELEASE_TAG#v} — original title candidate" --notes-file "docs/releases/${RELEASE_TAG#v}.md"
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/title-release-asset-names.txt"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          actual = (Path(os.environ["RUNNER_TEMP"]) / "title-release-asset-names.txt").read_text().splitlines()
+          expected = sorted(path.name for path in (Path(os.environ["RUNNER_TEMP"]) / "title-release-assets").iterdir())
+          if sorted(actual) != expected:
+              raise SystemExit("Uploaded asset inventory differs; leaving draft unpublished")
+          PY
+          gh release download "$RELEASE_TAG" --dir "$RUNNER_TEMP/title-upload-verification"
+          cmp "$RUNNER_TEMP/title-release-assets/SHA256SUMS" "$RUNNER_TEMP/title-upload-verification/SHA256SUMS"
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          python3 tools/prepare_title_release.py --verify-bundle "$RUNNER_TEMP/title-upload-verification" --sdk "$ANDROID_HOME" --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

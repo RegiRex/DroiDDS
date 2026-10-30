@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CodexAstraUlt: The packager replaces this template identity with its stable
+     per-title application ID and increasing version. No broad storage, network
+     or vendor-service permission is required for picker-based private import. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.droidds.title.template" android:versionCode="1" android:versionName="0.0.7-candidate.1">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
+    <application android:label="DroiDDS" android:allowBackup="false"
+        android:debuggable="true" android:testOnly="true" android:extractNativeLibs="true"
+        android:supportsRtl="true" android:theme="@android:style/Theme.Material.NoActionBar">
+        <activity android:name="org.droidds.probe.TitleActivity" android:exported="true"
+            android:enableOnBackInvokedCallback="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

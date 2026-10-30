@@ -14,6 +14,14 @@ use zakuro_core::{loader, services::hid, Config, DiagnosticFault, StepOutcome, S
 pub const KIND: &str = "droidds_private_native_run";
 const CHECKPOINTS: [u64; 4] = [100_000, 500_000, 1_000_000, 2_000_000];
 
+// CodexAstraUlt: Every sampled state carries the work already completed there.
+// Native execution after an earlier interpreter-only sample cannot qualify it.
+fn instruction_counts(system: &System) -> Value {
+    json!({"interpreted":system.interpreted_instructions,
+        "recompiled":system.recompiled_instructions,
+        "callback_interpreted":system.recompiled.as_ref().map_or(0, |library| library.fallbacks())})
+}
+
 // CodexAstraUlt: A report is allocated before admission so an ordinary rejection
 // cannot be mistaken for a silent worker or zero-counter successful game run.
 fn envelope(request: Option<&Request>) -> Value {
@@ -444,8 +452,12 @@ fn execute(
         {
             audio.drain(&mut system);
             let captured = state::capture(&system, &audio);
-            report["checkpoints"].as_array_mut().expect("checkpoint envelope").push(json!({
-                "requested_cycle":cycle,"exact_cycle":system.cpu.cycles == cycle,"state":captured}));
+            report["checkpoints"]
+                .as_array_mut()
+                .expect("checkpoint envelope")
+                .push(json!({
+                "requested_cycle":cycle,"exact_cycle":system.cpu.cycles == cycle,
+                "instructions":instruction_counts(&system),"state":captured}));
             next_checkpoint += 1;
         }
         // CodexAstraUlt: Retain at most one full fingerprint for a newly seen
@@ -470,9 +482,7 @@ fn execute(
                         "boundary":{"ordinal":boundary.ordinal,"cycle":boundary.cycle,
                             "number":boundary.number,"svc_pc":boundary.svc_pc,
                             "thread_guest_id":boundary.thread_guest_id},
-                        "instructions":{"interpreted":system.interpreted_instructions,
-                            "recompiled":system.recompiled_instructions,
-                            "callback_interpreted":system.recompiled.as_ref().map_or(0,|library|library.fallbacks())},
+                        "instructions":instruction_counts(&system),
                         "state":state::capture(&system,&audio)
                     }));
                 while schedule

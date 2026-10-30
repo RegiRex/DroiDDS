@@ -201,6 +201,45 @@ def validate_state(state):
     return state
 
 
+# CodexAstraUlt: Native work is the cumulative dispatch total minus callbacks.
+# Validate the merged raw/SVC timeline and final totals, so callbacks cannot grow
+# faster than dispatches or retroactively erase already claimed native work.
+def validate_sample_accounting(report):
+    names = {"interpreted": "interpreted_instructions", "recompiled": "recompiled_instructions",
+             "callback_interpreted": "native_callback_fallback_instructions"}
+    timeline = []
+    for collection in ("checkpoints", "synchronized_checkpoints"):
+        points = report.get(collection)
+        require(isinstance(points, list) and len(points) <= 4, "invalid_accounting_checkpoints")
+        for point in points:
+            require(isinstance(point, dict), "invalid_accounting_checkpoint")
+            state = validate_state(point.get("state"))
+            timeline.append((state["cycles"], point.get("instructions")))
+    final = report.get("observed")
+    require(isinstance(final, dict), "invalid_accounting_final")
+    if final:
+        final_cycle = uint(final.get("cycles"), "accounting_final_cycle")
+        require(all(cycle <= final_cycle for cycle, _ in timeline), "sample_after_final_cycle")
+        timeline.append((final_cycle,
+                         {name: final.get(field) for name, field in names.items()}))
+    previous = {name: 0 for name in names}
+    previous_cycle = None
+    for cycle, counts in sorted(timeline, key=lambda sample: sample[0]):
+        require(isinstance(counts, dict) and set(counts) == set(names), "invalid_sample_instruction_counts")
+        for name in names:
+            uint(counts[name], "sample_" + name)
+            require(counts[name] >= previous[name], "sample_instruction_count_reversed")
+        require(counts["callback_interpreted"] <= counts["recompiled"], "sample_fallback_accounting_mismatch")
+        require(counts["recompiled"] - counts["callback_interpreted"] >=
+                previous["recompiled"] - previous["callback_interpreted"], "sample_native_count_reversed")
+        if previous_cycle == cycle:
+            require(counts == previous, "same_cycle_instruction_counts_differ")
+        if report.get("route") == "interpreter":
+            require(counts["recompiled"] == counts["callback_interpreted"] == 0,
+                    "sample_interpreter_reported_native")
+        previous, previous_cycle = counts, cycle
+
+
 # CodexAstraUlt: Generation 3 may omit budget-dead locals at an arbitrary
 # cycle stop. A post-SVC sample has fully synchronized changed locals; bind its
 # event identity and cumulative counters instead of silently masking raw flags.
@@ -274,6 +313,7 @@ def validate_worker(report, request, exit_code):
     observed = report.get("observed")
     require(isinstance(observed, dict), "invalid_worker_observed")
     validate_synchronized_points(report, request["limits"]["max_cycles"])
+    validate_sample_accounting(report)
     if not good:
         require(observed == {}, "invalid_worker_incomplete_observations")
         checkpoints = report.get("checkpoints")
@@ -338,7 +378,7 @@ def comparison(interpreter, native):
 FNV fingerprints are diagnostic evidence, not collision-resistant input identity
 or a proof of complete emulation correctness. Route counters never enter equality.
 """
-    matches, mismatches, skipped = [], [], []
+    matches, qualified, unqualified, mismatches, skipped = [], [], [], [], []
     # CodexAstraUlt: This helper also rejects fabricated states when called by
     # tests or future callers without the preceding worker-envelope validator.
     for report in (interpreter, native):
@@ -352,6 +392,7 @@ or a proof of complete emulation correctness. Route counters never enter equalit
             state = validate_state(item["state"])
             require(type(item.get("exact_cycle")) is bool and item["exact_cycle"] == (state["cycles"] == cycle)
                     and state["cycles"] >= cycle, "worker_checkpoint_cycle_mismatch")
+        validate_sample_accounting(report)
     left = {item["requested_cycle"]: item for item in interpreter["checkpoints"]}
     right = {item["requested_cycle"]: item for item in native["checkpoints"]}
     for cycle in sorted(left.keys() | right.keys()):
@@ -361,6 +402,11 @@ or a proof of complete emulation correctness. Route counters never enter equalit
             continue
         if a["state"] == b["state"]:
             matches.append(cycle)
+            counts = b["instructions"]
+            if counts["recompiled"] - counts["callback_interpreted"] > 0:
+                qualified.append(cycle)
+            else:
+                unqualified.append(cycle)
         else:
             mismatches.append({"cycle": cycle, "different_fields": sorted(
                 key for key in a["state"].keys() | b["state"].keys() if a["state"].get(key) != b["state"].get(key))})
@@ -379,8 +425,9 @@ or a proof of complete emulation correctness. Route counters never enter equalit
     native_dispatch = native["observed"]["recompiled_instructions"]
     callbacks = native["observed"]["native_callback_fallback_instructions"]
     native_count = native_dispatch - callbacks
-    state = "different" if mismatches else "matched" if (matches or exit_match is True) and native_count > 0 else "inconclusive"
+    state = "different" if mismatches else "matched" if qualified or (exit_match is True and native_count > 0) else "inconclusive"
     return {"status": state, "matched_cycles": matches, "unmatched_cycles": skipped,
+            "native_qualified_cycles": qualified, "zero_native_work_cycles": unqualified,
             "mismatches": mismatches, "guest_exit_match": exit_match,
             "native_instructions_observed": native_count,
             "compiled_dispatch_instructions": native_dispatch,
@@ -395,6 +442,7 @@ def synchronized_comparison(interpreter, native):
     for report in (interpreter, native):
         require(report["status"] in ("guest_exited", "budget_exhausted"), "incomplete_synchronized_route")
         validate_synchronized_points(report, report["limits"]["max_cycles"])
+        validate_sample_accounting(report)
     left = {point["requested_cycle"]: point for point in interpreter["synchronized_checkpoints"]}
     right = {point["requested_cycle"]: point for point in native["synchronized_checkpoints"]}
     eligible = [cycle for cycle in (100000, 500000, 1000000, 2000000)

@@ -26,8 +26,8 @@ bitflags.workspace = true
 recomp-abi.workspace = true
 rayon.workspace = true
 ab_glyph = "0.2"
-# CodexAstraUlt: Existing pinned libc supplies Linux-only mmap/mprotect for the
-# explicit host diagnostic fence; ordinary allocation and Android stay unchanged.
+# CodexAstraUlt: Existing pinned libc supplies opt-in Linux/Android mmap and
+# mprotect for immutable native base code; ordinary allocation stays unchanged.
 libc.workspace = true
 
 [dev-dependencies]

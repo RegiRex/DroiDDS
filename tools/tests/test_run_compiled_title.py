@@ -93,7 +93,9 @@ def worker_report(req=None, status="budget_exhausted"):
             "checkpoint_schedule": [100000, 500000, 1000000, 2000000],
             "private_images_or_audio_exported": False,
             "model_requested": req["model"], "model_resolved": req["model"]},
-        "checkpoints": [{"requested_cycle": 100000, "exact_cycle": True, "state": state()}],
+        "checkpoints": [{"requested_cycle": 100000, "exact_cycle": True, "state": state(),
+                         "instructions": {"interpreted": 0 if native else 1,
+                                          "recompiled": 1 if native else 0, "callback_interpreted": 0}}],
         "synchronized_checkpoints": [],
         "observed": {"steps": 100 if native else 1000, "cycles": 2000000, "frames": 0,
             "cycles_after_budget": 0, "interpreted_instructions": 10 if native else 1000,
@@ -166,6 +168,7 @@ class SynchronizedComparisonTests(unittest.TestCase):
             left, right = self.pair()
             right["synchronized_checkpoints"][0]["instructions"].update(
                 recompiled=compiled, callback_interpreted=callbacks)
+            right["checkpoints"][0]["instructions"]["recompiled"] = 0
             right["observed"]["native_callback_fallback_instructions"] = callbacks
             self.assertGreater(right["observed"]["recompiled_instructions"] - callbacks, 0)
             result = RUNNER.synchronized_comparison(left, right)
@@ -373,6 +376,7 @@ class WorkerReportTests(unittest.TestCase):
         # Its positive outer step count must not fabricate guest execution.
         value = worker_report()
         value["observed"].update(interpreted_instructions=0, recompiled_instructions=0)
+        value["checkpoints"][0]["instructions"]["recompiled"] = 0
         self.assertGreater(value["observed"]["steps"], 0)
         with self.assertRaisesRegex(ValueError, "worker_execution_admission_mismatch"):
             RUNNER.validate_worker(value, request(), 0)
@@ -417,6 +421,88 @@ class WorkerReportTests(unittest.TestCase):
         self.assertEqual(result["status"], "matched")
         self.assertEqual(result["matched_cycles"], [100000])
 
+    def test_later_native_work_cannot_qualify_an_earlier_raw_sample(self):
+        # CodexAstraUlt: Equal states before any generated work remain visible
+        # observations, but a later native count cannot promote them to parity.
+        for compiled, callbacks in ((0, 0), (100, 100)):
+            left, right = worker_report(request("interpreter")), worker_report()
+            right["checkpoints"][0]["instructions"].update(
+                recompiled=compiled, callback_interpreted=callbacks)
+            right["observed"]["native_callback_fallback_instructions"] = callbacks
+            RUNNER.validate_worker(right, request(), 0)
+            result = RUNNER.comparison(left, right)
+            self.assertGreater(result["native_instructions_observed"], 0)
+            self.assertEqual(result["status"], "inconclusive")
+            self.assertEqual(result["matched_cycles"], [100000])
+            self.assertEqual(result["native_qualified_cycles"], [])
+            self.assertEqual(result["zero_native_work_cycles"], [100000])
+
+    def test_only_a_sample_with_prior_native_work_qualifies(self):
+        # CodexAstraUlt: Qualify the later counted sample while retaining the
+        # earlier interpreter-only equality as explicitly unqualified evidence.
+        left, right = worker_report(request("interpreter")), worker_report()
+        right["checkpoints"][0]["instructions"]["recompiled"] = 0
+        for report in (left, right):
+            later = copy.deepcopy(report["checkpoints"][0])
+            later.update(requested_cycle=500000, state=state(500000))
+            if report is right:
+                later["instructions"]["recompiled"] = 100
+            report["checkpoints"].append(later)
+        result = RUNNER.comparison(left, right)
+        self.assertEqual(result["status"], "matched")
+        self.assertEqual(result["matched_cycles"], [100000, 500000])
+        self.assertEqual(result["native_qualified_cycles"], [500000])
+        self.assertEqual(result["zero_native_work_cycles"], [100000])
+
+    def test_raw_state_difference_survives_zero_native_work_at_the_sample(self):
+        left, right = worker_report(request("interpreter")), worker_report()
+        right["checkpoints"][0]["instructions"]["recompiled"] = 0
+        right["checkpoints"][0]["state"]["cpsr"] ^= 1 << 29
+        result = RUNNER.comparison(left, right)
+        self.assertEqual(result["status"], "different")
+        self.assertEqual(result["mismatches"][0]["different_fields"], ["cpsr"])
+
+    def test_raw_samples_require_typed_instruction_counts(self):
+        for bad in (None, {}, {"interpreted": 0, "recompiled": True, "callback_interpreted": 0},
+                    {"interpreted": 0, "recompiled": 1, "callback_interpreted": 0, "extra": 0}):
+            left, right = worker_report(request("interpreter")), worker_report()
+            if bad is None:
+                del right["checkpoints"][0]["instructions"]
+            else:
+                right["checkpoints"][0]["instructions"] = bad
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                RUNNER.validate_worker(right, request(), 0)
+            with self.subTest(direct=bad), self.assertRaises(ValueError):
+                RUNNER.comparison(left, right)
+
+    def test_generated_native_work_cannot_shrink_between_samples_or_at_end(self):
+        # CodexAstraUlt: Monotonic dispatch and callback totals alone are not
+        # enough: callbacks cannot grow faster than their enclosing dispatches.
+        for kind in ("raw_final", "svc_final", "raw_then_svc"):
+            value = worker_report()
+            value["checkpoints"][0]["instructions"]["recompiled"] = 10
+            if kind == "raw_final":
+                value["observed"]["native_callback_fallback_instructions"] = 989
+            else:
+                sample = synchronized_point(native=True)
+                value["synchronized_checkpoints"] = [sample]
+                if kind == "svc_final":
+                    value["observed"]["native_callback_fallback_instructions"] = 989
+                else:
+                    sample["instructions"].update(recompiled=20, callback_interpreted=15)
+                    value["observed"]["native_callback_fallback_instructions"] = 15
+            with self.subTest(kind=kind), self.assertRaisesRegex(ValueError, "sample_native_count_reversed"):
+                RUNNER.validate_worker(value, request(), 0)
+
+    def test_raw_and_svc_samples_at_the_same_cycle_have_the_same_counts(self):
+        value = worker_report()
+        value["synchronized_checkpoints"] = [synchronized_point(cycle=100000, native=True)]
+        with self.assertRaisesRegex(ValueError, "same_cycle_instruction_counts_differ"):
+            RUNNER.validate_worker(value, request(), 0)
+        value["synchronized_checkpoints"][0]["instructions"] = copy.deepcopy(
+            value["checkpoints"][0]["instructions"])
+        self.assertEqual(RUNNER.validate_worker(value, request(), 0), value)
+
     def test_entirely_interpreted_callbacks_cannot_qualify_native_execution(self):
         # CodexAstraUlt: A positive bridge total may consist entirely of
         # interpreter callbacks; neither checkpoint nor exit equality proves
@@ -426,6 +512,8 @@ class WorkerReportTests(unittest.TestCase):
             left, right = worker_report(request("interpreter"), status), worker_report(status=status)
             if exited:
                 left["checkpoints"] = right["checkpoints"] = []
+            else:
+                right["checkpoints"][0]["instructions"]["callback_interpreted"] = 1
             right["observed"]["native_callback_fallback_instructions"] = 990
             result = RUNNER.comparison(left, right)
             with self.subTest(exited=exited):
