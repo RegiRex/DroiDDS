@@ -2,8 +2,8 @@
 
 <!-- CodexAstraUlt: Reuse the completed preparation while keeping host and
 Android artifacts, signing identity and qualification evidence distinct. -->
-The title candidate is version **0.0.7-preview.1**, with explicit install code
-**8** for the first original homebrew candidate. It uses a separate application
+The title candidate is version **0.0.7-preview.2**, with explicit install code
+**9** for the reviewed original homebrew candidate. It uses a separate application
 ID, `org.droidds.title.t<program_id>`. Read the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md) for admission and storage
 rules. This candidate does not complete the 0.0.7 owned-game boot milestone.
@@ -140,7 +140,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 8 \
+  --version-code 9 \
   --signing-profile /absolute/path/to/owner-title-signing.json
 ```
 
@@ -193,7 +193,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 8 \
+  --version-code 9 \
   --diagnostic-signing --diagnostic-fixture homebrew
 ```
 

@@ -6,7 +6,7 @@ and publication; preserve existing artifact identities in historical evidence. -
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->
-- Current development adds the 0.0.7-preview.1 generic per-title Android player.
+- Current development adds the 0.0.7-preview.2 generic per-title Android player.
   Read docs/ANDROID_TITLE_CONTRACT.md and docs/ANDROID_TITLE_BUILD.md. Keep the
   original-fixture candidate distinct from qualified owned-game boot and the
   roadmap's 0.1.0 limited beta. Complete cloud implementation/testing first and

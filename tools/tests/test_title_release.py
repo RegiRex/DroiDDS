@@ -246,8 +246,9 @@ class PublicPolicyTests(unittest.TestCase):
 
     def test_only_exact_reviewed_tag_and_commit_are_accepted(self):
         self.assertEqual(RELEASE.identity(RELEASE.TAG, COMMIT), (RELEASE.VERSION, RELEASE.APK_NAME))
-        for tag, commit in (("v0.0.7-preview.2", COMMIT), ("v0.1.0", COMMIT), (RELEASE.TAG, "main"),
-                            (RELEASE.TAG, "A" * 40), ("../v0.0.7-preview.1", COMMIT)):
+        for tag, commit in (("v0.0.7-preview.1", COMMIT), ("v0.0.7-preview.3", COMMIT),
+                            ("v0.1.0", COMMIT), (RELEASE.TAG, "main"),
+                            (RELEASE.TAG, "A" * 40), ("../v0.0.7-preview.2", COMMIT)):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 RELEASE.identity(tag, commit)
 

@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
+from process_assertions import assert_process_stopped
 
 # CodexAstraUlt: These authored subprocesses use no private game, native title
 # library, network access or shared build directory.
@@ -175,11 +176,9 @@ class RuntimeProcessTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "completed", result)
         self.assertEqual(result["exit_code"], 0)
         pid = int(result["log_tail"].strip())
-        # CodexAstraUlt: Orphans may remain zombies until their adopter reaps
-        # them, but a worker descendant must not still be executing afterward.
-        path = Path(f"/proc/{pid}/stat")
-        if path.exists():
-            self.assertEqual(path.read_text().rsplit(") ", 1)[1].split()[0], "Z")
+        # CodexAstraUlt: An adopter can reap the orphan while its state is read;
+        # accept only disappearance or a zombie, retaining the live-child gate.
+        assert_process_stopped(self, pid)
 
     def test_interrupt_terminates_worker_and_returns_distinct_outcome(self):
         result = self.run_python(

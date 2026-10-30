@@ -22,7 +22,7 @@ import build_android_title as BUILD
 # not evidence that these fixtures are real signed Android applications.
 PROGRAM = "000400000ff3ff00"
 PACKAGE = "org.droidds.title.t" + PROGRAM
-BADGING = f"""package: name='{PACKAGE}' versionCode='7' versionName='0.0.7-preview.1'
+BADGING = f"""package: name='{PACKAGE}' versionCode='7' versionName='0.0.7-preview.2'
 sdkVersion:'29'
 targetSdkVersion:'35'
 launchable-activity: name='org.droidds.probe.TitleActivity' label='DroiDDS' icon=''
@@ -88,7 +88,7 @@ class ManifestTests(unittest.TestCase):
     def test_wrong_identity_abi_api_launcher_or_permission_rejects(self):
         mutations = (BADGING.replace(PACKAGE, "org.droidds.probe"),
                      BADGING.replace("versionCode='7'", "versionCode='8'"),
-                     BADGING.replace("0.0.7-preview.1", "0.0.6"),
+                     BADGING.replace("0.0.7-preview.2", "0.0.6"),
                      BADGING.replace("sdkVersion:'29'", "sdkVersion:'28'"),
                      BADGING.replace("targetSdkVersion:'35'", "targetSdkVersion:'34'"),
                      BADGING.replace("'arm64-v8a'", "'x86_64'"),

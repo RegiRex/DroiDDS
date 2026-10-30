@@ -30,7 +30,7 @@ from build_foundation import ROOT, interrupted, snapshot, terminate_group, valid
 from validate_runtime_shaders import validate_runtime_shaders
 import collect_android_notices as NOTICES
 
-VERSION = "0.0.7-preview.1"
+VERSION = "0.0.7-preview.2"
 LIBRARIES = {"libdroidds_title.so", "libdroidds_title_player.so", "libdroidds_title_jni.so"}
 SHARED_JAVA = ("ScreenView.java", "ScreenGeometry.java", "PcmResampler.java",
                "FramePacer.java", "AudioStartup.java")

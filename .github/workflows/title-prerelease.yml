@@ -5,6 +5,9 @@ name: Android original title prerelease
 on:
   push:
     tags: ["v*-preview.*"]
+  # CodexAstraUlt: Main may run the identical diagnostic build without creating
+  # a release. Only an actual verified tag push can enter the publish job.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,14 +36,28 @@ jobs:
       - name: Require reviewed original candidate identity
         run: |
           python3 - <<'PY'
-          import os, sys
+          import os, subprocess, sys
           from pathlib import Path
           sys.path.insert(0, "tools")
-          from prepare_title_release import identity
-          tag = os.environ["RELEASE_TAG"]
+          from prepare_title_release import identity, TAG
+          event, ref = os.environ["GITHUB_EVENT_NAME"], os.environ["GITHUB_REF"]
+          # CodexAstraUlt: Main diagnostics use the reviewed policy version for
+          # local bundle validation only; they do not claim a tag event.
+          tag = TAG if event == "workflow_dispatch" else os.environ["RELEASE_TAG"]
           identity(tag, os.environ["GITHUB_SHA"])
+          if event == "workflow_dispatch":
+              if ref != "refs/heads/main":
+                  raise SystemExit("Diagnostic dispatch is restricted to main; publication is disabled")
+          elif event == "push" and ref == "refs/tags/" + tag:
+              actual = subprocess.check_output(["git", "rev-parse", "--verify", ref + "^{commit}"], text=True).strip()
+              if actual != os.environ["GITHUB_SHA"]:
+                  raise SystemExit("Release tag target differs from the triggering source commit")
+          else:
+              raise SystemExit("Only a reviewed tag push or main diagnostic dispatch is permitted")
           if not (Path("docs/releases") / (tag[1:] + ".md")).is_file():
               raise SystemExit("Reviewed candidate release notes are required")
+          with Path(os.environ["GITHUB_ENV"]).open("a") as stream:
+              stream.write("RELEASE_TAG=" + tag + "\n")
           PY
       - name: Install pinned toolchains and host Vulkan validation
         run: |
@@ -60,12 +77,15 @@ jobs:
           printf '%s\n' "$ANDROID_HOME/ndk/27.3.13750724/shader-tools/linux-x86_64" >> "$GITHUB_PATH"
       - name: Execute Python admission and publication controls
         id: python
-        run: python3 -m unittest discover -s tools/tests -v
-      - name: Retain original CPU and integrated renderer gates
+        run: python3 -m unittest discover -s tools/tests -v 2>&1 | tee "$RUNNER_TEMP/title-python.log"
+      # CodexAstraUlt: Separate unchanged commands expose which regression gate
+      # failed; both remain prerequisites for every subsequent build step.
+      - name: Retain original CPU foundation gates
+        id: foundation
+        run: python3 tools/build_foundation.py --output "$RUNNER_TEMP/title-foundation" --jobs 2 2>&1 | tee "$RUNNER_TEMP/title-foundation-console.log"
+      - name: Retain integrated renderer gates
         id: regressions
-        run: |
-          python3 tools/build_foundation.py --output "$RUNNER_TEMP/title-foundation" --jobs 2
-          python3 tools/build_runtime_probe.py --output "$RUNNER_TEMP/title-runtime-regressions" --jobs 2
+        run: python3 tools/build_runtime_probe.py --output "$RUNNER_TEMP/title-runtime-regressions" --jobs 2 2>&1 | tee "$RUNNER_TEMP/title-runtime-regressions-console.log"
       - name: Execute generic runtime, native boundary and player gates
         id: runtime
         run: |
@@ -126,7 +146,7 @@ jobs:
       - name: Build signed installable original title candidate
         id: apk
         run: |
-          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 8 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
+          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 9 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
       - name: Verify and sanitize exactly four public assets
         id: bundle
         run: |
@@ -136,6 +156,7 @@ jobs:
         if: always()
         env:
           PYTHON_OUTCOME: ${{ steps.python.outcome }}
+          FOUNDATION_OUTCOME: ${{ steps.foundation.outcome }}
           REGRESSIONS_OUTCOME: ${{ steps.regressions.outcome }}
           RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
           COMPILER_OUTCOME: ${{ steps.compiler.outcome }}
@@ -144,9 +165,58 @@ jobs:
           BUNDLE_OUTCOME: ${{ steps.bundle.outcome }}
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import os
-          for name in ("python", "regressions", "runtime", "compiler", "ffi", "apk", "bundle"):
-              print(name + ": " + os.environ.get(name.upper() + "_OUTCOME", "unknown"))
+          import json, os, re, sys
+          from pathlib import Path
+          # CodexAstraUlt: Keep public diagnostics short enough to include the
+          # actual failure. Only fixed original-test directories are readable;
+          # signing logs, command arrays and arbitrary report paths stay private.
+          base = Path(os.environ["RUNNER_TEMP"])
+          def tail(path, limit=2500):
+              if path.is_symlink() or not path.is_file():
+                  return ""
+              with path.open("rb") as stream:
+                  stream.seek(0, 2)
+                  stream.seek(max(0, stream.tell() - limit))
+                  return stream.read(limit).decode("utf-8", errors="replace")
+          def report(directory):
+              path = directory / "build-report.json"
+              if path.is_symlink() or not path.is_file() or path.stat().st_size > 2 * 1024 * 1024:
+                  return {}
+              try:
+                  value = json.loads(path.read_text())
+                  return value if isinstance(value, dict) else {}
+              except (OSError, ValueError):
+                  return {}
+          def failure(directory, console):
+              value = report(directory)
+              detail = str(value.get("error", value.get("reason", "Gate failed before writing a valid report")))[-400:]
+              failed = [item for item in value.get("steps", [])
+                        if item.get("exit_code", 0) != 0 or item.get("status") == "inconclusive"]
+              name = failed[-1].get("log", "") if failed else ""
+              log = tail(directory / name) if name and Path(name).name == name and name.endswith(".log") else ""
+              return detail + "\n" + (log or tail(console))
+          def annotate(name, detail):
+              detail = re.sub(r"(https?://)[^/\s@]+@", r"\1[redacted]@", detail)
+              detail = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b", "[redacted]", detail)[-3000:]
+              escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print("::error::" + name + ": " + escaped, file=sys.stderr)
+          for name in ("python", "foundation", "regressions", "runtime", "compiler", "ffi", "apk", "bundle"):
+              outcome = os.environ.get(name.upper() + "_OUTCOME", "unknown")
+              print(name + ": " + outcome)
+              if outcome != "failure":
+                  continue
+              if name == "python":
+                  annotate(name, tail(base / "title-python.log", 3000) or "Python gate failed before writing its log")
+              elif name in ("foundation", "regressions"):
+                  directory = base / ("title-foundation" if name == "foundation" else "title-runtime-regressions")
+                  annotate(name, failure(directory, base / (directory.name + "-console.log")))
+              elif name == "apk":
+                  # CodexAstraUlt: APK diagnostics expose only a short category;
+                  # no signing log is read or uploaded even when signing fails.
+                  value = report(base / "title-android")
+                  annotate(name, str(value.get("reason", "APK build failed; signing logs are excluded"))[-400:])
+          if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch":
+              print("Main diagnostic dispatch only. No GitHub release can be published from this run.")
           print("Original title only. Device execution: not_run. Retail boot: not_qualified.")
           print("Build logs, signing keys, private profiles and generated sources are not release assets.")
           PY
@@ -155,7 +225,7 @@ jobs:
         with:
           name: original-title-prerelease
           path: |
-            ${{ runner.temp }}/title-release/DroiDDS-0.0.7-preview.1-original-android-arm64.apk
+            ${{ runner.temp }}/title-release/DroiDDS-0.0.7-preview.2-original-android-arm64.apk
             ${{ runner.temp }}/title-release/BUILD_REPORT.json
             ${{ runner.temp }}/title-release/SHA256SUMS
             ${{ runner.temp }}/title-release/THIRD_PARTY_NOTICES.txt
@@ -167,6 +237,8 @@ jobs:
         run: rm -f -- "$RUNNER_TEMP/title-android/diagnostic-title.keystore"
 
   publish:
+    # CodexAstraUlt: A manual main build can never create or modify a release.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -187,6 +259,8 @@ jobs:
         run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;35.0.0"'
       - name: Independently verify downloaded signed assets
         run: |
+          # CodexAstraUlt: Recheck the actual tag target before any release API.
+          test "$(git rev-parse --verify "$GITHUB_REF^{commit}")" = "$GITHUB_SHA"
           export JAVA_HOME="$JAVA_HOME_17_X64"
           python3 tools/prepare_title_release.py --verify-bundle "$RUNNER_TEMP/title-release-assets" --sdk "$ANDROID_HOME" --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
       - name: Create draft, verify actual uploaded bytes, then publish prerelease

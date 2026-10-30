@@ -2,7 +2,7 @@
 
 <!-- CodexAstraUlt: Advance generic product work independently of another
 private trace, while retaining the separate device and owned-title gates. -->
-Current work for **0.0.7-preview.1** implements the generic portions of
+Current work for **0.0.7-preview.2** implements the generic portions of
 DDS-012/013: admitted title sessions, durable runtime storage, matching import,
 Android controls/audio/lifecycle, resumable ARM64 compilation and per-title
 packaging. Original-input cloud checks exercise the actual runtime and Vulkan.

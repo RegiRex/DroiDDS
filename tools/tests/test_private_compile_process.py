@@ -13,6 +13,7 @@ import tempfile
 import unittest
 from unittest import mock
 
+from process_assertions import assert_process_stopped
 
 # CodexAstraUlt: Import only the assigned helper; tests need no game, compiler
 # installation, executable library load, network access or shared build output.
@@ -91,12 +92,9 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "completed")
         self.assertEqual(result["exit_code"], 0)
         pid = int(result["log_tail"].strip())
-        # CodexAstraUlt: The helper cannot waitpid an orphaned grandchild; Linux
-        # may retain its zombie until the adopter reaps it, but it must not run.
-        path = Path(f"/proc/{pid}/stat")
-        if path.exists():
-            state = path.read_text().rsplit(") ", 1)[1].split()[0]
-            self.assertEqual(state, "Z")
+        # CodexAstraUlt: Replace the exists/read race observed on CI with one
+        # disappearance-aware read; a still-live descendant remains a failure.
+        assert_process_stopped(self, pid)
 
     def test_keyboard_interrupt_stops_child_and_returns_incomplete_outcome(self):
         result = self.run_python(

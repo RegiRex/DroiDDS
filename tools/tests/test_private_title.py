@@ -20,6 +20,8 @@ import time
 import unittest
 from unittest import mock
 
+from process_assertions import assert_process_stopped
+
 
 # CodexAstraUlt: Import the implementation directly, without altering source or
 # sharing a user run directory. All disposable artifacts belong to these tests.
@@ -716,10 +718,9 @@ class CoordinatorTests(unittest.TestCase):
         self.assertEqual(report["status"], "timed_out")
         self.assertTrue((self.output / "input.cxi").exists())
         child = int((self.output / "child.pid").read_text())
-        # A reparented zombie is dead but may await the container init's reap.
-        proc = Path(f"/proc/{child}/stat")
-        if proc.exists():
-            self.assertEqual(proc.read_text().split()[2], "Z")
+        # CodexAstraUlt: Preserve descendant-death checking while allowing the
+        # normal reaper to remove /proc during this single state observation.
+        assert_process_stopped(self, child)
 
     def run_interrupted(self, interruption):
         self.fake_worker("pathlib.Path('started').touch()\ntime.sleep(60)")
