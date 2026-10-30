@@ -2,10 +2,13 @@
 
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
-As of **2026-10-29**, the public app remains **0.0.6**. Private host preparation,
+As of **2026-10-30**, the public title-player candidate is
+**[0.0.7-preview.2](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.7-preview.2)**;
+its host/main/tag checks and independently downloaded assets pass. The previous
+fixture probe remains **0.0.6**. Private host preparation,
 compilation and initial native execution are implemented, but an interactive
 owned-game Android boot and sustained playable route are not established.
-The next development candidate is **0.0.7-preview.2**: the generic per-title
+The new candidate implements the generic per-title
 Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself close the owned-game boot milestone.

@@ -106,6 +106,17 @@ control. The same per-title application ID and signing certificate are needed
 for an update that retains Android app data. Do not uninstall or clear app data
 to bypass a signing mismatch.
 
+<!-- CodexAstraUlt: A first private build needs a persistent owner key, rather
+than another handoff solely because no previous title profile exists. -->
+For a first title with no existing installation or selected key, the local agent
+may create a new key and profile in a dedicated owner-private signing directory
+using the installed JDK. Generate a random password, keep its local file at mode
+0600 and the directory at 0700, and pass it through the profile's environment
+variable names. Preserve the key/profile/password together for owner backup;
+report only the public fingerprint and their local locations. Existing keys
+must not be replaced. An installed title whose signer cannot be matched remains
+a blocker; creating a new key cannot make that installation safely updatable.
+
 Create a local JSON profile using the existing key's absolute path, alias and
 public SHA-256 certificate fingerprint. The placeholder below must be replaced
 with the actual 64 lowercase hexadecimal digits:
@@ -215,12 +226,12 @@ from counters. These original controls do not establish private-game boot,
 physical dual-display support, direct Vulkan presentation or sustained Thor
 performance.
 
-## One consolidated local build task
+## One consolidated local build and device task
 
 <!-- CodexAstraUlt: A finite preparation-to-APK task replaces repeated isolated
 trace handoffs while preserving failures and the completed host compilation. -->
-Give the local agent the retained preparation, installed SDK/JDK, owner signing
-profile and fresh output locations once. The following is the build task:
+Give the local agent the retained preparation, installed SDK/JDK, selected signing
+location and fresh output locations once. The following is the integrated task:
 
 ```text
 Use the current RegiRex/DroiDDS checkout, preserving existing work.
@@ -234,19 +245,40 @@ with unchanged identities and a strictly increasing validated-object count.
 Stop on any other failure, zero progress, interruption or the fourth batch.
 
 If compilation finishes, build the title APK in a fresh private output using
-the supplied owner signing profile, explicit version code and installed tools.
+the owner signing profile, explicit version code and installed tools. If this
+is a first private installation and no key/profile exists, create and preserve
+a dedicated owner-local key/profile/password as documented above. Never replace
+an existing key or use the disposable public diagnostic signer for this game.
 Serialize the shared Cargo target and hold build sources stable. Do not install
-new tools, change permissions, regenerate title C, repeat host traces or upload
-private artifacts. Missing prerequisites or a missing signing profile are
-reported blockers, not reasons to substitute diagnostic signing.
+new tools, alter sandbox/device access, regenerate title C, repeat host traces or upload
+private artifacts. Report missing prerequisites or an unresolved existing
+signing identity as concrete blockers.
+
+If the Thor is available and no other session is operating it, record the exact
+APK/package/version/certificate and device/driver identity. Install only a new
+package or a compatible update preserving app data; never uninstall, clear data,
+or bypass a signature/version mismatch. Import the exact matching base input
+through the app without overwriting the original or another app's files.
+
+Run one Native opening test for at most 120 wall seconds or until its first
+failure, then stop normally. Keep bounded device logs, observations and the
+exported title report local. If Native fails and the same import remains valid,
+one equally bounded Interpreter comparison may classify the difference. Record
+screens, controls, audio, native/fallback work, rendering activity and the first
+blocker separately. An opening scene or frame counter is not playable-beta or
+speed qualification. If device access or UI automation is unavailable, return
+the validated APK and the exact unperformed device step without repeating builds.
 
 Return one short android-title-build-summary.md outside the managed build
 directories: source/tool identities, each batch's reused/new/remaining counts,
 final library and APK hashes, package/version/public certificate identity,
-passed or failed gates, and the local APK/report paths. Preserve prior outputs.
-Device installation and playability evidence are a separate next gate.
+passed or failed gates, device result or unperformed step, and local APK/report
+paths. Preserve prior outputs. Omit raw game content and personal paths from any
+shareable summary; never publish the private input, generated code or APK.
 ```
 
 The four batch ceilings cover at most two hours of compiler/linker wall budgets;
 verification and the separate APK build add time. One consolidated report is
 sufficient whether the result is a completed APK or a concrete build blocker.
+Device execution is a distinct qualification within that task; it is never
+inferred from compilation, package validation or a successful original fixture.

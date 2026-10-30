@@ -6,7 +6,9 @@ and publication; preserve existing artifact identities in historical evidence. -
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->
-- Current development adds the 0.0.7-preview.2 generic per-title Android player.
+- The 0.0.7-preview.2 generic per-title Android player candidate is published;
+  host/main/tag CI and independent public-download verification pass. Read
+  docs/builds/0.0.7-android-title-candidate.md for exact source/artifact scope.
   Read docs/ANDROID_TITLE_CONTRACT.md and docs/ANDROID_TITLE_BUILD.md. Keep the
   original-fixture candidate distinct from qualified owned-game boot and the
   roadmap's 0.1.0 limited beta. Complete cloud implementation/testing first and
@@ -17,6 +19,11 @@ before another isolated local trace; candidate publication does not close boot. 
   to 857ff47; use the separate Android adapter. New title signing identity is
   explicit and separate from the probe. Preserve keys outside source/release
   bundles. Public title releases admit only the exact authored homebrew guest.
+  The candidate has no device or owned-title boot result yet. Its public report
+  binds release source 97e60e0; later main test-only hardening 795b8cc accepts
+  Linux ESRCH when an already-dead child disappears during a proc read. That
+  main change passes 549 Python tests and both hosted workflows, with no APK
+  runtime or process-limit change.
 
 <!-- CodexAstraUlt: The owner now authorizes development and reuse from multiple
 open-source projects; continue from measured foundation results, not the old

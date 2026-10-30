@@ -10,12 +10,14 @@ a shared runtime will retain 3DS services, graphics, audio and interpreter fallb
 
 <!-- CodexAstraUlt: Lead with the current product work instead of making readers
 infer progress from the historical probe and private tracing records below. -->
-**Current development: 0.0.7-preview.2, the first generic Android title player.**
+**[0.0.7-preview.2 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.7-preview.2), the first generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest;
-an owned-game Android boot and playable beta remain unqualified. The previously
-published app is 0.0.6. See the [current roadmap](docs/ROADMAP.md),
+an owned-game Android boot and playable beta remain unqualified. Host, main and
+release CI pass; the four public downloads are independently verified.
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.7-preview.2/DroiDDS-0.0.7-preview.2-original-android-arm64.apk).
+The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
 The [candidate build record](docs/builds/0.0.7-android-title-candidate.md)
