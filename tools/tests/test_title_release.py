@@ -244,6 +244,22 @@ class TitleReleaseTests(unittest.TestCase):
 class PublicPolicyTests(unittest.TestCase):
     """CodexAstraUlt: Public policy constants are not fixture-derived trust inputs."""
 
+    def test_sdk_manifest_accepts_current_install_code_and_rejects_previous_code(self):
+        # CodexAstraUlt: Exercise the actual SDK-output parser through the release
+        # wrapper so an old install-code literal cannot survive a version update.
+        from test_build_android_title import XMLTREE
+        for code in (RELEASE.MANIFEST["version_code"], RELEASE.MANIFEST["version_code"] - 1):
+            badging = (f"package: name='{RELEASE.PACKAGE}' versionCode='{code}' versionName='{RELEASE.VERSION}'\n"
+                "sdkVersion:'29'\ntargetSdkVersion:'35'\nnative-code: 'arm64-v8a'\n"
+                "launchable-activity: name='org.droidds.probe.TitleActivity'\n")
+            results = [mock.Mock(stdout=badging), mock.Mock(stdout=XMLTREE)]
+            with self.subTest(code=code), mock.patch.object(RELEASE.subprocess, "run", side_effect=results):
+                if code == RELEASE.MANIFEST["version_code"]:
+                    self.assertEqual(RELEASE.sdk_manifest(Path("original.apk"), Path("sdk")), RELEASE.MANIFEST)
+                else:
+                    with self.assertRaisesRegex(ValueError, "apk_identity_mismatch"):
+                        RELEASE.sdk_manifest(Path("original.apk"), Path("sdk"))
+
     def test_only_exact_reviewed_tag_and_commit_are_accepted(self):
         self.assertEqual(RELEASE.identity(RELEASE.TAG, COMMIT), (RELEASE.VERSION, RELEASE.APK_NAME))
         for tag, commit in (("v0.0.7-preview.1", COMMIT), ("v0.0.7-preview.3", COMMIT),

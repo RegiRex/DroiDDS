@@ -146,7 +146,8 @@ def sdk_manifest(apk, sdk):
         return subprocess.run([str(tool), *arguments], check=True, text=True, capture_output=True,
                               timeout=30).stdout
     return BUILD.audit_manifest(run(["dump", "badging", str(apk)]),
-        run(["dump", "xmltree", str(apk), "--file", "AndroidManifest.xml"]), PACKAGE, 8, True)
+        run(["dump", "xmltree", str(apk), "--file", "AndroidManifest.xml"]),
+        PACKAGE, MANIFEST["version_code"], MANIFEST["debuggable"])
 
 
 def elf_metadata(data):
