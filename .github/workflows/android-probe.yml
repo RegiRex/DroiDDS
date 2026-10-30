@@ -44,27 +44,27 @@ jobs:
         id: python
         shell: bash
         run: |
-          mkdir -p out
-          python3 -m unittest discover -s tools/tests -v 2>&1 | tee out/android-python.log
+          python3 -m unittest discover -s tools/tests -v 2>&1 | tee "$RUNNER_TEMP/android-python.log"
       - name: Record bounded Python failure
         if: failure() && steps.python.outcome == 'failure'
         shell: bash
         run: |
           python3 - <<'PY'
-          import re, sys
+          import os, re, sys
           from pathlib import Path
           # CodexAstraUlt: Python failures occur before an APK report exists.
-          # Expose only a bounded test tail, with no SDK environment/key logs.
-          path = Path("out/android-python.log")
+          # Keep the final traceback within the visible annotation instead of
+          # placing it after thousands of successful test names; omit key logs.
+          path = Path(os.environ["RUNNER_TEMP"]) / "android-python.log"
           if path.is_file() and not path.is_symlink():
               with path.open("rb") as stream:
                   stream.seek(0, 2)
-                  stream.seek(max(0, stream.tell() - 6000))
-                  detail = stream.read(6000).decode("utf-8", errors="replace")
+                  stream.seek(max(0, stream.tell() - 12000))
+                  detail = stream.read(12000).decode("utf-8", errors="replace")[-3000:]
           else:
               detail = "Python validation failed before writing its log"
           detail = re.sub(r"(https?://)[^/\s@]+@", r"\1[redacted]@", detail)
-          detail = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b", "[redacted]", detail)
+          detail = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b", "[redacted]", detail)[-3000:]
           escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           print("::error::Python validation: " + escaped, file=sys.stderr)
           PY

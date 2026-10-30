@@ -36,9 +36,34 @@ jobs:
       - name: Install pinned Rust
         run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt,clippy
       - name: Test dependency pin checks
-        run: python3 -m unittest discover -s tools/tests -v
+        id: python
+        shell: bash
+        run: python3 -m unittest discover -s tools/tests -v 2>&1 | tee "$RUNNER_TEMP/foundation-python.log"
+      - name: Record bounded Python failure
+        if: failure() && steps.python.outcome == 'failure'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          from pathlib import Path
+          # CodexAstraUlt: A failed first Python gate has no build report. Keep
+          # its actual traceback tail short enough to survive annotation limits.
+          path = Path(os.environ["RUNNER_TEMP"]) / "foundation-python.log"
+          detail = "Python validation failed before writing its log"
+          if path.is_file() and not path.is_symlink():
+              with path.open("rb") as stream:
+                  stream.seek(0, 2)
+                  stream.seek(max(0, stream.tell() - 12000))
+                  detail = stream.read(12000).decode("utf-8", errors="replace")[-3000:]
+          detail = re.sub(r"(https?://)[^/\s@]+@", r"\1[redacted]@", detail)
+          detail = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b", "[redacted]", detail)[-3000:]
+          escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print("::error::Python validation: " + escaped, file=sys.stderr)
+          PY
       - name: Build and exercise CPU foundation
-        run: python3 tools/build_foundation.py --output out/ci-foundation --jobs 2
+        id: foundation
+        shell: bash
+        run: python3 tools/build_foundation.py --output out/ci-foundation --jobs 2 2>&1 | tee "$RUNNER_TEMP/foundation-build.log"
       # CodexAstraUlt: Require real original-input preparation in CI, including
       # the coordinator; unit-only success cannot stand in for a prepared title.
       - name: Verify native source preparation with original inputs
@@ -65,28 +90,44 @@ jobs:
       - name: Record result in job summary
         if: always()
         shell: bash
+        env:
+          FOUNDATION_OUTCOME: ${{ steps.foundation.outcome }}
         run: |
-          if [ -f out/ci-foundation/build-report.json ]; then
-            python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json, sys
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os, re, sys
           from pathlib import Path
-          report = json.loads(Path("out/ci-foundation/build-report.json").read_text())
-          print("CPU foundation status:", report["status"])
-          for step in report["steps"]:
+          # CodexAstraUlt: Read one bounded ordinary step log, never a command
+          # array or arbitrary report path. Retain the final failure lines.
+          def tail(path, limit=2500):
+              if path.is_symlink() or not path.is_file():
+                  return ""
+              with path.open("rb") as stream:
+                  stream.seek(0, 2)
+                  stream.seek(max(0, stream.tell() - limit))
+                  return stream.read(limit).decode("utf-8", errors="replace")
+          def redact(value):
+              value = re.sub(r"(https?://)[^/\s@]+@", r"\1[redacted]@", value)
+              return re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b", "[redacted]", value)
+          base = Path("out/ci-foundation")
+          path = base / "build-report.json"
+          report = {}
+          if not path.is_symlink() and path.is_file() and path.stat().st_size <= 2 * 1024 * 1024:
+              try:
+                  report = json.loads(path.read_text())
+              except (OSError, ValueError):
+                  pass
+          print("CPU foundation status:", report.get("status", os.environ["FOUNDATION_OUTCOME"]))
+          for step in report.get("steps", []):
               if "tests" in step:
                   print(f"- {step['step']}: {step['tests']}")
-          if "error" in report:
-              print("Failure:", report["error"])
-              # CodexAstraUlt: Expose the bounded build failure as a public check
-              # annotation; full job logs can require a separate GitHub login.
-              detail = str(report["error"])
-              for step in report["steps"]:
-                  if step.get("exit_code", 0) != 0 and step.get("log"):
-                      path = Path("out/ci-foundation") / step["log"]
-                      if path.is_file():
-                          detail += "\n" + path.read_text(errors="replace")[-5000:]
+          if os.environ["FOUNDATION_OUTCOME"] == "failure":
+              detail = str(report.get("error", "Foundation failed before writing a valid report"))[-400:]
+              failed = [step for step in report.get("steps", []) if step.get("exit_code", 0) != 0]
+              name = failed[-1].get("log", "") if failed else ""
+              log = tail(base / name) if name and Path(name).name == name and name.endswith(".log") else ""
+              detail = redact(detail + "\n" + (log or tail(Path(os.environ["RUNNER_TEMP"]) / "foundation-build.log")))[-3000:]
+              print("Failure:", detail)
               escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-              print("::error::" + escaped, file=sys.stderr)
+              print("::error::CPU foundation: " + escaped, file=sys.stderr)
           print("Linux synthetic CPU evidence only; Android and game compatibility are untested.")
           PY
-          fi
