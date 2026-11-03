@@ -5,13 +5,16 @@ execution gate without rebuilding its generated code or promoting Android boot. 
 Dark Moon now has **521/521 validated objects** and a linked, statically validated
 Linux library. Its [first native comparison](host-tests/dark-moon-native-2026-10-29.md)
 executes 1,999,970 native instructions but differs from the interpreter in CPSR
-and pending scheduling at the first 100,000-cycle checkpoint. The next local task
-is one comparison with the [scheduler correction and synchronized observations](builds/0.0.7-native-boundaries.md),
-reusing the existing preparation and compilation. No new title source generation
-or title compilation is required. The public APK remains 0.0.6/code 7.
+and pending scheduling at the first 100,000-cycle checkpoint. The owner has now
+completed the [corrected-scheduler follow-up](host-tests/dark-moon-native-2026-11-02.md)
+with the same library: raw CPSR differs, first-checkpoint scheduling agrees, and
+one synchronized sample matches at 303,222 cycles. The procedure below is retained
+for reproducibility; **do not repeat it solely because this page exists**.
+The next private task is the [consolidated Android build and device run](ANDROID_TITLE_BUILD.md#one-consolidated-local-build-and-device-task).
+The public candidate is 0.0.7-preview.2 with only the original test guest.
 Read the [implementation and executed original-fixture record](builds/0.0.7-native-host-comparison.md).
 
-## Local procedure
+## Recorded comparison procedure
 
 <!-- CodexAstraUlt: Build only the new host worker from the pinned cached
 toolchain, then consume the already completed private compilation unchanged. -->

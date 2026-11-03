@@ -344,9 +344,185 @@ fn unsupported_guest_instruction_stops_and_retains_a_bounded_report() {
     assert!(session.slice(InputState::default()).is_err());
     let cycles = session.report()["cycles"].clone();
     assert_eq!(session.report()["status"], "failed");
+    // CodexAstraUlt: Report the trap location without exposing its immediate,
+    // instruction word or raw guest text; the first observed cause stays fixed.
+    let blocker = session.report()["first_blocker"].clone();
+    assert_eq!(blocker["category"], "breakpoint");
+    assert_eq!(blocker["fault_pc"], 0x0010_0000);
+    assert!(blocker.get("opcode").is_none() && blocker.get("imm").is_none());
+    session.system.unimplemented_svcs.insert(0x7f);
+    session.pause();
+    session.resume();
     assert!(session.slice(InputState::default()).is_err());
     assert_eq!(session.report()["cycles"], cycles);
+    assert_eq!(session.report()["first_blocker"], blocker);
     assert!(session.report().to_string().len() < 8192);
+    fixture.preserved();
+}
+
+// CodexAstraUlt: Execute an authored unsupported SVC through the actual CPU
+// dispatcher; preserve its number and stop before the following instruction.
+#[test]
+fn unsupported_svc_reports_number_without_advancing_after_failure() {
+    let mut image = fixture::image(0, 0, false);
+    image[0x800..0x804].copy_from_slice(&0xef00_007fu32.to_le_bytes());
+    let fixture = Fixture::new(image, false);
+    let mut session = fixture.open(false).unwrap();
+    assert!(session.report()["first_blocker"].is_null());
+    assert_eq!(session.report()["memory_faults"]["distinct_pages"], 0);
+    assert_eq!(
+        session.slice(InputState::default()).err().unwrap(),
+        "title_runtime_blocker"
+    );
+    let report = session.report();
+    assert_eq!(report["first_blocker"]["category"], "unsupported_svc");
+    assert_eq!(report["first_blocker"]["svc"], 0x7f);
+    assert_eq!(report["first_blocker"]["distinct_svcs"], 1);
+    assert_eq!(report["first_blocker"]["observed_pc"], 0x0010_0004);
+    assert_eq!(report["interpreted_instructions"], 1);
+    assert!(session.slice(InputState::default()).is_err());
+    assert_eq!(session.report(), report);
+    fixture.preserved();
+}
+
+// CodexAstraUlt: A real guest LDR from unmapped memory must identify its page
+// rather than leave a generic runtime_blocker with every visible count zero.
+#[test]
+fn guest_unmapped_read_reports_a_bounded_memory_observation() {
+    let mut image = fixture::image(0, 0, false);
+    // MOV r0,#0x30000000; LDR r1,[r0]; B .
+    for (index, word) in [0xe3a0_0203u32, 0xe590_1000, 0xeaff_fffe]
+        .into_iter()
+        .enumerate()
+    {
+        image[0x800 + index * 4..0x804 + index * 4].copy_from_slice(&word.to_le_bytes());
+    }
+    let fixture = Fixture::new(image, false);
+    let mut session = fixture.open(false).unwrap();
+    assert_eq!(
+        session.slice(InputState::default()).err().unwrap(),
+        "title_runtime_blocker"
+    );
+    let report = session.report();
+    assert_eq!(report["interpreted_instructions"], 2);
+    assert_eq!(report["first_blocker"]["category"], "memory_fault");
+    assert_eq!(report["first_blocker"]["observed_pc"], 0x0010_0008);
+    assert_eq!(report["memory_faults"]["distinct_pages"], 1);
+    assert_eq!(
+        report["memory_faults"]["sample"]["page_address"],
+        0x3000_0000
+    );
+    assert_eq!(report["memory_faults"]["sample"]["access_count"], 1);
+    assert_eq!(
+        report["first_blocker"]["memory_faults"],
+        report["memory_faults"]
+    );
+    assert!(session.slice(InputState::default()).is_err());
+    assert_eq!(session.report(), report);
+    fixture.preserved();
+}
+
+// CodexAstraUlt: Drive real IPC rejection using an original request, retaining
+// only its service/command identity. Invalid names cannot expand the report or
+// leak a request payload through the diagnostic identifier.
+#[test]
+fn rejected_service_reports_bounded_identifiers_without_request_payload() {
+    use zakuro_core::kernel::ipc::{CommandBuffer, Header};
+    use zakuro_core::services::{handle_request, Target};
+
+    for name in ["cfg:u".to_string(), "test/\n".repeat(16_384)] {
+        let mut image = fixture::image(0, 0, false);
+        image[0x800..0x804].copy_from_slice(&0xeaff_fffeu32.to_le_bytes());
+        let fixture = Fixture::new(image, false);
+        let mut session = fixture.open(false).unwrap();
+        session
+            .advance(InputState::default(), 1, Duration::from_secs(1))
+            .unwrap();
+        let buffer = CommandBuffer::new(session.system.kernel.current().unwrap().tls);
+        buffer.set(&mut session.system.memory, 0, Header::new(0xffff, 1, 0).0);
+        buffer.set(&mut session.system.memory, 1, 0x7365_6372);
+        handle_request(&mut session.system, Target::service(name.clone(), 0));
+        let cycles = session.system.cpu.cycles;
+        assert_eq!(
+            session.slice(InputState::default()).err().unwrap(),
+            "title_runtime_blocker"
+        );
+        let report = session.report();
+        let blocker = &report["first_blocker"];
+        assert_eq!(blocker["category"], "unsupported_service");
+        assert_eq!(blocker["command"], 0xffff);
+        assert_eq!(blocker["request_count"], 1);
+        assert_eq!(blocker["distinct_commands"], 1);
+        assert_eq!(blocker["service_truncated"], name.len() > 16);
+        if name == "cfg:u" {
+            assert_eq!(blocker["service"], "cfg:u");
+        } else {
+            assert_eq!(blocker["service"], "test??test??test");
+        }
+        assert_eq!(report["cycles"], cycles);
+        assert!(blocker.get("args").is_none());
+        assert!(report.to_string().len() < 8192);
+        fixture.preserved();
+    }
+}
+
+// CodexAstraUlt: Several observations from one core dispatch have no reliable
+// chronological ordering. Follow the guard order and keep fatal guest strings
+// out of exported reports even when no finer CPU/service metadata exists.
+#[test]
+fn first_blocker_uses_guard_priority_and_omits_guest_fatal_text() {
+    let fixture = Fixture::new(fixture::image(0, 0, false), false);
+    for with_svc in [false, true] {
+        let mut session = fixture.open(false).unwrap();
+        session
+            .system
+            .fatal_errors
+            .push("PRIVATE ORIGINAL FIXTURE ERROR".repeat(4096));
+        if with_svc {
+            session.system.unimplemented_svcs.insert(0x80);
+            session.system.unimplemented_svcs.insert(0x7f);
+            session.system.memory.read32(0x3000_0000);
+        }
+        assert!(session.slice(InputState::default()).is_err());
+        let report = session.report();
+        assert_eq!(
+            report["first_blocker"]["category"],
+            if with_svc {
+                "unsupported_svc"
+            } else {
+                "guest_fatal_error"
+            }
+        );
+        if with_svc {
+            assert_eq!(report["first_blocker"]["svc"], 0x7f);
+            assert_eq!(report["first_blocker"]["selection"], "lowest_svc_number");
+            assert_eq!(report["memory_faults"]["distinct_pages"], 1);
+        } else {
+            assert_eq!(report["first_blocker"]["count"], 1);
+        }
+        assert_eq!(report["interpreted_instructions"], 0);
+        assert!(!report.to_string().contains("PRIVATE ORIGINAL"));
+        assert!(report.to_string().len() < 8192);
+        fixture.preserved();
+    }
+}
+
+// CodexAstraUlt: Invalid input is rejected before machine guards, so an
+// unrelated existing diagnostic counter must not replace the actual cause.
+#[test]
+fn direct_input_guard_keeps_its_cause_despite_existing_machine_counters() {
+    let fixture = Fixture::new(fixture::image(0, 0, false), false);
+    let mut session = fixture.open(false).unwrap();
+    session.system.unimplemented_svcs.insert(0x7f);
+    let invalid = InputState {
+        touch: Some((320, 0)),
+        ..InputState::default()
+    };
+    assert_eq!(session.slice(invalid).err().unwrap(), "title_input_invalid");
+    let report = session.report();
+    assert_eq!(report["first_blocker"]["category"], "invalid_input");
+    assert_eq!(report["unsupported_svcs"], 1);
+    assert_eq!(report["interpreted_instructions"], 0);
     fixture.preserved();
 }
 

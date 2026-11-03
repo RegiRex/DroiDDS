@@ -13,6 +13,16 @@ consolidated local gate. The [roadmap](ROADMAP.md) defines the playable beta
 requirements; another isolated unchanged interpreter trace is not a prerequisite
 for this generic implementation.
 
+<!-- CodexAstraUlt: Retain new owner evidence and move the next private batch
+to the actual Android package, rather than repeating the fulfilled host task. -->
+The [Thor original-title run](device-tests/0.0.7-preview2-thor-title.md) now
+records native execution and Vulkan rendering without a runtime error. The
+[corrected private host comparison](host-tests/dark-moon-native-2026-11-02.md)
+is also complete: one synchronized match, raw flags still different, no first
+scheduler-pending mismatch. Neither is owned-game boot. The next private task
+remains the consolidated ARM64 build and Thor opening run; no unchanged host
+comparison or regeneration of completed private sources is required.
+
 <!-- CodexAstraUlt: Reduce the supplied 119-ticket catalog to bounded work packages with explicit tests and links back to the source requirements. -->
 
 <!-- CodexAstraUlt: Record the delivered CPU subset and the resolved current

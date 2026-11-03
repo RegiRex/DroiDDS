@@ -19,11 +19,23 @@ before another isolated local trace; candidate publication does not close boot. 
   to 857ff47; use the separate Android adapter. New title signing identity is
   explicit and separate from the probe. Preserve keys outside source/release
   bundles. Public title releases admit only the exact authored homebrew guest.
-  The candidate has no device or owned-title boot result yet. Its public report
+  The candidate now has an owner-supplied Thor original-title result; read
+  docs/device-tests/0.0.7-preview2-thor-title.md. Its artifact identities and
+  counters agree, with native/Vulkan execution and no reported runtime errors.
+  The owner confirms both images, D-pad/A, touch, pause/resume and steady sound;
+  the three measured underruns are retained. Owned-title boot remains
+  unqualified. Its public report
   binds release source 97e60e0; later main test-only hardening 795b8cc accepts
   Linux ESRCH when an already-dead child disappears during a proc read. That
   main change passes 549 Python tests and both hosted workflows, with no APK
   runtime or process-limit change.
+<!-- CodexAstraUlt: Use bounded actionable failure evidence in the upcoming
+private APK; no new tracing or generated-title compilation contract is needed. -->
+- Read docs/builds/0.0.7-device-followup.md for the current cloud follow-up.
+  Admitted session slice failures now retain first_blocker and bounded
+  memory_faults metadata. Keep guard errors/priority and raw evidence intact;
+  samples are sorted-key observations, not claimed chronological traces.
+  Main CI also exercises the generic title runtime/player and Vulkan oracle.
 
 <!-- CodexAstraUlt: The owner now authorizes development and reuse from multiple
 open-source projects; continue from measured foundation results, not the old
@@ -138,6 +150,17 @@ scheduler/materialized observation path without turning raw differences into a p
   and compare supplemental post-SVC samples by complete event identity with
   positive native work before each qualifying sample. Do not mask flags, extend
   budgets for missing samples, or claim general native parity from convergence.
+<!-- CodexAstraUlt: The requested private follow-up has arrived; do not send
+the owner back through an unchanged comparison before the Android build. -->
+- The owner's `857ff47` comparison is complete; read
+  docs/host-tests/dark-moon-native-2026-11-02.md. Raw CPSR still differs at
+  100,000/2,000,000 cycles; the first PC agrees and both scheduler-pending fields
+  are false. One synchronized sample matches at 303,222 cycles; the other three
+  boundaries are missing on both routes. Preserve raw differences and the
+  bounded match. No title regeneration, Linux recompilation, limit increase or
+  repeated unchanged host trace is justified. Continue the consolidated private
+  ARM64 package/device task using the retained preparation, with the Linux
+  library and previous outputs preserved.
 - Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,
   commitment/configuration, heap-bound and restore-preflight corrections. The
   host compiler is also vendored to repair conditional-flow budget accounting;

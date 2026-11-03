@@ -23,6 +23,15 @@ The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.
 The [candidate build record](docs/builds/0.0.7-android-title-candidate.md)
 records the completed local APK and executed host checks.
 
+<!-- CodexAstraUlt: Add actual owner evidence without promoting the original
+test guest to a playable owned title or the whole 0.0.7 milestone. -->
+The [owner's Thor title-player report](docs/device-tests/0.0.7-preview2-thor-title.md)
+now records 368,884 native instructions and 5,658 Vulkan draws with no reported
+runtime errors or software raster fallback. The reported title-artifact hashes
+match the published preview. The owner confirms both images, D-pad/A, touch,
+pause/resume and steady sound; the next game build uses the retained private
+sources and Android builder.
+
 <!-- CodexAstraUlt: Replace planning-only status after the first verified host
 build; keep its small CPU proof separate from Android and game qualification. -->
 **Status, 2026-10-17: the first Linux CPU foundation build, 0.0.1, passes.**
@@ -117,9 +126,10 @@ has completed the private library: 521/521 objects, linked and statically audite
 table admission and an immutable-base fence, with dynamic modules interpreted.
 Original fixtures execute and match both routes. The first
 [private native run](docs/host-tests/dark-moon-native-2026-10-29.md) executes
-1,999,970 native instructions with raw CPU/scheduler differences. The next task
-uses corrected scheduling and supplemental synchronized comparisons, reusing
-the existing library. General mutable native code and private boot evidence
+1,999,970 native instructions with raw CPU/scheduler differences. The
+[completed follow-up](docs/host-tests/dark-moon-native-2026-11-02.md) has matching
+first-checkpoint scheduling and one matching synchronized state, while raw CPSR
+differences remain. General mutable native code and private boot evidence
 remain unfinished. Android packaging now has its own implementation and
 qualification path described above; host results alone do not qualify it.
 

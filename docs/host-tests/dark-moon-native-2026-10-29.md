@@ -42,8 +42,9 @@ ordinal, actual cycle, SVC number/PC and originating guest thread. A matching
 sample requires actual native work before that sample. Raw differences remain
 reported; a later matching sample does not erase or explain them automatically.
 
-The next local task is **one default comparison with the rebuilt host worker**,
-using the same prepared title and completed library. Follow
+The requested next local task was **one default comparison with the rebuilt host
+worker**, using the same prepared title and completed library. That task is now
+[complete at 857ff47](dark-moon-native-2026-11-02.md). For its procedure, see
 [the native-run procedure](../PRIVATE_TITLE_NATIVE_RUN.md). Do not regenerate
 title sources, recompile its objects or increase execution limits. Return both
 raw and synchronized outcomes, exact CPU flag/PC values at the first raw

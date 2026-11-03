@@ -233,6 +233,11 @@ trace handoffs while preserving failures and the completed host compilation. -->
 Give the local agent the retained preparation, installed SDK/JDK, selected signing
 location and fresh output locations once. The following is the integrated task:
 
+<!-- CodexAstraUlt: The fulfilled host comparison is evidence, not a request
+to rerun it; move directly to the separate Android artifact. -->
+The owner's `857ff47` Linux comparison is complete. Use current main for this
+Android task; preserve the existing host library and all earlier evidence.
+
 ```text
 Use the current RegiRex/DroiDDS checkout, preserving existing work.
 Read docs/ANDROID_TITLE_BUILD.md and docs/ANDROID_TITLE_CONTRACT.md.

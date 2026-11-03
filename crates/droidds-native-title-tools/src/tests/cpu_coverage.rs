@@ -209,3 +209,131 @@ fn generated_callback_preserves_live_carry_and_finite_vfp_state_at_svc() {
     assert_eq!(reports[0]["observed"]["interpreted_instructions"], 120_020);
     assert_native_work(&reports[1], 120_020, 120_019, 1);
 }
+
+// CodexAstraUlt: Unlike the intentionally dead flag at an arbitrary checkpoint,
+// NZCV are live here when a higher-priority guest thread wakes. The generated
+// main function must materialize them at the budget exit, the real scheduler
+// must save them, and resumption consumes them after the peer changes its flags.
+// The guest and exact cycle/output oracles are original, not private game code.
+#[test]
+fn generated_live_flags_survive_budget_preemption_and_thread_restore() {
+    let _serial = SERIAL.lock().unwrap();
+    let mut image = fixture::image(0, 0, false);
+    let main = [
+        0xe150_0000u32, // CMP r0,r0: Z=1 makes the discovery-only BLNE untaken.
+        0x1b00_001d,    // BLNE word 32: discover the real thread's native entry.
+        0xe3a0_0020,    // MOV r0,#0x20: peer outranks the main thread's 0x30.
+        0xe28f_106c,    // ADR r1,word 32.
+        0xe3a0_2000,    // MOV r2,#0: thread argument.
+        0xe24d_3c01,    // SUB r3,sp,#0x100: separate unused stack position.
+        0xe3a0_4000,    // MOV r4,#0: processor.
+        0xef00_0008,    // CreateThread completes at cycle 8.
+        0xe3e0_6000,    // MVN r6,#0: negative without changing flags.
+        0xe3a0_8000,    // MOV r8,#0: completed iterations.
+        0xe59f_9090,    // LDR r9,[pc,#144] -> DATA at word 48.
+        0xe356_0000,    // CMP r6,#0: N=1,Z=0,C=1,V=0 remain live at next block.
+        0xeaff_ffff,    // B word 13: an actual generated budget boundary.
+        0xe2a8_8000,    // ADC r8,r8,#0 consumes C=1 and preserves all flags.
+        0xb3a0_a055,    // MOVLT r10,#0x55 consumes N/V and must execute.
+        0xc3a0_a0aa,    // MOVGT r10,#0xaa consumes Z/N/V and must not execute.
+        0xe589_a000,    // STR r10,[r9]: independently checked output.
+        0xe599_b004,    // LDR r11,[r9,#4]: peer's completion marker.
+        0xe35b_0000,    // CMP r11,#0.
+        0x0aff_fff6,    // BEQ word 11 until the sleeping peer has run.
+        0xef00_0003,    // ExitProcess.
+    ];
+    let peer = [
+        0xe3a0_0078u32, // MOV r0,#120 ns -> exactly 32 guest ticks.
+        0xe3a0_1000,    // MOV r1,#0.
+        0xef00_000a,    // SleepThread at cycle 11; wake deadline is cycle 43.
+        0xe290_0000,    // ADDS r0,r0,#0: peer changes to N=0,Z=1,C=0,V=0.
+        0xe3a0_c07b,    // MOV r12,#0x7b.
+        0xe59f_9024,    // LDR r9,[pc,#36] -> DATA at word 48.
+        0xe589_c004,    // STR r12,[r9,#4]: prove the real peer executed.
+        0xef00_0028,    // GetSystemTick saves the peer's changed locals.
+        0xef00_0009,    // ExitThread returns execution to the main thread.
+    ];
+    for (start, words) in [(0, main.as_slice()), (32, peer.as_slice())] {
+        for (index, word) in words.iter().enumerate() {
+            let at = 0x800 + 4 * (start + index);
+            image[at..at + 4].copy_from_slice(&word.to_le_bytes());
+        }
+    }
+    image[0x8c0..0x8c4].copy_from_slice(&fixture::DATA.to_le_bytes());
+    let fixture = Fixture::from_image(image);
+    let original = fs::read(&fixture.input).unwrap();
+    let file = fixture.prepared_native_library();
+    let library = SealedFile::open(file.as_raw_fd(), request::LIBRARY_LIMIT, None).unwrap();
+    let mut results = Vec::new();
+    for route in ["interpreter", "native"] {
+        let mut request = fixture.typed();
+        request.route = route.into();
+        request.limits.max_cycles = 43;
+        let mut report = envelope(Some(&request));
+        execute(
+            &request,
+            &library,
+            &fixture.bundle,
+            &fixture.root.join(route),
+            &mut report,
+            Instant::now(),
+            |system| {
+                // CodexAstraUlt: Inspect the exact deadline before scheduling,
+                // then advance this original test through a fixed 207-cycle
+                // exit oracle. Production worker budgets remain unchanged.
+                assert_eq!(system.cpu.cycles, 43, "route={route}");
+                assert_eq!(system.kernel.current_thread, Some(0));
+                assert!(system.kernel.reschedule_pending);
+                assert_eq!(system.cpu.regs[15], fixture::TEXT + 13 * 4);
+                assert_eq!(system.cpu.cpsr.to_bits(), 0xa000_001f);
+                assert_eq!(system.kernel.next_event(), Some(43));
+                for _ in 0..160 {
+                    if system.cpu.cycles >= 198 {
+                        break;
+                    }
+                    assert_eq!(system.step(Some(198)), zakuro_core::StepOutcome::Ran);
+                }
+                assert_eq!(system.cpu.cycles, 198);
+                assert_eq!(system.kernel.current_thread, Some(1));
+                assert_eq!(system.cpu.cpsr.to_bits(), 0x4000_001f);
+                let suspended = &system.kernel.threads[0].context;
+                assert_eq!(suspended.regs[15], fixture::TEXT + 13 * 4);
+                assert_eq!(suspended.cpsr.to_bits(), 0xa000_001f);
+                assert_eq!(system.memory.read32(fixture::DATA + 4), 0x7b);
+                for _ in 0..10 {
+                    if system.exited || system.cpu.cycles >= 207 {
+                        break;
+                    }
+                    assert_ne!(system.step(Some(207)), zakuro_core::StepOutcome::Faulted);
+                }
+                assert!(system.exited, "route={route}");
+                assert_eq!(system.cpu.cycles, 207);
+                assert_eq!(system.cpu.regs[8], 4);
+                assert_eq!(system.memory.read32(fixture::DATA), 0x55);
+                assert_eq!(system.memory.read32(fixture::DATA + 4), 0x7b);
+                assert_eq!(
+                    system.interpreted_instructions,
+                    if route == "native" { 0 } else { 57 }
+                );
+                assert_eq!(
+                    system.recompiled_instructions,
+                    if route == "native" { 57 } else { 0 }
+                );
+                if let Some(native) = &system.recompiled {
+                    assert_eq!(native.fallbacks(), 0);
+                }
+                results.push(state::capture(system, &state::Audio::default()));
+            },
+        )
+        .unwrap();
+        assert_eq!(report["status"], "budget_exhausted");
+        assert_eq!(report["reason"], "cycle_budget");
+        assert_eq!(report["observed"]["cycles"], 43);
+        assert_eq!(
+            report["observed"]["recompiled_instructions"],
+            if route == "native" { 43 } else { 0 }
+        );
+    }
+    assert_eq!(results[0], results[1]);
+    assert_eq!(fs::read(&fixture.input).unwrap(), original);
+}

@@ -866,6 +866,13 @@ impl Memory {
     pub fn fault_summary(&self) -> Vec<(VAddr, u32)> {
         self.faults.iter().map(|(&a, &c)| (a, c)).collect()
     }
+
+    /// CodexAstraUlt: Observe unmapped-page cardinality and one deterministic
+    /// sample without allocating/traversing the full diagnostic map. The sample
+    /// is the lowest page address, not necessarily the first fault in time.
+    pub fn fault_observation(&self) -> (usize, Option<(VAddr, u32)>) {
+        (self.faults.len(), self.faults.first_key_value().map(|(&page, &count)| (page, count)))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1027,6 +1034,19 @@ mod fence_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: Reversed access order distinguishes a deterministic sample
+    // from chronological evidence; repeated reads retain the per-page count.
+    #[test]
+    fn fault_observation_counts_pages_and_samples_lowest_address() {
+        let mut memory = Memory::new(false, 0x0400_0000);
+        assert_eq!(memory.fault_observation(), (0, None));
+        memory.read32(0x4000_1234);
+        memory.read8(0x3000_2345);
+        memory.read16(0x3000_2346);
+        assert_eq!(memory.fault_observation(), (2, Some((0x3000_2000, 2))));
+        assert_eq!(memory.fault_summary(), vec![(0x3000_2000, 2), (0x4000_1000, 1)]);
+    }
 
     /// a GPU that writes back 0xAB over what it is asked for, counting.
     struct Drawn {

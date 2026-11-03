@@ -13,6 +13,7 @@ on:
       - "crates/**"
       - "vendor/**"
       - "android/probe/**"
+      - "android/title/**"
       - "tools/**"
       - ".github/workflows/android-probe.yml"
   pull_request:
@@ -131,6 +132,34 @@ jobs:
           escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           print("::error::Runtime validation: " + escaped, file=sys.stderr)
           PYRUNTIME
+      # CodexAstraUlt: The generic title runtime used by private APKs must be
+      # tested on main as well as publication tags; no game data is needed.
+      - name: Execute generic title runtime and player regressions
+        shell: bash
+        run: |
+          cargo fmt -p droidds-title-runtime -p droidds-title-player -- --check
+          cargo clippy --locked -p droidds-title-runtime -p droidds-title-player --all-targets --no-deps -- -D warnings
+          cargo test --locked -p droidds-title-runtime -p droidds-title-player -- --test-threads=1
+          drivers=(/usr/share/vulkan/icd.d/lvp_icd*.json)
+          test "${#drivers[@]}" -eq 1
+          test -f "${drivers[0]}"
+          export VK_DRIVER_FILES="${drivers[0]}"
+          export VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation
+          export VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+          export VK_LOADER_DEBUG=layer
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/droidds-vulkan"
+          export PATH="$ANDROID_HOME/ndk/27.3.13750724/shader-tools/linux-x86_64:$PATH"
+          cargo test --locked -p droidds-title-runtime --features vulkan-tests generic_native_vulkan_session_matches_original_image_and_audio_oracles -- --test-threads=1 --nocapture 2>&1 | tee "$RUNNER_TEMP/title-runtime-vulkan.log"
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, "tools")
+          from build_runtime_probe import validate_diagnostics
+          log = (Path(os.environ["RUNNER_TEMP"]) / "title-runtime-vulkan.log").read_text()
+          validate_diagnostics(log)
+          if "1 passed; 0 failed" not in log:
+              raise SystemExit("The generic title Vulkan test did not execute")
+          PY
       - name: Record build result
         if: always()
         shell: bash

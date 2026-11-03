@@ -51,6 +51,9 @@ pub struct Session {
     device: Option<String>,
     paused: bool,
     failure: Option<String>,
+    // CodexAstraUlt: One failure-time observation survives later lifecycle
+    // calls; no guest payload strings, instruction words or growing trace remain.
+    first_blocker: Option<Value>,
     slices: u64,
     yielded: u64,
     dispatches: u64,
@@ -89,6 +92,7 @@ impl Session {
             device,
             paused: false,
             failure: None,
+            first_blocker: None,
             slices: 0,
             yielded: 0,
             dispatches: 0,
@@ -134,6 +138,11 @@ impl Session {
         let result = self.advance(input, SLICE_STEPS, SLICE_WALL);
         self.slice_wall += started.elapsed();
         if let Err(failure) = &result {
+            // CodexAstraUlt: Capture only after the existing guard stops work.
+            // A later report/pause never reclassifies the original observation.
+            if self.first_blocker.is_none() {
+                self.first_blocker = Some(self.observe_blocker(failure));
+            }
             self.failure = Some(failure.clone());
         }
         result
@@ -230,7 +239,7 @@ impl Session {
         if self.system.diagnostic_fault().is_some()
             || !self.system.unimplemented_svcs.is_empty()
             || !self.system.services.unimplemented.is_empty()
-            || !self.system.memory.fault_summary().is_empty()
+            || self.system.memory.fault_observation().0 != 0
             || !self.system.prefetch_aborts.is_empty()
             || !self.system.fatal_errors.is_empty()
         {
@@ -244,6 +253,102 @@ impl Session {
             return Err("title_renderer_draw_failed".into());
         }
         self.system.memory.verify_base_code_fence()
+    }
+
+    // CodexAstraUlt: Preserve the existing guard priority when several counters
+    // appear in one core dispatch. This is the first observed stop cause, not
+    // an inferred chronology within that dispatch. Only fixed metadata and a
+    // bounded ASCII service identifier leave the runtime.
+    fn observe_blocker(&self, failure: &str) -> Value {
+        let mut observation = json!({
+            "observed_pc":self.system.cpu.regs[15],
+            "cycle":self.system.cpu.cycles,
+        });
+        // CodexAstraUlt: A direct input/transfer guard can return before the
+        // machine checks. Existing counters must not override that actual cause.
+        let explicit = match failure {
+            "title_runtime_blocker" | "title_guest_fault" => None,
+            "title_renderer_route_changed" => Some("renderer_route_changed"),
+            "title_renderer_draw_failed" => Some("renderer_draw_failed"),
+            "title_input_invalid" => Some("invalid_input"),
+            "title_scanout_size_invalid" => Some("invalid_scanout"),
+            "title_audio_slice_capacity_exceeded" => Some("audio_capacity"),
+            value if value.starts_with("native_base_code_fence_") => Some("native_code_fence"),
+            _ => Some("runtime_guard"),
+        };
+        if let Some(category) = explicit {
+            observation["category"] = json!(category);
+        } else if let Some(fault) = self.system.diagnostic_fault() {
+            match fault {
+                zakuro_core::DiagnosticFault::UndefinedInstruction { pc, thumb, .. } => {
+                    observation["category"] = json!("undefined_instruction");
+                    observation["fault_pc"] = json!(pc);
+                    observation["thumb"] = json!(thumb);
+                }
+                zakuro_core::DiagnosticFault::Breakpoint { pc, .. } => {
+                    observation["category"] = json!("breakpoint");
+                    observation["fault_pc"] = json!(pc);
+                }
+                zakuro_core::DiagnosticFault::NativeCodeFence { pc } => {
+                    observation["category"] = json!("native_code_fence");
+                    observation["fault_pc"] = json!(pc);
+                }
+            }
+        } else if let Some(number) = self.system.unimplemented_svcs.first() {
+            observation["category"] = json!("unsupported_svc");
+            observation["svc"] = json!(number);
+            observation["distinct_svcs"] = json!(self.system.unimplemented_svcs.len());
+            observation["selection"] = json!("lowest_svc_number");
+        } else if let Some(((service, command), count)) =
+            self.system.services.unimplemented.first_key_value()
+        {
+            // CodexAstraUlt: Service identifiers are diagnostic metadata, but
+            // malformed names must not export a guest-provided arbitrary string.
+            let name: String = service
+                .bytes()
+                .take(16)
+                .map(|byte| match byte {
+                    b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b':' | b'_' | b'-' | b'.' => {
+                        char::from(byte)
+                    }
+                    _ => '?',
+                })
+                .collect();
+            observation["category"] = json!("unsupported_service");
+            observation["service"] = json!(name);
+            observation["service_truncated"] = json!(service.len() > 16);
+            observation["command"] = json!(command);
+            observation["request_count"] = json!(count);
+            observation["distinct_commands"] = json!(self.system.services.unimplemented.len());
+            observation["selection"] = json!("lowest_service_and_command");
+        } else if self.system.memory.fault_observation().0 != 0 {
+            observation["category"] = json!("memory_fault");
+            observation["memory_faults"] = self.memory_fault_observation();
+        } else if let Some((address, count)) = self.system.prefetch_aborts.first_key_value() {
+            observation["category"] = json!("prefetch_abort");
+            observation["address"] = json!(address);
+            observation["abort_count"] = json!(count);
+            observation["distinct_addresses"] = json!(self.system.prefetch_aborts.len());
+            observation["selection"] = json!("lowest_address");
+        } else if !self.system.fatal_errors.is_empty() {
+            observation["category"] = json!("guest_fatal_error");
+            observation["count"] = json!(self.system.fatal_errors.len());
+        } else {
+            observation["category"] = json!(if failure == "title_guest_fault" {
+                "guest_fault"
+            } else {
+                "runtime_guard"
+            });
+        }
+        observation
+    }
+
+    // CodexAstraUlt: Page cardinality is not an access total. Retain one
+    // address/count sample without claiming it was the earliest fault.
+    fn memory_fault_observation(&self) -> Value {
+        let (pages, sample) = self.system.memory.fault_observation();
+        json!({"distinct_pages":pages,"selection":"lowest_page_address",
+            "sample":sample.map(|(page, count)|json!({"page_address":page,"access_count":count}))})
     }
 
     // CodexAstraUlt: A fixed-size aggregate replaces per-frame logs. It carries
@@ -276,7 +381,7 @@ impl Session {
             "retained_translations":gpu.retained_translations,"retained_modules":gpu.retained_modules,
             "retained_pipelines":gpu.retained_pipelines,"vertex_shading_on_gpu":gpu.vertex_shading_on_gpu,
             "last_error":gpu.last_error.as_ref().map(|value|value.chars().take(256).collect::<String>())}));
-        json!({"schema_version":1,"kind":"droidds_title_session","program_id":self.manifest.program_id,
+        let mut report = json!({"schema_version":1,"kind":"droidds_title_session","program_id":self.manifest.program_id,
             "manifest_sha256":self.manifest_sha256,"input_sha256":self.manifest.input.sha256,
             "native_sha256":self.manifest.native.sha256,
             "status":if self.failure.is_some(){"failed"}else if self.system.exited{"exited"}else if self.paused{"paused"}else{"running"},
@@ -299,7 +404,12 @@ impl Session {
             "diagnostic_fault":fault,
             "live_pc":self.system.cpu.regs[15],"unsupported_svcs":self.system.unimplemented_svcs.len(),
             "unsupported_services":self.system.services.unimplemented.len(),"prefetch_aborts":self.system.prefetch_aborts.len(),
-            "fatal_errors":self.system.fatal_errors.len(),"cooperative_slice_wall_limit_ms":8})
+            "fatal_errors":self.system.fatal_errors.len(),"cooperative_slice_wall_limit_ms":8});
+        // CodexAstraUlt: Append bounded failure metadata without expanding the
+        // existing report macro past Rust's default recursion limit.
+        report["first_blocker"] = self.first_blocker.clone().unwrap_or(Value::Null);
+        report["memory_faults"] = self.memory_fault_observation();
+        report
     }
 }
 

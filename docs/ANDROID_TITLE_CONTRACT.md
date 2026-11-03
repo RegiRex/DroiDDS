@@ -75,6 +75,24 @@ port the existing page-aligned fence to Android 4 KiB; reject unsupported native
 page sizes. Vulkan must activate explicitly and its fallback/error counts remain
 visible. The interpreter route is an explicit diagnostic choice.
 
+<!-- CodexAstraUlt: Identify the first observed runtime failure without a
+continuous trace, raw instruction bytes or guest-provided diagnostic payloads. -->
+After the first failed slice, `first_blocker` retains its category, observed PC
+and guest cycle, plus bounded fault/SVC/service identifiers when available.
+`observed_pc` is the detection location; only a core-supplied `fault_pc` identifies
+the faulting instruction exactly. If multiple counters appear in one dispatch,
+existing guard priority determines the category; sorted samples explicitly label
+their selection rule, not chronological order. Service names are sanitized and
+capped at 16 bytes. Guest messages, opcodes, payloads and local paths are omitted.
+The record stays fixed across later slice/lifecycle calls. Normal reports have
+`first_blocker: null`. Existing report fields and stop reasons remain unchanged.
+
+`memory_faults` reports distinct unmapped pages and one lowest-address sample
+with its access count, without allocating or traversing the full fault map during
+execution checks. It does not measure process memory or a leak. These additive
+fields cover an admitted session's slice failures; admission/open failures still
+return the existing error before a session exists.
+
 `droidds-title-player` is a separate cdylib/FFI wrapper. Export thread-owned token
 operations open, slice, pause, resume, report, close and free. C/JNI will share
 `android/title/jni/title_api.h`; JNI arrays and metrics have explicit capacities.

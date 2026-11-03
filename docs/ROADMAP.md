@@ -2,7 +2,7 @@
 
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
-As of **2026-10-30**, the public title-player candidate is
+As of **2026-11-02**, the public title-player candidate is
 **[0.0.7-preview.2](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.7-preview.2)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. Private host preparation,
@@ -15,6 +15,14 @@ does not by itself close the owned-game boot milestone.
 The [candidate build record](builds/0.0.7-android-title-candidate.md) records
 the completed local APK, actual original guest/Vulkan checks and remaining
 device qualification.
+
+<!-- CodexAstraUlt: Record the newly supplied original-title device execution
+without turning absent manual observations or private boot into passes. -->
+The [owner's Thor report](device-tests/0.0.7-preview2-thor-title.md) now binds
+the published title artifacts and records native CPU execution, Vulkan draws,
+PCM and pause/resume with no reported runtime failure. The owner separately
+confirms both images, D-pad/A, touch, pause/resume and steady sound. This closes
+the original-title preview's device check, while owned-title boot remains open.
 
 Cloud work now proceeds across those product components in parallel with native
 correctness and scheduler optimization. Another Dark Moon checkpoint is not a
@@ -101,9 +109,11 @@ validated without execution. See the [compilation record](host-tests/dark-moon-c
 [Guarded Linux native comparison](PRIVATE_TITLE_NATIVE_RUN.md) adds manifest/table
 admission and an immutable-base fence, with dynamic modules interpreted. It is
 now followed by a [private result](host-tests/dark-moon-native-2026-10-29.md):
-1,999,970 native instructions and raw CPU/scheduler differences. The next private
-task tests corrected scheduling and synchronized comparisons with the existing
-library. Native parity, general mutable-code execution and Thor boot remain
+1,999,970 native instructions and raw CPU/scheduler differences. The
+[completed corrected-scheduler comparison](host-tests/dark-moon-native-2026-11-02.md)
+removes the first pending-scheduler difference and matches one synchronized
+sample at 303,222 cycles; raw CPSR differences and missing later samples remain.
+Native parity, general mutable-code execution and Thor boot remain
 required follow-up work for 0.0.7. The new Android player and package builder
 advance independently with original inputs; see the candidate scope above.
 
