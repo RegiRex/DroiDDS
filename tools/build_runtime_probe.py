@@ -157,8 +157,10 @@ def generated_sources(manifest: object, directory: Path, *, homebrew: bool = Fal
                 "abi": 4, "generation": 3}
     # CodexAstraUlt: The interactive guest has its own identity and container;
     # retaining the .5 gate prevents a new demo from replacing earlier proof.
+    # Current production requires the DSP-corrected v2 guest, while report
+    # validation independently preserves previously measured v1 evidence.
     if homebrew:
-        expected.update(kind="droidds-homebrew-fixture-sources", fixture="droidds-original-homebrew-v1",
+        expected.update(kind="droidds-homebrew-fixture-sources", fixture="droidds-original-homebrew-v2",
                         library="libdroidds_fixture_homebrew.so")
     for key, value in expected.items():
         if type(manifest.get(key)) is not type(value) or manifest[key] != value:

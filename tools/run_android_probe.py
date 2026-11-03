@@ -420,12 +420,32 @@ def _proof_count(report: dict, key: str, label: str, minimum: int = 0,
     return value
 
 
+# CodexAstraUlt: The corrected guest preserves pending DSP initialization and
+# executes one additional ARM instruction for each of two pitch changes. Select
+# exact totals by explicit fixture identity, retaining the historical v1 oracle.
+HOMEBREW_EXECUTION = {
+    "droidds-original-homebrew-v1": {"cycles": 80442631, "interpreter_steps": 28728,
+        "interpreter_instructions": 9073, "native_instructions": 9037},
+    "droidds-original-homebrew-v2": {"cycles": 80442633, "interpreter_steps": 28730,
+        "interpreter_instructions": 9075, "native_instructions": 9039},
+}
+
+
+def _homebrew_fixture(report: object) -> str:
+    """CodexAstraUlt: Unknown revisions cannot select a relaxed counter oracle."""
+    fixture = report.get("fixture") if isinstance(report, dict) else None
+    if type(fixture) is not str or fixture not in HOMEBREW_EXECUTION:
+        raise ValueError("Missing or unknown homebrew fixture revision")
+    return fixture
+
+
 def validate_homebrew_session(report: object, *, native: bool, hardware: bool,
                               automatic: bool = False) -> None:
     """CodexAstraUlt: Require actual loader/HID/DSP/PICA routes independently of UI events."""
+    fixture = _homebrew_fixture(report)
     session = _proof_fields(report, {
         "schema": 1, "kind": "droidds-homebrew-session",
-        "fixture": "droidds-original-homebrew-v1", "error": None,
+        "fixture": fixture, "error": None,
         "native": native, "renderer": "vulkan" if hardware else "software",
         "presentation": "rgba_readback", "audio_sample_rate": 32728.498046875,
         "native_fallback_instructions": 0, "svc_unimplemented": 0,
@@ -466,11 +486,12 @@ def validate_homebrew_session(report: object, *, native: bool, hardware: bool,
     else:
         _proof_fields(session, {"hardware": None, "hardware_device": None}, "homebrew software route")
     if automatic:
+        counts = HOMEBREW_EXECUTION[fixture]
         _proof_fields(session, {"status": "exited", "guest_exited": True, "dsp_running": False,
             "pause_count": 1, "resume_count": 1, "frames": 17, "frames_delivered": 18,
-            "cycles": 80442631, "steps": 19851 if native else 28728,
-            "interpreted_instructions": 36 if native else 9073,
-            "recompiled_instructions": 9037 if native else 0,
+            "cycles": counts["cycles"], "steps": 19851 if native else counts["interpreter_steps"],
+            "interpreted_instructions": 36 if native else counts["interpreter_instructions"],
+            "recompiled_instructions": counts["native_instructions"] if native else 0,
             "pcm_samples": 9760, "pcm_nonzero_samples": 9600, "pcm_peak": 2000,
             "command_lists": 36, "draw_calls": 108, "vertices_drawn": 324,
             "guest_observed_buttons": 81, "guest_observed_touch_updates": 4},
@@ -489,8 +510,9 @@ def validate_homebrew_session(report: object, *, native: bool, hardware: bool,
 
 def validate_interactive_report(report: object) -> None:
     """CodexAstraUlt: Automatic homebrew pixels/PCM cannot qualify visible or audible output."""
+    fixture = _homebrew_fixture(report)
     result = _proof_fields(report, {
-        "schema": 1, "kind": "droidds-homebrew-probe", "fixture": "droidds-original-homebrew-v1",
+        "schema": 1, "kind": "droidds-homebrew-probe", "fixture": fixture,
         "status": "passed", "error": None, "audio_sample_rate": 32728.498046875,
         "presentation": "rgba_readback", "route_comparisons": 2}, "homebrew automatic")
     cases = result.get("cases")
@@ -536,6 +558,9 @@ def validate_interactive_report(report: object) -> None:
                 raise ValueError("Homebrew original PCM sample oracle differs")
         _proof_fields(case.get("lifecycle"), {"pause_rejected_frame": True, "pause_no_progress": True,
             "resume_progress": True, "guest_exit": True}, "homebrew lifecycle")
+        # CodexAstraUlt: Route parity must compare one guest revision, never a
+        # mixture of independently valid old/new sessions and their counters.
+        _proof_fields(case.get("session"), {"fixture": fixture}, "homebrew route revision")
         validate_homebrew_session(case.get("session"), native=case["name"] != "interpreter_software",
                                   hardware=case["name"] == "native_vulkan", automatic=True)
     expected_controls = {

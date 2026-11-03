@@ -110,13 +110,18 @@ class AndroidRuntimePayloadTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identity mismatch"):
             build.runtime_fixture_sources(self.manifest, self.directory, homebrew=True)
         manifest = {**self.manifest, "kind": "droidds-homebrew-fixture-sources",
-                    "fixture": "droidds-original-homebrew-v1", "library": build.HOMEBREW_LIBRARY}
+                    "fixture": "droidds-original-homebrew-v2", "library": build.HOMEBREW_LIBRARY}
         with self.assertRaisesRegex(ValueError, "NCCH fixture"):
             build.runtime_fixture_sources(manifest, self.directory, homebrew=True)
         (self.directory / "runtime-fixture.cxi").rename(self.directory / "homebrew-fixture.cxi")
         paths, report = build.runtime_fixture_sources(manifest, self.directory, homebrew=True)
         self.assertEqual(paths, [self.directory / "guest.c"])
         self.assertIn("homebrew-fixture.cxi", report["inputs_sha256"])
+        # CodexAstraUlt: Only current corrected guest sources enter a new build;
+        # historical report compatibility does not admit stale producer output.
+        with self.assertRaisesRegex(ValueError, "identity mismatch"):
+            build.runtime_fixture_sources({**manifest, "fixture": "droidds-original-homebrew-v1"},
+                                          self.directory, homebrew=True)
 
 
 if __name__ == "__main__":

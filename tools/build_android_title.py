@@ -30,7 +30,13 @@ from build_foundation import ROOT, interrupted, snapshot, terminate_group, valid
 from validate_runtime_shaders import validate_runtime_shaders
 import collect_android_notices as NOTICES
 
-VERSION = "0.0.7-preview.2"
+# CodexAstraUlt: This candidate includes guest-frame input and save corrections;
+# only the interactive homebrew's DSP fix changes its original fixture revision.
+VERSION = "0.0.7-preview.3"
+DIAGNOSTIC_FIXTURES = {
+    "runtime": "droidds-original-runtime-v1",
+    "homebrew": "droidds-original-homebrew-v2",
+}
 LIBRARIES = {"libdroidds_title.so", "libdroidds_title_player.so", "libdroidds_title_jni.so"}
 SHARED_JAVA = ("ScreenView.java", "ScreenGeometry.java", "PcmResampler.java",
                "FramePacer.java", "AudioStartup.java")
@@ -259,7 +265,7 @@ def parse_args(argv=None):
     signer = parser.add_mutually_exclusive_group(required=True)
     signer.add_argument("--signing-profile", type=Path)
     signer.add_argument("--diagnostic-signing", action="store_true")
-    parser.add_argument("--diagnostic-fixture", choices=("runtime", "homebrew"))
+    parser.add_argument("--diagnostic-fixture", choices=tuple(DIAGNOSTIC_FIXTURES))
     args = parser.parse_args(argv)
     if not 1 <= args.jobs <= 8 or not 1 <= args.version_code <= 2_100_000_000:
         parser.error("jobs or version code is outside its bound")
@@ -337,7 +343,9 @@ def build(args):
             ROOT / "tools/check_java_title.py", "--java-home", java, "--output", output / "java-title-logic"]))
         require(report["java_title_logic"].get("status") == "passed"
                 and report["java_title_logic"].get("kind") == "droidds-java-title-logic"
-                and report["java_title_logic"].get("checks") == 55
+                # CodexAstraUlt: Retain guest-frame input queue and atomic
+                # joystick regressions in every title package, including private builds.
+                and report["java_title_logic"].get("checks") == 67
                 and report["java_title_logic"].get("controls") == [
                     "verified_import_reuse_preservation", "rejection_cancel_io_cleanup",
                     "atomic_publication_races", "symlink_and_atomic_report_preservation",
@@ -382,7 +390,7 @@ def build(args):
                     for path in [directory / "Cargo.toml", *sorted(directory.rglob("*.rs"))]:
                         producer_sources[path.relative_to(ROOT).as_posix()] = identity(path)["sha256"]
                 report["original_fixture"] = {
-                    "fixture": "droidds-original-" + args.diagnostic_fixture + "-v1",
+                    "fixture": DIAGNOSTIC_FIXTURES[args.diagnostic_fixture],
                     "producer": "droidds-runtime-probe", "action": action,
                     "input": identity(original), "producer_sources": producer_sources}
                 key = output / "diagnostic-title.keystore"

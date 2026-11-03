@@ -118,7 +118,7 @@ public final class TitleLogicTest {
         TitleInput input = new TitleInput();
         TitleInput.Sample sample = new TitleInput.Sample(0, 0, 0, false, 0, 0, 0, 0);
         input.button(1, true, 0); input.button(1, true, 1); input.button(1, false, 0); input.button(1, false, 1);
-        for (int expected : new int[]{1, 1, 1, 0}) {
+        for (int expected : new int[]{1, 0}) {
             sample = input.next(sample); check(sample.buttons == expected, "source-separated button edge");
         }
         input.touch(999, -1, true); input.axes(0.3f, -0.4f, 0.5f, -0.6f);
@@ -160,11 +160,66 @@ public final class TitleLogicTest {
                 && !loop.synchronize(2), "restart reused an old work chain");
     }
 
+    // CodexAstraUlt: Actual production input dequeue holds both short button
+    // and touch presses across arbitrary cooperative yields within one frame.
+    private static void inputEdgesAcrossYieldedSlices() {
+        TitleInput input = new TitleInput();
+        TitleInput.Sample sample = new TitleInput.Sample(0, 0, 0, false, 0, 0, 0, 0);
+        input.button(1, true, 1); input.button(1, false, 1);
+        sample = input.next(sample, 17);
+        check(sample.buttons == 1, "press missing at first guest frame");
+        for (int i = 0; i < 8; i++) sample = input.next(sample, 17);
+        check(sample.buttons == 1, "cooperative yield consumed queued release");
+        sample = input.next(sample, 18);
+        check(sample.buttons == 0, "next guest frame did not receive release");
+        input.touch(7, 9, true); input.touch(7, 9, false);
+        sample = input.next(sample, 19);
+        check(sample.touched && sample.x == 7 && sample.y == 9, "touch press missing");
+        for (int i = 0; i < 8; i++) sample = input.next(sample, 19);
+        check(sample.touched, "cooperative yield consumed touch release");
+        sample = input.next(sample, 20);
+        check(!sample.touched, "next guest frame did not receive touch release");
+        input.button(2, true, 1); sample = input.next(sample, 21);
+        check(sample.buttons == 2, "held control missing before pause");
+        input.release(); sample = input.next(sample, 21);
+        check(sample.buttons == 0 && !sample.touched, "pause release waited for another frame");
+        input.release(); sample = input.next(sample, 0);
+        check(sample.buttons == 0, "new session inherited old frame latch");
+    }
+
+    // CodexAstraUlt: A real event's hat and analog state must arrive together,
+    // with no intermediate left+right/up+down state or duplicate-owner delay.
+    private static void atomicJoystickFrames() {
+        TitleInput input = new TitleInput();
+        TitleInput.Sample sample = new TitleInput.Sample(0, 0, 0, false, 0, 0, 0, 0);
+        input.motion(0x50, 1, 1, 0.2f, 0.3f);
+        input.motion(0xa0, -1, -1, -0.4f, -0.5f);
+        sample = input.next(sample, 0);
+        check(sample.buttons == 0x50 && sample.circleX == 1 && sample.circleY == 1
+                && sample.cStickX == 0.2f && sample.cStickY == 0.3f, "first joystick state split");
+        sample = input.next(sample, 1);
+        check(sample.buttons == 0xa0 && sample.circleX == -1 && sample.circleY == -1
+                && sample.cStickX == -0.4f && sample.cStickY == -0.5f, "diagonal reversal split");
+        input.motion(0xa0, -1, -1, -0.4f, -0.5f);
+        input.motion(0, 0, 0, 0, 0);
+        sample = input.next(sample, 2);
+        check(sample.buttons == 0 && sample.circleX == 0 && sample.cStickX == 0,
+                "duplicate joystick event delayed neutral state");
+        input.button(1, true, 0); input.button(1, true, 1); input.button(1, false, 0);
+        sample = input.next(sample, 3);
+        check(sample.buttons == 1, "second source did not retain held button");
+        input.button(1, false, 1);
+        sample = input.next(sample, 4);
+        check(sample.buttons == 0, "duplicate source delayed final release");
+    }
+
     public static void main(String[] arguments) throws Exception {
         Path root = Files.createTempDirectory("droidds-title-java-").toRealPath();
         try {
             importAndReuse(root); rejectionAndCancellation(root); publicationRace(root); symlinksAndReports(root); inputEdgesAndAxes();
             delayedCallbacksAcrossPause();
+            inputEdgesAcrossYieldedSlices();
+            atomicJoystickFrames();
             System.out.println("{\"schema\":1,\"kind\":\"droidds-java-title-logic\",\"status\":\"passed\",\"checks\":" + checks
                     + ",\"controls\":[\"verified_import_reuse_preservation\",\"rejection_cancel_io_cleanup\","
                     + "\"atomic_publication_races\",\"symlink_and_atomic_report_preservation\",\"input_edges_axes_release\","

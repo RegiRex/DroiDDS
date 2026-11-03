@@ -206,11 +206,13 @@ public final class TitleActivity extends Activity implements TitleController.Obs
             return super.onGenericMotionEvent(event);
         }
         float hx = axis(event, device, MotionEvent.AXIS_HAT_X), hy = axis(event, device, MotionEvent.AXIS_HAT_Y);
-        controller.button(1 << 5, hx < -0.5f, 2); controller.button(1 << 4, hx > 0.5f, 2);
-        controller.button(1 << 6, hy < -0.5f, 2); controller.button(1 << 7, hy > 0.5f, 2);
+        // CodexAstraUlt: Replace four independent button mutations with the
+        // complete hat state, preserving diagonal reversal as one guest sample.
+        int hat = (hx < -0.5f ? 1 << 5 : 0) | (hx > 0.5f ? 1 << 4 : 0)
+                | (hy < -0.5f ? 1 << 6 : 0) | (hy > 0.5f ? 1 << 7 : 0);
         int rightX = device.getMotionRange(MotionEvent.AXIS_Z, event.getSource()) != null ? MotionEvent.AXIS_Z : MotionEvent.AXIS_RX;
         int rightY = device.getMotionRange(MotionEvent.AXIS_RZ, event.getSource()) != null ? MotionEvent.AXIS_RZ : MotionEvent.AXIS_RY;
-        controller.axes(axis(event, device, MotionEvent.AXIS_X), -axis(event, device, MotionEvent.AXIS_Y),
+        controller.motion(hat, axis(event, device, MotionEvent.AXIS_X), -axis(event, device, MotionEvent.AXIS_Y),
                 axis(event, device, rightX), -axis(event, device, rightY));
         return true;
     }

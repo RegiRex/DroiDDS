@@ -2,8 +2,9 @@
 
 <!-- CodexAstraUlt: Reuse the completed preparation while keeping host and
 Android artifacts, signing identity and qualification evidence distinct. -->
-The title candidate is version **0.0.7-preview.2**, with explicit install code
-**9** for the reviewed original homebrew candidate. It uses a separate application
+The current development candidate is **0.0.7-preview.3**, with explicit install code
+**10** for the corrected original homebrew candidate. The published Thor-tested
+release remains **0.0.7-preview.2/code 9**. The player uses a separate application
 ID, `org.droidds.title.t<program_id>`. Read the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md) for admission and storage
 rules. This candidate does not complete the 0.0.7 owned-game boot milestone.
@@ -13,23 +14,35 @@ both compilers. Reuse it without regenerating title code. The completed Linux
 library and its objects remain intact; Android requires a separate ARM64/Bionic
 compilation directory. A Linux object or library cannot be installed on the Thor.
 
-## Required installed tools
+## Required build tools
 
-<!-- CodexAstraUlt: State concrete prerequisites without making an installation
-or permission change part of a title-build command. -->
+<!-- CodexAstraUlt: Replace the prerequisite-only stop with the tested isolated
+setup so missing Android tools do not cause another avoidable handoff. -->
 Run from the `RegiRex/DroiDDS` checkout on Linux x86-64 with Python 3.11 or newer,
 pinned Rust/Cargo 1.95.0, its `aarch64-linux-android` target, and the locked offline
 dependencies. The SDK must contain NDK **27.3.13750724**, Android platform **35**,
 build tools **35.0.0**, and the NDK's `shader-tools/linux-x86_64/glslc` and
 `spirv-val`. Supply the existing JDK with `javac` and `keytool` explicitly.
-Missing tools or offline dependencies are a reported prerequisite blocker.
+If any prerequisite is missing, use the [isolated tool setup](ANDROID_TITLE_TOOL_SETUP.md):
+
+```bash
+python3 tools/setup_android_title_tools.py \
+  --output "$HOME/droidds-android-tools-1.95.0-r27d"
+source "$HOME/droidds-android-tools-1.95.0-r27d/env.sh"
+```
+
+This supplies the pinned tools and locked dependencies without system packages,
+shell-profile changes or modifications to existing Rust installations. It sets
+`DROIDDS_SDK` and `DROIDDS_JAVA` for the commands below. Continue the title build
+after setup succeeds; do not stop merely to report that the tools are ready.
 
 Use private directories outside Git whose parents already exist. Set these to
 the actual retained preparation and new output locations:
 
 ```bash
-DROIDDS_SDK=/absolute/path/to/android-sdk
-DROIDDS_JAVA=/absolute/path/to/jdk
+# CodexAstraUlt: Set these two only when reusing existing tools instead of env.sh.
+# DROIDDS_SDK=/absolute/path/to/android-sdk
+# DROIDDS_JAVA=/absolute/path/to/jdk
 DROIDDS_PREPARATION=/absolute/path/to/validated-preparation
 DROIDDS_ARM64=/absolute/path/to/new-android-compilation
 DROIDDS_PACKAGE=/absolute/path/to/new-android-package
@@ -151,7 +164,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 9 \
+  --version-code 10 \
   --signing-profile /absolute/path/to/owner-title-signing.json
 ```
 
@@ -179,9 +192,11 @@ requires Android **4 KiB** pages and rejects unsupported native page sizes.
 
 <!-- CodexAstraUlt: Public signing is restricted to byte-verified authored
 fixtures; a program ID or filename cannot make private content publishable. -->
-The included candidate uses the original interactive homebrew guest from 0.0.6.
+The included candidate uses revision 2 of the authored interactive homebrew guest.
+It preserves pending DSP initialization when A is held at startup; the original
+0.0.6 and preview.2 fixture remains revision 1 in historical evidence.
 Its program ID is `000400000d5d0006`; the emitted input is 30,720 bytes with SHA-256
-`efbf68988056b7973f14b934d792d87af430a15e7549cdf3a022e261b9aecbfd`.
+`09cf47cc188f140a8bd0e146efce5d9ef63ff10bbaa035c8c557fac32e4a8003`.
 Generate a fresh original input/preparation with the existing pinned tools:
 
 ```bash
@@ -204,7 +219,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 9 \
+  --version-code 10 \
   --diagnostic-signing --diagnostic-fixture homebrew
 ```
 
@@ -230,7 +245,7 @@ performance.
 
 <!-- CodexAstraUlt: A finite preparation-to-APK task replaces repeated isolated
 trace handoffs while preserving failures and the completed host compilation. -->
-Give the local agent the retained preparation, installed SDK/JDK, selected signing
+Give the local agent the retained preparation, selected signing
 location and fresh output locations once. The following is the integrated task:
 
 <!-- CodexAstraUlt: The fulfilled host comparison is evidence, not a request
@@ -238,13 +253,24 @@ to rerun it; move directly to the separate Android artifact. -->
 The owner's `857ff47` Linux comparison is complete. Use current main for this
 Android task; preserve the existing host library and all earlier evidence.
 
+<!-- CodexAstraUlt: The owner may already be compiling in a separate local
+session. Runtime fixes can enter packaging without discarding its title objects. -->
+If a compilation is already running, finish it with that checkout and its
+recorded identities. The [input/save corrections](builds/0.0.7-input-save-corrections.md)
+change the runtime/frontend, not the generated title code or compilation
+contract. After compilation finishes, a fresh APK packaging attempt from the
+updated checkout can reuse the completed Android compilation.
+
 ```text
 Use the current RegiRex/DroiDDS checkout, preserving existing work.
 Read docs/ANDROID_TITLE_BUILD.md and docs/ANDROID_TITLE_CONTRACT.md.
 Reuse the successful private preparation; preserve the completed Linux library.
-First verify all required installed tools, offline dependencies and the chosen
-output/signing locations, so a missing prerequisite is reported before the long
-title compilation begins.
+If Android build prerequisites are missing, follow docs/ANDROID_TITLE_TOOL_SETUP.md:
+run tools/setup_android_title_tools.py into its dedicated directory outside Git,
+then source its env.sh. Use normal permitted network access for this setup and
+locked dependency fetch. Do not install system packages or change shell profiles.
+Verify tools, offline dependencies and output/signing locations, then continue
+directly into compilation in this task.
 
 Compile that preparation into a separate ARM64 Android output with the pinned
 installed NDK and default limits. Allow at most four default compilation batches
@@ -257,10 +283,10 @@ the owner signing profile, explicit version code and installed tools. If this
 is a first private installation and no key/profile exists, create and preserve
 a dedicated owner-local key/profile/password as documented above. Never replace
 an existing key or use the disposable public diagnostic signer for this game.
-Serialize the shared Cargo target and hold build sources stable. Do not install
-new tools, alter sandbox/device access, regenerate title C, repeat host traces or upload
-private artifacts. Report missing prerequisites or an unresolved existing
-signing identity as concrete blockers.
+Serialize the shared Cargo target and hold build sources stable. Do not alter
+sandbox/device access, regenerate title C, repeat host traces or upload private
+artifacts. Report a failed setup with its precise error and local log, or an
+unresolved existing signing identity, as a concrete blocker.
 
 If the Thor is available and no other session is operating it, record the exact
 APK/package/version/certificate and device/driver identity. Install only a new

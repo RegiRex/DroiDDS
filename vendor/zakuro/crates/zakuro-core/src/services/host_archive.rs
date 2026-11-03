@@ -79,14 +79,24 @@ impl HostArchive {
         self.root.is_dir()
     }
 
+    // CodexAstraUlt: Commit selection is limited to files under this archive;
+    // it never scans the SD card or synchronizes unrelated title storage.
+    pub fn contains_file(&self, path: &Path) -> bool {
+        path != self.root && path.starts_with(&self.root)
+    }
+
     /// creates the archive empty, discarding anything already in it, both
     /// how a title makes its save the first time and how it wipes one.
     pub fn format(&self, info: FormatInfo) -> Result<(), ResultCode> {
         if self.root.exists() {
             std::fs::remove_dir_all(&self.root).map_err(io_error)?;
         }
-        std::fs::create_dir_all(&self.root).map_err(io_error)?;
+        create_directories_synced(&self.root)?;
         std::fs::write(self.format_path(), info.encode()).map_err(io_error)?;
+        // CodexAstraUlt: Formatting is explicitly destructive, but success
+        // still includes syncing its touched metadata, not unrelated archives.
+        flush_file(&self.format_path())?;
+        sync_parent(&self.format_path())?;
         log::info!("fs: formatted {:?}", self.root);
         Ok(())
     }
@@ -98,7 +108,7 @@ impl HostArchive {
         }
         std::fs::remove_dir_all(&self.root).map_err(io_error)?;
         let _ = std::fs::remove_file(self.format_path());
-        Ok(())
+        sync_parent(&self.root)
     }
 
     /// what the archive was formatted with, or None if it never was.
@@ -150,7 +160,9 @@ impl HostArchive {
         if !create {
             return Err(errors::FS_FILE_NOT_FOUND);
         }
-        std::fs::File::create(&host).map_err(io_error)?;
+        let file = std::fs::File::create(&host).map_err(io_error)?;
+        file.sync_all().map_err(io_error)?;
+        sync_parent(&host)?;
         Ok(host)
     }
 
@@ -163,7 +175,9 @@ impl HostArchive {
             return Err(errors::FS_PATH_NOT_FOUND);
         }
         let file = std::fs::File::create(&host).map_err(io_error)?;
-        file.set_len(size).map_err(io_error)
+        file.set_len(size).map_err(io_error)?;
+        file.sync_all().map_err(io_error)?;
+        sync_parent(&host)
     }
 
     pub fn delete_file(&self, path: &str) -> Result<(), ResultCode> {
@@ -171,7 +185,8 @@ impl HostArchive {
         if !host.is_file() {
             return Err(errors::FS_FILE_NOT_FOUND);
         }
-        std::fs::remove_file(host).map_err(io_error)
+        std::fs::remove_file(&host).map_err(io_error)?;
+        sync_parent(&host)
     }
 
     pub fn rename_file(&self, from: &str, to: &str) -> Result<(), ResultCode> {
@@ -182,7 +197,10 @@ impl HostArchive {
         if to.exists() {
             return Err(errors::FS_FILE_ALREADY_EXISTS);
         }
-        std::fs::rename(from, to).map_err(io_error)
+        std::fs::rename(&from, &to).map_err(io_error)?;
+        sync_parent(&from)?;
+        if from.parent() != to.parent() { sync_parent(&to)?; }
+        Ok(())
     }
 
     pub fn create_directory(&self, path: &str) -> Result<(), ResultCode> {
@@ -193,7 +211,9 @@ impl HostArchive {
         if !Self::parent_exists(&host) {
             return Err(errors::FS_PATH_NOT_FOUND);
         }
-        std::fs::create_dir(host).map_err(io_error)
+        std::fs::create_dir(&host).map_err(io_error)?;
+        std::fs::File::open(&host).and_then(|dir| dir.sync_all()).map_err(io_error)?;
+        sync_parent(&host)
     }
 
     pub fn delete_directory(&self, path: &str, recursive: bool) -> Result<(), ResultCode> {
@@ -202,12 +222,14 @@ impl HostArchive {
             return Err(errors::FS_PATH_NOT_FOUND);
         }
         if recursive {
-            return std::fs::remove_dir_all(host).map_err(io_error);
+            std::fs::remove_dir_all(&host).map_err(io_error)?;
+            return sync_parent(&host);
         }
         if std::fs::read_dir(&host).map_err(io_error)?.next().is_some() {
             return Err(errors::FS_DIRECTORY_NOT_EMPTY);
         }
-        std::fs::remove_dir(host).map_err(io_error)
+        std::fs::remove_dir(&host).map_err(io_error)?;
+        sync_parent(&host)
     }
 
     pub fn rename_directory(&self, from: &str, to: &str) -> Result<(), ResultCode> {
@@ -218,7 +240,10 @@ impl HostArchive {
         if to.exists() {
             return Err(errors::FS_DIRECTORY_ALREADY_EXISTS);
         }
-        std::fs::rename(from, to).map_err(io_error)
+        std::fs::rename(&from, &to).map_err(io_error)?;
+        sync_parent(&from)?;
+        if from.parent() != to.parent() { sync_parent(&to)?; }
+        Ok(())
     }
 
     /// lists a directory, sorted by name so the order is stable.
@@ -244,45 +269,97 @@ impl HostArchive {
     }
 }
 
-/// reads up to buffer.len() bytes at offset, returning how many were
-/// there to read.
-pub fn read_at(path: &Path, offset: u64, buffer: &mut [u8]) -> usize {
-    let Ok(mut file) = std::fs::File::open(path) else {
-        return 0;
-    };
-    if file.seek(SeekFrom::Start(offset)).is_err() {
-        return 0;
-    }
-    let mut total = 0;
-    while total < buffer.len() {
-        match file.read(&mut buffer[total..]) {
-            Ok(0) | Err(_) => break,
-            Ok(n) => total += n,
-        }
-    }
-    total
+// CodexAstraUlt: Metadata operations synchronize only their affected parent
+// directories. Ordinary buffered file writes do not call these helpers.
+fn sync_parent(path: &Path) -> Result<(), ResultCode> {
+    let parent = path.parent().ok_or(errors::FS_INVALID_PATH)?;
+    let parent = if parent.as_os_str().is_empty() { Path::new(".") } else { parent };
+    std::fs::File::open(parent).and_then(|dir| dir.sync_all()).map_err(io_error)
 }
 
-/// writes data at offset, growing the file if needed.
-pub fn write_at(path: &Path, offset: u64, data: &[u8]) -> usize {
-    let result = std::fs::OpenOptions::new()
-        .write(true)
-        .open(path)
-        .and_then(|mut file| {
-            file.seek(SeekFrom::Start(offset))?;
-            file.write_all(data)
-        });
-    match result {
-        Ok(()) => data.len(),
-        Err(error) => {
-            log::error!("fs: writing {path:?} failed: {error}");
-            0
+fn create_directories_synced(path: &Path) -> Result<(), ResultCode> {
+    let mut missing = Vec::new();
+    let mut next = path;
+    while !next.exists() {
+        missing.push(next);
+        next = next.parent().ok_or(errors::FS_INVALID_PATH)?;
+        if next.as_os_str().is_empty() { next = Path::new("."); }
+    }
+    std::fs::create_dir_all(path).map_err(io_error)?;
+    for directory in missing.into_iter().rev() {
+        std::fs::File::open(directory).and_then(|dir| dir.sync_all()).map_err(io_error)?;
+        sync_parent(directory)?;
+    }
+    Ok(())
+}
+
+// CodexAstraUlt: Keep host I/O failures distinct from a legitimate EOF/empty
+// write. The service must return an error instead of telling a game it saved.
+pub fn open_read_at(path: &Path, offset: u64) -> Result<std::fs::File, ResultCode> {
+    let mut file = std::fs::File::open(path).map_err(io_error)?;
+    if !file.metadata().map_err(io_error)?.is_file() {
+        return Err(errors::FS_UNEXPECTED_FILE_OR_DIRECTORY);
+    }
+    file.seek(SeekFrom::Start(offset)).map_err(io_error)?;
+    Ok(file)
+}
+
+pub fn open_write_at(path: &Path, offset: u64) -> Result<std::fs::File, ResultCode> {
+    let mut file = std::fs::OpenOptions::new().write(true).open(path).map_err(io_error)?;
+    if !file.metadata().map_err(io_error)?.is_file() {
+        return Err(errors::FS_UNEXPECTED_FILE_OR_DIRECTORY);
+    }
+    file.seek(SeekFrom::Start(offset)).map_err(io_error)?;
+    Ok(file)
+}
+
+pub fn read_at(path: &Path, offset: u64, buffer: &mut [u8]) -> Result<usize, ResultCode> {
+    let mut file = open_read_at(path, offset)?;
+    let mut total = 0;
+    while total < buffer.len() {
+        match file.read(&mut buffer[total..]).map_err(io_error)? {
+            0 => break,
+            n => total += n,
         }
     }
+    Ok(total)
+}
+
+// CodexAstraUlt: Ordinary writes remain buffered. A caller requests durability
+// explicitly; close/commit use flush_file for the affected file only.
+pub fn write_at(path: &Path, offset: u64, data: &[u8], flush: bool) -> Result<usize, ResultCode> {
+    let mut file = open_write_at(path, offset)?;
+    file.write_all(data).map_err(io_error)?;
+    if flush {
+        file.sync_all().map_err(io_error)?;
+    }
+    Ok(data.len())
+}
+
+pub fn flush_file(path: &Path) -> Result<(), ResultCode> {
+    // CodexAstraUlt: Opening a directory can succeed on Linux; it is not an
+    // acceptable replacement for the save file that the guest requested.
+    // CodexAstraUlt: A successfully written file may be host-write-only. Prefer
+    // its write descriptor; a host-read-only file can still flush a clean view.
+    let file = match std::fs::OpenOptions::new().write(true).open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => std::fs::File::open(path).map_err(io_error)?,
+        Err(error) => return Err(io_error(error)),
+    };
+    if !file.metadata().map_err(io_error)?.is_file() { return Err(errors::FS_UNEXPECTED_FILE_OR_DIRECTORY); }
+    file.sync_all().map_err(io_error)
 }
 
 pub fn size_of(path: &Path) -> u64 {
     std::fs::metadata(path).map_or(0, |m| m.len())
+}
+
+// CodexAstraUlt: Guest GetSize propagates failure; display-only legacy size
+// observations may still use size_of's zero default.
+pub fn checked_size(path: &Path) -> Result<u64, ResultCode> {
+    let metadata = std::fs::metadata(path).map_err(io_error)?;
+    if !metadata.is_file() { return Err(errors::FS_UNEXPECTED_FILE_OR_DIRECTORY); }
+    Ok(metadata.len())
 }
 
 pub fn set_size(path: &Path, size: u64) -> Result<(), ResultCode> {
@@ -293,9 +370,15 @@ pub fn set_size(path: &Path, size: u64) -> Result<(), ResultCode> {
         .map_err(io_error)
 }
 
-fn io_error(error: std::io::Error) -> ResultCode {
+pub(crate) fn io_error(error: std::io::Error) -> ResultCode {
     log::error!("fs: host filesystem error: {error}");
-    errors::FS_NOT_IMPLEMENTED
+    // CodexAstraUlt: Preserve concrete known FS failures. Remaining host errors
+    // still return a failure, without inventing a console-specific success.
+    match error.kind() {
+        std::io::ErrorKind::NotFound => errors::FS_FILE_NOT_FOUND,
+        std::io::ErrorKind::IsADirectory | std::io::ErrorKind::NotADirectory => errors::FS_UNEXPECTED_FILE_OR_DIRECTORY,
+        _ => errors::FS_NOT_IMPLEMENTED,
+    }
 }
 
 #[cfg(test)]
@@ -341,10 +424,10 @@ mod tests {
         assert_eq!(archive.create_file("/missing/x", 4), Err(errors::FS_PATH_NOT_FOUND));
 
         let host = archive.open_file("/dir/data.bin", false).unwrap();
-        assert_eq!(write_at(&host, 2, b"abcd"), 4);
+        assert_eq!(write_at(&host, 2, b"abcd", false), Ok(4));
         assert_eq!(size_of(&host), 6);
         let mut buffer = [0u8; 8];
-        assert_eq!(read_at(&host, 0, &mut buffer), 6);
+        assert_eq!(read_at(&host, 0, &mut buffer), Ok(6));
         assert_eq!(&buffer[..6], b"\0\0abcd");
 
         let listing = archive.list("/dir").unwrap();

@@ -50,6 +50,11 @@ pub struct Session {
     hardware: bool,
     device: Option<String>,
     paused: bool,
+    // CodexAstraUlt: Cooperative wall slices must not invent extra HID samples
+    // or consume several button edges within one guest frame. Resource creation
+    // is tracked separately so its first sample does not wait for a host yield.
+    input_frame: Option<u64>,
+    hid_frame: Option<u64>,
     failure: Option<String>,
     // CodexAstraUlt: One failure-time observation survives later lifecycle
     // calls; no guest payload strings, instruction words or growing trace remain.
@@ -91,6 +96,8 @@ impl Session {
             hardware: options.hardware,
             device,
             paused: false,
+            input_frame: None,
+            hid_frame: None,
             failure: None,
             first_blocker: None,
             slices: 0,
@@ -118,6 +125,10 @@ impl Session {
         self.paused = true;
         self.system.set_input(InputState::default());
         hid::update(&mut self.system, InputState::default());
+        // CodexAstraUlt: Pause releases immediately even midway through a
+        // guest frame; resume starts a fresh input epoch at the same cycle.
+        self.input_frame = None;
+        self.hid_frame = None;
     }
 
     pub fn resume(&mut self) {
@@ -170,8 +181,14 @@ impl Session {
         {
             return Err("title_input_invalid".into());
         }
-        self.system.set_input(input);
-        hid::update(&mut self.system, input);
+        // CodexAstraUlt: Replace per-slice HID publication with one latched
+        // input per guest frame. Extra host yields cannot clear a press edge,
+        // wrap the shared ring, signal extra events or alter sensor cadence.
+        if self.input_frame != Some(self.system.frames) {
+            self.system.set_input(input);
+            self.input_frame = Some(self.system.frames);
+        }
+        self.publish_hid_sample();
         let frame = self.system.frames;
         let deadline = self.system.cpu.cycles.saturating_add(CYCLES_PER_FRAME);
         let started = Instant::now();
@@ -198,6 +215,13 @@ impl Session {
                 return Err("title_guest_fault".into());
             }
             self.check_machine()?;
+            // CodexAstraUlt: GetIPCHandles can create HID midway through a
+            // frame. Publish its initial state after that dispatch, without
+            // letting a wall-clock yield decide when the guest first sees it.
+            // Ordinary new frames wait for the caller's next latched input.
+            if self.hid_frame.is_none() && self.system.frames == frame {
+                self.publish_hid_sample();
+            }
         }
         self.slices += 1;
         let complete = self.system.frames > frame;
@@ -230,6 +254,18 @@ impl Session {
             cycles: self.system.cpu.cycles,
             exited: self.system.exited,
         })
+    }
+
+    // CodexAstraUlt: This is bounded metadata work; no per-dispatch logging or
+    // allocation is added while waiting for the guest to create HID resources.
+    fn publish_hid_sample(&mut self) {
+        if self.hid_frame != Some(self.system.frames)
+            && self.system.services.hid.shared_memory_paddr != 0
+        {
+            let input = self.system.services.hid.input;
+            hid::update(&mut self.system, input);
+            self.hid_frame = Some(self.system.frames);
+        }
     }
 
     // CodexAstraUlt: Unsupported execution and failed draws stop explicitly.

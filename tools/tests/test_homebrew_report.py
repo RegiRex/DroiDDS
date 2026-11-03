@@ -9,8 +9,18 @@ import unittest
 from test_run_android_probe import FakeAdb, REQUEST, RUNNER, integrated_report, runtime_hardware_report
 
 
-def homebrew_report():
+def homebrew_report(fixture_revision=1):
     """CodexAstraUlt: Explicit protocol values are independent of production validators."""
+    # CodexAstraUlt: Retain the exact v1 proof for historical code-6/code-7
+    # reports. The v2 authored guest preserves pending DSP dirty bits, adding
+    # one instruction at each of its two pitch changes, with unchanged output.
+    if type(fixture_revision) is not int or fixture_revision not in (1, 2):
+        raise ValueError("fixture revision must be 1 or 2")
+    fixture = f"droidds-original-homebrew-v{fixture_revision}"
+    counters = {
+        1: {"cycles": 80442631, "interpreter": 9073, "native": 9037, "steps": 28728},
+        2: {"cycles": 80442633, "interpreter": 9075, "native": 9039, "steps": 28730},
+    }[fixture_revision]
     cases = []
     for name in ("interpreter_software", "native_software", "native_vulkan"):
         stages = []
@@ -42,13 +52,13 @@ def homebrew_report():
         guest = dict(stages[-1]["guest"], serial=18, fallback_count=18, buttons=12,
                      exit_requested=1, progress_stage=9)
         session = {
-            "schema": 1, "kind": "droidds-homebrew-session", "fixture": "droidds-original-homebrew-v1",
+            "schema": 1, "kind": "droidds-homebrew-session", "fixture": fixture,
             "status": "exited", "error": None, "native": native,
             "renderer": "vulkan" if hardware else "software", "presentation": "rgba_readback",
             "audio_sample_rate": 32728.498046875, "frames": 17, "frames_delivered": 18,
-            "guest": guest, "steps": 19851 if native else 28728, "cycles": 80442631,
-            "interpreted_instructions": 36 if native else 9073,
-            "recompiled_instructions": 9037 if native else 0, "native_fallback_instructions": 0,
+            "guest": guest, "steps": 19851 if native else counters["steps"], "cycles": counters["cycles"],
+            "interpreted_instructions": 36 if native else counters["interpreter"],
+            "recompiled_instructions": counters["native"] if native else 0, "native_fallback_instructions": 0,
             "pcm_samples": 9760, "pcm_nonzero_samples": 9600, "pcm_peak": 2000,
             "pause_count": 1, "resume_count": 1, "svc_unimplemented": 0,
             "service_unimplemented": 0, "memory_faults": 0,
@@ -62,7 +72,7 @@ def homebrew_report():
                       "lifecycle": {"pause_rejected_frame": True, "pause_no_progress": True,
                                     "resume_progress": True, "guest_exit": True}, "session": session})
     return {
-        "schema": 1, "kind": "droidds-homebrew-probe", "fixture": "droidds-original-homebrew-v1",
+        "schema": 1, "kind": "droidds-homebrew-probe", "fixture": fixture,
         "status": "passed", "error": None, "audio_sample_rate": 32728.498046875,
         "presentation": "rgba_readback", "cases": cases, "route_comparisons": 2,
         "controls": [{"name": "pixel_mutation_rejected", "status": "passed", "mismatches": 1},
@@ -136,6 +146,66 @@ def corrected_report():
 
 class HomebrewReportTests(unittest.TestCase):
     """CodexAstraUlt: Counter, oracle and identity mutations must fail closed."""
+
+    # CodexAstraUlt: Fixture revision is independent of historical APK version
+    # telemetry; both authored guests remain valid under their own exact totals.
+    def test_both_authored_fixture_revisions_validate_with_distinct_exact_totals(self):
+        for revision in (1, 2):
+            with self.subTest(revision=revision):
+                RUNNER.validate_interactive_report(homebrew_report(revision))
+        self.assertEqual(homebrew_report()["fixture"], "droidds-original-homebrew-v1")
+
+    def test_counter_profile_from_another_fixture_revision_is_rejected(self):
+        # CodexAstraUlt: Test both complete profile substitution and each
+        # changed scalar, so an accepted range cannot conceal revision drift.
+        for revision in (1, 2):
+            other = homebrew_report(3 - revision)
+            for index in range(3):
+                original = homebrew_report(revision)["cases"][index]["session"]
+                alternate = other["cases"][index]["session"]
+                changed_keys = [key for key in ("cycles", "steps", "interpreted_instructions",
+                                                "recompiled_instructions")
+                                if original[key] != alternate[key]]
+                for keys in (changed_keys, *[[key] for key in changed_keys]):
+                    value = homebrew_report(revision)
+                    for key in keys:
+                        value["cases"][index]["session"][key] = alternate[key]
+                    with self.subTest(revision=revision, index=index, keys=keys), self.assertRaises(ValueError):
+                        RUNNER.validate_interactive_report(value)
+
+    def test_unknown_and_malformed_fixture_revisions_are_rejected(self):
+        # CodexAstraUlt: Reject invalid identities independently at the outer
+        # and nested session layers, including consistently forged reports.
+        invalid_fixtures = (None, True, 2, [], {}, "", "droidds-original-homebrew-v0",
+                            "droidds-original-homebrew-v3", "droidds-original-homebrew-v02",
+                            "droidds-original-homebrew-v2 ")
+        for revision in (1, 2):
+            for invalid in invalid_fixtures:
+                for location in ("outer", "session", "all"):
+                    value = homebrew_report(revision)
+                    if location != "session":
+                        value["fixture"] = invalid
+                    if location != "outer":
+                        cases = value["cases"] if location == "all" else value["cases"][:1]
+                        for case in cases:
+                            case["session"]["fixture"] = invalid
+                    with self.subTest(revision=revision, invalid=invalid, location=location), self.assertRaises(ValueError):
+                        RUNNER.validate_interactive_report(value)
+
+    def test_outer_and_session_revisions_must_agree_even_with_valid_individual_counters(self):
+        # CodexAstraUlt: Entire replacement sessions retain their own valid
+        # counts; rejection must therefore bind each route to the outer guest.
+        for revision in (1, 2):
+            other = homebrew_report(3 - revision)
+            for index in range(3):
+                value = homebrew_report(revision)
+                value["cases"][index]["session"] = copy.deepcopy(other["cases"][index]["session"])
+                with self.subTest(revision=revision, index=index), self.assertRaises(ValueError):
+                    RUNNER.validate_interactive_report(value)
+            value = homebrew_report(revision)
+            value["fixture"] = other["fixture"]
+            with self.subTest(revision=revision, location="outer"), self.assertRaises(ValueError):
+                RUNNER.validate_interactive_report(value)
 
     def test_complete_automatic_contract_and_version_six_retain_prior_requirements(self):
         RUNNER.validate_interactive_report(homebrew_report())
@@ -238,12 +308,15 @@ class HomebrewReportTests(unittest.TestCase):
         keys = ("cycles", "steps", "interpreted_instructions", "recompiled_instructions",
                 "frames", "frames_delivered", "pcm_samples", "pcm_nonzero_samples", "pcm_peak",
                 "command_lists", "draw_calls", "vertices_drawn", "guest_observed_touch_updates")
-        for index in range(3):
-            for key in keys:
-                value = homebrew_report()
-                value["cases"][index]["session"][key] += 1
-                with self.subTest(index=index, key=key), self.assertRaises(ValueError):
-                    RUNNER.validate_interactive_report(value)
+        # CodexAstraUlt: The v2 instruction correction does not relax any
+        # execution, graphics, audio or input total into a positive range.
+        for revision in (1, 2):
+            for index in range(3):
+                for key in keys:
+                    value = homebrew_report(revision)
+                    value["cases"][index]["session"][key] += 1
+                    with self.subTest(revision=revision, index=index, key=key), self.assertRaises(ValueError):
+                        RUNNER.validate_interactive_report(value)
         for index in range(4):
             for field in ("frames", "serial", "samples_checked"):
                 value = homebrew_report()

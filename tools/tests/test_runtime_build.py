@@ -137,12 +137,17 @@ class GeneratedFixtureTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identity mismatch"):
             build.generated_sources(self.manifest, self.directory, homebrew=True)
         manifest = {**self.manifest, "kind": "droidds-homebrew-fixture-sources",
-                    "fixture": "droidds-original-homebrew-v1", "library": "libdroidds_fixture_homebrew.so"}
+                    "fixture": "droidds-original-homebrew-v2", "library": "libdroidds_fixture_homebrew.so"}
         with self.assertRaisesRegex(ValueError, "NCCH fixture"):
             build.generated_sources(manifest, self.directory, homebrew=True)
         (self.directory / "runtime-fixture.cxi").rename(self.directory / "homebrew-fixture.cxi")
         self.assertEqual(build.generated_sources(manifest, self.directory, homebrew=True),
                          [self.directory / "original.c"])
+        # CodexAstraUlt: Retained v1 reports remain readable, but an old emitted
+        # guest cannot satisfy the current corrected-producer build gate.
+        with self.assertRaisesRegex(ValueError, "identity mismatch"):
+            build.generated_sources({**manifest, "fixture": "droidds-original-homebrew-v1"},
+                                    self.directory, homebrew=True)
 
 
 class StaticRuntimePathTests(unittest.TestCase):

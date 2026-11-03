@@ -24,6 +24,14 @@ PCM and pause/resume with no reported runtime failure. The owner separately
 confirms both images, D-pad/A, touch, pause/resume and steady sound. This closes
 the original-title preview's device check, while owned-title boot remains open.
 
+<!-- CodexAstraUlt: Record independently testable gameplay prerequisites while
+the owner's private build proceeds; fixtures do not promote title milestones. -->
+The [input/save follow-up](builds/0.0.7-input-save-corrections.md) corrects lost
+input transitions during cooperative yields and falsely successful save-file
+operations. Original native/interpreter guests now exercise actual save IPC and
+fresh-session reads. This advances shared gameplay/save infrastructure while
+Dark Moon's Android boot and owned-title save compatibility remain unqualified.
+
 Cloud work now proceeds across those product components in parallel with native
 correctness and scheduler optimization. Another Dark Moon checkpoint is not a
 prerequisite for implementing them. Follow the concrete

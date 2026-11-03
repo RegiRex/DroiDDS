@@ -325,7 +325,9 @@ final class TitleController {
         if (!foreground || userPaused) { updateLifecycle(id); return; }
         if (stopRequested) { finish(id, "stopped", null); return; }
         try {
-            currentInput = input.next(currentInput);
+            // CodexAstraUlt: Preserve a short press across all yielded slices
+            // of this guest frame; its queued release belongs to the next one.
+            currentInput = input.next(currentInput, frames);
             long beforeLifecycle = lifecycle.get();
             long start = SystemClock.elapsedRealtimeNanos();
             if (!frameInProgress) { pacer.begin(start); frameInProgress = true; }
@@ -458,6 +460,9 @@ final class TitleController {
     }
     void button(int bit, boolean down, int source) { if (foreground && running && !userPaused && !stopRequested) input.button(bit, down, source); }
     void touch(int x, int y, boolean down) { if (foreground && running && !userPaused && !stopRequested) input.touch(x, y, down); }
-    void axes(float cx, float cy, float sx, float sy) { if (foreground && running && !userPaused && !stopRequested) input.axes(cx, cy, sx, sy); }
+    // CodexAstraUlt: Keep each Android joystick event atomic in the guest queue.
+    void motion(int hat, float cx, float cy, float sx, float sy) {
+        if (foreground && running && !userPaused && !stopRequested) input.motion(hat, cx, cy, sx, sy);
+    }
     void releaseInputs() { input.release(); }
 }

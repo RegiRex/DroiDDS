@@ -19,24 +19,26 @@ from prepare_probe_release import bounded_file, exact_fields, require_values, si
 
 # CodexAstraUlt: This release policy intentionally admits one authored input,
 # not arbitrary title packages bearing a diagnostic flag or familiar program ID.
-TAG = "v0.0.7-preview.2"
-VERSION = "0.0.7-preview.2"
+# The v2 guest preserves pending DSP initialization when A is held at startup;
+# its new bytes/prepared text and install code are pinned independently below.
+TAG = "v0.0.7-preview.3"
+VERSION = "0.0.7-preview.3"
 PROGRAM = "000400000d5d0006"
 APK_SOURCE = "droidds-title.apk"
-APK_NAME = "DroiDDS-0.0.7-preview.2-original-android-arm64.apk"
+APK_NAME = "DroiDDS-0.0.7-preview.3-original-android-arm64.apk"
 NOTICE = "THIRD_PARTY_NOTICES.txt"
-INPUT = {"bytes": 30720, "sha256": "efbf68988056b7973f14b934d792d87af430a15e7549cdf3a022e261b9aecbfd"}
+INPUT = {"bytes": 30720, "sha256": "09cf47cc188f140a8bd0e146efce5d9ef63ff10bbaa035c8c557fac32e4a8003"}
 MIB = 1024 * 1024
 MAX_APK = 128 * MIB
 PACKAGE = "org.droidds.title.t" + PROGRAM
-MANIFEST = {"package": PACKAGE, "version_code": 9, "version_name": VERSION,
+MANIFEST = {"package": PACKAGE, "version_code": 10, "version_name": VERSION,
             "debuggable": True, "test_only": False, "minimum_api": 29, "target_api": 35}
 PREPARED = {
     "container": "ncch", "ncch_format_version": 0, "remaster_version": 0,
     "cia_title_version": None, "bss_size": 0,
     "components": [
         {"kind": "decompressed_code", "path": "identity/code.bin", "bytes": 28672,
-         "sha256": "f2898dee9bd6a54aa0465085d967103f4e00b07932c9eaff3ad263deda55e871"},
+         "sha256": "53d2ce2c168f1bbb5c1c09a3513da683be071f4484a4bf26cdfe2a5509cb5bc1"},
         {"kind": "exheader", "path": "identity/exheader.bin", "bytes": 1024,
          "sha256": "7bc671622bcb0dabc2d0c9e4e93c7cb9e0b06e2e6d218f50c7576d3d3a29c080"},
         {"kind": "ncch_header", "path": "identity/ncch-header.bin", "bytes": 512,
@@ -44,7 +46,7 @@ PREPARED = {
     ],
     "segments": [
         {"name": "text", "address": 1048576, "offset": 0, "size": 8192, "mapped_bytes": 8192,
-         "hash_scope": "logical_segment_bytes", "sha256": "c9f10a7653727f12d1e669b953e1fd58546bb4077e31f383f233722451c05d2a"},
+         "hash_scope": "logical_segment_bytes", "sha256": "c7c6b13feab92e01e4fa3d78f773a2593491dcf838afd01dec67d662a2685687"},
         {"name": "rodata", "address": 1056768, "offset": 8192, "size": 16384, "mapped_bytes": 16384,
          "hash_scope": "logical_segment_bytes", "sha256": "79b2df2cc230d1b9fcff86bcc7dfdd98e6e3e6f9b06f25375808b3b67c573c30"},
         {"name": "data", "address": 1073152, "offset": 24576, "size": 4096, "mapped_bytes": 4096,
@@ -124,7 +126,7 @@ def producer_sources():
 
 def original_proof(value):
     """CodexAstraUlt: Do not project unchecked nested metadata into a public report."""
-    expected = {"fixture": "droidds-original-homebrew-v1", "producer": "droidds-runtime-probe",
+    expected = {"fixture": "droidds-original-homebrew-v2", "producer": "droidds-runtime-probe",
                 "action": "emit-homebrew", "input": INPUT, "producer_sources": producer_sources()}
     same(value, expected, "original producer proof")
     return expected

@@ -252,8 +252,10 @@ fn run_case(
         // CodexAstraUlt: Fixed sleeps advance emulated time independently of
         // instructions. These exact measured counts reject skipped guest work
         // or compiler-budget drift while keeping host elapsed time separate.
+        // Preserving DSP dirty flags adds one ARM instruction to each of the
+        // two pitch changes: two cycles/instructions, with unchanged outputs.
         require(
-            report["cycles"] == 80_442_631u64
+            report["cycles"] == 80_442_633u64
                 && report["frames"] == 17
                 && report["frames_delivered"] == 18
                 && report["guest"]["serial"] == 18
@@ -264,9 +266,9 @@ fn run_case(
                 && report["command_lists"] == 36
                 && report["draw_calls"] == 108
                 && report["vertices_drawn"] == 324
-                && report["interpreted_instructions"] == if native { 36 } else { 9073 }
-                && report["recompiled_instructions"] == if native { 9037 } else { 0 }
-                && report["steps"] == if native { 19851 } else { 28728 },
+                && report["interpreted_instructions"] == if native { 36 } else { 9075 }
+                && report["recompiled_instructions"] == if native { 9039 } else { 0 }
+                && report["steps"] == if native { 19851 } else { 28730 },
             format!("{name}: exact guest scheduling, CPU or output totals differ"),
         )?;
         require(

@@ -5,7 +5,9 @@
 use super::pica::{self, Panel};
 
 pub const PROGRAM_ID: u64 = 0x0004_0000_0D5D_0006;
-pub const IDENTITY: &str = "droidds-original-homebrew-v1";
+// CodexAstraUlt: Dirty-bit preservation changes original guest bytes and exact
+// execution totals; retained v1 reports keep their separate historical oracle.
+pub const IDENTITY: &str = "droidds-original-homebrew-v2";
 pub const LIBRARY: &str = "libdroidds_fixture_homebrew.so";
 pub const TEXT: u32 = 0x0010_0000;
 pub const TEXT_BYTES: u32 = 0x2000;
@@ -395,7 +397,12 @@ fn update_audio(arm: &mut Arm) {
     arm.store(0, 11, TONE_RATE_OFFSET);
     arm.load(6, 11, VOICE_POINTER);
     arm.store(0, 6, 0x34);
-    arm.write(6, 0, 1 << 18);
+    // CodexAstraUlt: Preserve initialization or other pending DSP changes when
+    // A is already held on startup. Replacing DIRTY with only the rate flag
+    // erased the unconsumed enable/buffer configuration and silenced the voice.
+    arm.load(0, 6, 0);
+    arm.word(0xe380_0701); // CodexAstraUlt: ORR r0, r0, #(1 << 18).
+    arm.store(0, 6, 0);
     arm.resolve(unchanged, arm.at());
     arm.load(6, 11, STATUS_POINTER);
     arm.constant(0, 0x20000);

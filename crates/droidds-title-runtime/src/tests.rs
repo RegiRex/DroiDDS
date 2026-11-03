@@ -15,6 +15,15 @@ use std::{
 };
 use zakuro_cpu::Bus;
 
+// CodexAstraUlt: Authored guest FS IPC checks reuse the exact admitted fixture
+// builder while exercising saves through the CPU/service path, not host writes.
+#[path = "save_tests.rs"]
+mod save_tests;
+
+// CodexAstraUlt: Yielded host work must preserve real guest HID transitions.
+#[path = "hid_tests.rs"]
+mod hid_tests;
+
 static NEXT: AtomicU64 = AtomicU64::new(0);
 static SERIAL: Mutex<()> = Mutex::new(());
 

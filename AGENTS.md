@@ -36,6 +36,26 @@ private APK; no new tracing or generated-title compilation contract is needed. -
   memory_faults metadata. Keep guard errors/priority and raw evidence intact;
   samples are sorted-key observations, not claimed chronological traces.
   Main CI also exercises the generic title runtime/player and Vulkan oracle.
+<!-- CodexAstraUlt: Continue independent runtime fixes while private title
+compilation runs elsewhere; retain prepared/generated artifact compatibility. -->
+- Read docs/builds/0.0.7-input-save-corrections.md for the input/save follow-up.
+  Generic HID publication and queued transitions follow guest frames, not host
+  yields. Keep joystick samples atomic and explicit pause release immediate.
+  Save-file errors/permissions, requested synchronization and linked handles
+  have original guest coverage; do not infer private save compatibility or
+  transactional/crash-atomic archive behavior. Legacy emulator snapshots reopen
+  host handles read-only because the old record lacks access metadata; ordinary
+  save files are unchanged. Preserve all compilation/coordinator helper identities
+  so ongoing private title compilation can finish with its existing checkout.
+<!-- CodexAstraUlt: Resolve missing Android build prerequisites in one isolated
+setup and continue the authorized build, without global installation changes. -->
+- Read docs/ANDROID_TITLE_TOOL_SETUP.md if Android tools or offline dependencies
+  are missing. The tested setup owns one directory outside Git and never edits
+  system packages, shell profiles or existing Rust installations. Source env.sh
+  and continue the consolidated task; do not return another tool-only handoff.
+  The current preview.3 development candidate uses authored homebrew-v2 to fix
+  startup pitch updates clearing pending DSP flags. Historical v1 reports and
+  published preview.2 remain unchanged; private generated title C is unaffected.
 
 <!-- CodexAstraUlt: The owner now authorizes development and reuse from multiple
 open-source projects; continue from measured foundation results, not the old

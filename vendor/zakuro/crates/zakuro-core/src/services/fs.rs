@@ -2,9 +2,10 @@
 //! hands out.
 
 use std::collections::HashMap;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use zakuro_common::result::{errors, ResultCode};
+use zakuro_common::result::{errors, Level, Module, ResultCode, Summary};
 
 use crate::kernel::ipc::{CommandBuffer, Descriptor, Header};
 use crate::kernel::thread::nanos_to_ticks;
@@ -95,6 +96,12 @@ const SELF_NCCH_UPDATE_ROMFS: u32 = 5;
 
 /// OpenFile flags.
 const OPEN_CREATE: u32 = 1 << 2;
+// CodexAstraUlt: Preserve the guest's actual file access rather than treating
+// every host-backed file as writable. FS protocol invalid-open-flags is 230.
+const OPEN_READ: u32 = 1;
+const OPEN_WRITE: u32 = 2;
+const INVALID_OPEN_FLAGS: ResultCode = ResultCode::new(Level::Status, Summary::Canceled, Module::Fs, 230);
+const IO_CHUNK: usize = 64 * 1024;
 
 /// size of one entry a directory read returns.
 const DIRECTORY_ENTRY_SIZE: u32 = 0x228;
@@ -127,6 +134,10 @@ impl FileBacking {
 pub struct OpenFile {
     pub path: String,
     pub backing: FileBacking,
+    // CodexAstraUlt: Dirtiness precedes attempted mutation, including partial
+    // host failures, and only successful explicit synchronization clears it.
+    pub access: u32,
+    pub dirty: bool,
 }
 
 /// an open file as a saved state keeps it, the ROM image it reads by its
@@ -143,6 +154,9 @@ enum SavedBacking {
     Host(PathBuf),
     Memory(Vec<u8>),
     Layered { layered: u32, image: u32 },
+    // CodexAstraUlt: Append a new variant so existing postcard discriminants
+    // stay intact. Legacy Host states lack rights and restore read-only.
+    HostWithAccess { path: PathBuf, access: u32, dirty: bool },
 }
 
 type Images<'a> = (&'a [std::sync::Arc<zakuro_fs::RomImage>], &'a [std::sync::Arc<zakuro_fs::layered::Layered>]);
@@ -154,7 +168,7 @@ impl OpenFile {
         let place = |image: &std::sync::Arc<zakuro_fs::RomImage>| images.iter().position(|known| std::sync::Arc::ptr_eq(known, image)).map(|i| i as u32);
         let backing = match &self.backing {
             FileBacking::RomImage { image, offset, size } => SavedBacking::RomImage { image: place(image)?, offset: *offset, size: *size },
-            FileBacking::Host(path) => SavedBacking::Host(path.clone()),
+            FileBacking::Host(path) => SavedBacking::HostWithAccess { path: path.clone(), access: self.access, dirty: self.dirty },
             FileBacking::Memory(bytes) => SavedBacking::Memory(bytes.clone()),
             FileBacking::Layered(layered, image) => SavedBacking::Layered {
                 layered: layers.iter().position(|known| std::sync::Arc::ptr_eq(known, layered))? as u32,
@@ -168,15 +182,25 @@ impl OpenFile {
 impl SavedFile {
     /// the file open again, on the title's images.
     pub fn open(self, (images, layers): Images) -> Option<OpenFile> {
+        let mut access = OPEN_READ;
+        let mut dirty = false;
         let backing = match self.backing {
             SavedBacking::RomImage { image, offset, size } => FileBacking::RomImage { image: images.get(image as usize)?.clone(), offset, size },
             SavedBacking::Host(path) => FileBacking::Host(path),
+            SavedBacking::HostWithAccess { path, access: saved_access, dirty: saved_dirty } => {
+                if saved_access == 0 || saved_access & !(OPEN_READ | OPEN_WRITE) != 0 {
+                    return None;
+                }
+                access = saved_access;
+                dirty = saved_dirty;
+                FileBacking::Host(path)
+            }
             SavedBacking::Memory(bytes) => FileBacking::Memory(bytes),
             SavedBacking::Layered { layered, image } => {
                 FileBacking::Layered(layers.get(layered as usize)?.clone(), images.get(image as usize)?.clone())
             }
         };
-        Some(OpenFile { path: self.path, backing })
+        Some(OpenFile { path: self.path, backing, access, dirty })
     }
 }
 
@@ -562,13 +586,26 @@ fn user_command(system: &mut System, buffer: &CommandBuffer, header: Header) -> 
             true
         }
 
-        // ControlArchive(archive handle, action, input size, output size,
-        //   <input>, <output>). The one action titles use commits save
-        //   data, which host files do on every write anyway.
+        // CodexAstraUlt: Commit validates its archive/action and synchronizes
+        // only dirty open files in that archive. Closed dirty files were synced
+        // before Close removed them; metadata operations sync touched parents.
         0x080D => {
+            let archive = read_u64(system, buffer, 1);
+            let action = buffer.get(&mut system.memory, 3);
+            let result = archive_of(system, archive).and_then(|host| {
+                if action != 0 { return Err(errors::FS_NOT_IMPLEMENTED); }
+                let pending: Vec<_> = system.services.fs.files.iter().filter_map(|(&id, file)| {
+                    match &file.backing {
+                        FileBacking::Host(path) if file.dirty && host.contains_file(path) => Some(id),
+                        _ => None,
+                    }
+                }).collect();
+                for id in pending { flush_file_id(system, id, false)?; }
+                Ok(())
+            });
             let descriptors: Vec<u32> = (6..10).map(|i| buffer.get(&mut system.memory, i)).collect();
             buffer.set(&mut system.memory, 0, Header::new(command, 1, 4).0);
-            buffer.set(&mut system.memory, 1, 0);
+            buffer.set(&mut system.memory, 1, result.err().map_or(0, |code| code.0));
             for (i, word) in descriptors.into_iter().enumerate() {
                 buffer.set(&mut system.memory, 2 + i as u32, word);
             }
@@ -761,6 +798,10 @@ fn open_host_file(
     path_ptr: u32,
     flags: u32,
 ) -> Result<u32, ResultCode> {
+    // CodexAstraUlt: Validate access before creating a host file, retaining the
+    // separate create bit without granting read or write access implicitly.
+    let access = flags & (OPEN_READ | OPEN_WRITE);
+    if access == 0 { return Err(INVALID_OPEN_FLAGS); }
     let path = decode_path(system, path_type, path_size, path_ptr);
     let result = host.open_file(&path, flags & OPEN_CREATE != 0);
     log::debug!("fs: open '{path}' (flags {flags:#X}) -> {:?}", result.as_ref().map(|_| ()));
@@ -768,6 +809,8 @@ fn open_host_file(
     Ok(system.services.fs.add_file(OpenFile {
         path,
         backing: FileBacking::Host(host_path),
+        access,
+        dirty: false,
     }))
 }
 
@@ -784,6 +827,60 @@ fn reply_with_file(
         }
         Err(code) => buffer.reply_error(&mut system.memory, command, code.0),
     }
+}
+
+// CodexAstraUlt: Validate every touched page, including the final page of an
+// unaligned buffer, and reject wrapping ranges before a save file is modified.
+fn transfer_range(system: &System, address: u32, size: u32, writable: bool) -> bool {
+    if size == 0 { return true; }
+    let end = u64::from(address) + u64::from(size);
+    if end > 1u64 << 32 { return false; }
+    let first = u64::from(address & !0xfff);
+    let last = (end - 1) & !0xfff;
+    (first..=last).step_by(4096).all(|page| {
+        if writable { system.memory.is_writable(page as u32, 4096) }
+        else { system.memory.is_readable(page as u32, 4096) }
+    })
+}
+
+// CodexAstraUlt: Keep failed flushes retryable. A clean Close is cheap; an
+// explicit Flush still verifies and synchronizes its selected host file.
+fn flush_file_id(system: &mut System, id: u32, explicit: bool) -> Result<(), ResultCode> {
+    let file = system.services.fs.files.get_mut(&id).ok_or(errors::FS_FILE_NOT_FOUND)?;
+    if !explicit && !file.dirty { return Ok(()); }
+    match &file.backing {
+        FileBacking::Host(path) => host_archive::flush_file(path)?,
+        _ => return Err(INVALID_OPEN_FLAGS),
+    }
+    file.dirty = false;
+    Ok(())
+}
+
+// CodexAstraUlt: Stage a fixed-size chunk, retaining the same open host handle
+// for the operation. An attempted write stays dirty even if the OS writes only
+// part of it before failing; only requested successful synchronization clears it.
+fn write_file(system: &mut System, id: u32, offset: u64, size: u32, source: u32, flush: bool) -> Result<u32, ResultCode> {
+    let file = system.services.fs.files.get(&id).ok_or(errors::FS_FILE_NOT_FOUND)?;
+    if file.access & OPEN_WRITE == 0 { return Err(INVALID_OPEN_FLAGS); }
+    let FileBacking::Host(path) = &file.backing else { return Err(INVALID_OPEN_FLAGS); };
+    let path = path.clone();
+    if !transfer_range(system, source, size, false) { return Err(errors::FS_INVALID_PATH); }
+    if offset.checked_add(u64::from(size)).is_none() { return Err(errors::FS_INVALID_PATH); }
+    system.services.fs.files.get_mut(&id).unwrap().dirty = true;
+    let mut host = host_archive::open_write_at(&path, offset)?;
+    let mut data = vec![0u8; (size as usize).min(IO_CHUNK)];
+    let mut total = 0u32;
+    while total < size {
+        let count = ((size - total) as usize).min(data.len());
+        system.memory.read_bytes(source + total, &mut data[..count]);
+        host.write_all(&data[..count]).map_err(host_archive::io_error)?;
+        total += count as u32;
+    }
+    if flush {
+        host.sync_all().map_err(host_archive::io_error)?;
+        system.services.fs.files.get_mut(&id).unwrap().dirty = false;
+    }
+    Ok(total)
 }
 
 /// commands sent to a file session.
@@ -813,9 +910,16 @@ fn file_command(
             let dest = buffer.get(&mut system.memory, 5);
             log::trace!("fs: file {file_id} read offset 0x{offset:X} size 0x{size:X}");
 
-            let read = read_file(system, file_id, offset, size, dest);
+            // CodexAstraUlt: Check rights and the complete guest destination
+            // before touching it. Host failures are distinct from normal EOF.
+            let result = system.services.fs.files.get(&file_id)
+                .ok_or(errors::FS_FILE_NOT_FOUND)
+                .and_then(|file| if file.access & OPEN_READ == 0 { Err(INVALID_OPEN_FLAGS) } else { Ok(()) })
+                .and_then(|()| if transfer_range(system, dest, size, true) { Ok(()) } else { Err(errors::FS_INVALID_PATH) })
+                .and_then(|()| read_file(system, file_id, offset, size, dest));
+            let (read, error) = match result { Ok(read) => (read, 0), Err(code) => (0, code.0) };
             buffer.set(&mut system.memory, 0, Header::new(command, 2, 2).0);
-            buffer.set(&mut system.memory, 1, 0);
+            buffer.set(&mut system.memory, 1, error);
             buffer.set(&mut system.memory, 2, read);
             buffer.set(&mut system.memory, 3, (size << 4) | 0xC);
             buffer.set(&mut system.memory, 4, dest);
@@ -825,6 +929,7 @@ fn file_command(
                 Some(FileBacking::Host(_)) => 1,
                 _ => 0,
             };
+            if error != 0 { return true; }
             let tick = system.cpu.cycles;
             let busy = &mut system.services.fs.busy_until[medium];
             *busy = (*busy).max(tick) + nanos_to_ticks(read_delay(read));
@@ -836,21 +941,15 @@ fn file_command(
         0x0803 => {
             let offset = read_u64(system, buffer, 1);
             let size = buffer.get(&mut system.memory, 3);
+            let flags = buffer.get(&mut system.memory, 4);
             let source = buffer.get(&mut system.memory, 6);
-
-            let written = match backing {
-                Some(FileBacking::Host(path)) => {
-                    let mut data = vec![0u8; size as usize];
-                    system.memory.read_bytes(source, &mut data);
-                    host_archive::write_at(&path, offset, &data) as u32
-                }
-                // anything else is read-only, the ROM image and the
-                // generated system archives have nowhere to put writes.
-                _ => 0,
-            };
+            // CodexAstraUlt: A failed save is an IPC error. Bound staging to one
+            // chunk and validate all source pages before any file mutation.
+            let result = write_file(system, file_id, offset, size, source, flags & 1 != 0);
+            let (written, error) = match result { Ok(written) => (written, 0), Err(code) => (0, code.0) };
 
             buffer.set(&mut system.memory, 0, Header::new(command, 2, 2).0);
-            buffer.set(&mut system.memory, 1, 0);
+            buffer.set(&mut system.memory, 1, error);
             buffer.set(&mut system.memory, 2, written);
             buffer.set(&mut system.memory, 3, (size << 4) | 0xA);
             buffer.set(&mut system.memory, 4, source);
@@ -858,20 +957,31 @@ fn file_command(
         }
         // GetSize -> u64
         0x0804 => {
-            let size = backing.map_or(0, |b| b.size());
-            buffer.reply(
-                &mut system.memory,
-                command,
-                &[size as u32, (size >> 32) as u32],
-            );
+            // CodexAstraUlt: Missing/unreadable host metadata is not the same
+            // as a successful size query for an empty save file.
+            let result = match backing {
+                Some(FileBacking::Host(path)) => host_archive::checked_size(&path),
+                Some(backing) => Ok(backing.size()),
+                None => Err(errors::FS_FILE_NOT_FOUND),
+            };
+            match result {
+                Ok(size) => buffer.reply(&mut system.memory, command, &[size as u32, (size >> 32) as u32]),
+                Err(code) => buffer.reply_error(&mut system.memory, command, code.0),
+            }
             true
         }
         // SetSize(size u64)
         0x0805 => {
             let size = read_u64(system, buffer, 1);
-            let result = match backing {
-                Some(FileBacking::Host(path)) => host_archive::set_size(&path, size),
-                _ => Ok(()),
+            // CodexAstraUlt: Truncation is a write and can partially change a
+            // file before an OS error. Preserve dirtiness until synchronization.
+            let result = match system.services.fs.files.get_mut(&file_id) {
+                Some(file) if file.access & OPEN_WRITE != 0 => match &file.backing {
+                    FileBacking::Host(path) => { file.dirty = true; host_archive::set_size(path, size) },
+                    _ => Err(INVALID_OPEN_FLAGS),
+                },
+                Some(_) => Err(INVALID_OPEN_FLAGS),
+                None => Err(errors::FS_FILE_NOT_FOUND),
             };
             reply_result(system, buffer, command, result);
             true
@@ -883,12 +993,22 @@ fn file_command(
         }
         // close
         0x0808 => {
-            system.services.fs.files.remove(&file_id);
-            buffer.reply(&mut system.memory, command, &[]);
+            // CodexAstraUlt: Retain the live record after a failed close flush
+            // so the guest can observe/retry it instead of losing its save.
+            let result = flush_file_id(system, file_id, false);
+            if result.is_ok() { system.services.fs.files.remove(&file_id); }
+            reply_result(system, buffer, command, result);
             true
         }
-        // SetAttributes / Flush / SetPriority, host writes are already durable.
-        0x0807 | 0x0809 | 0x080A => {
+        // CodexAstraUlt: Explicit flush requests synchronize the selected host
+        // file. This does not make an archive-wide save transaction atomic.
+        0x0809 => {
+            let result = flush_file_id(system, file_id, true);
+            reply_result(system, buffer, command, result);
+            true
+        }
+        // SetAttributes / SetPriority.
+        0x0807 | 0x080A => {
             buffer.reply(&mut system.memory, command, &[]);
             true
         }
@@ -899,8 +1019,15 @@ fn file_command(
         }
         // OpenLinkFile, hand back another session onto the same file.
         0x080C => {
-            let handle = make_session(system, "FSFile", file_id);
-            buffer.reply_with_handle(&mut system.memory, command, handle);
+            // CodexAstraUlt: Link sessions have independent lifetimes. Sharing
+            // the map ID let closing the original invalidate the linked handle.
+            if let Some(file) = system.services.fs.files.get(&file_id).cloned() {
+                let linked = system.services.fs.add_file(file);
+                let handle = make_session(system, "FSFile", linked);
+                buffer.reply_with_handle(&mut system.memory, command, handle);
+            } else {
+                buffer.reply_error(&mut system.memory, command, errors::FS_FILE_NOT_FOUND.0);
+            }
             true
         }
         _ => false,
@@ -1083,6 +1210,8 @@ fn open_system_archive(system: &mut System, path: NcchArchivePath) -> Option<u32
     Some(system.services.fs.add_file(OpenFile {
         path: format!("nand:/{name}"),
         backing: FileBacking::Memory(data),
+        access: OPEN_READ,
+        dirty: false,
     }))
 }
 
@@ -1109,13 +1238,15 @@ fn open_ncch_kind(system: &mut System, kind: u32) -> Option<u32> {
                 None => (romfs_backing(title)?, "romfs:/"),
             };
             log::debug!("fs: opened {path}, {} MiB", backing.size() / (1024 * 1024));
-            Some(system.services.fs.add_file(OpenFile { path: path.into(), backing }))
+            Some(system.services.fs.add_file(OpenFile { path: path.into(), backing, access: OPEN_READ, dirty: false }))
         }
         SELF_NCCH_CODE | SELF_NCCH_EXEFS => {
             let data = title.exefs_file(".code")?.to_vec();
             Some(system.services.fs.add_file(OpenFile {
                 path: "exefs:/.code".into(),
                 backing: FileBacking::Memory(data),
+                access: OPEN_READ,
+                dirty: false,
             }))
         }
         other => {
@@ -1164,6 +1295,8 @@ fn open_sd_title(system: &mut System, title_id: u64, content_index: u16, kind: u
     Some(system.services.fs.add_file(OpenFile {
         path: format!("dlc:/{content_index}"),
         backing: FileBacking::RomImage { image, offset, size },
+        access: OPEN_READ,
+        dirty: false,
     }))
 }
 
@@ -1176,10 +1309,8 @@ fn read_delay(length: u32) -> u64 {
     (u64::from(length) * 94 + 582_778).max(663_124)
 }
 
-fn read_file(system: &mut System, file_id: u32, offset: u64, size: u32, dest: u32) -> u32 {
-    let Some(file) = system.services.fs.files.get(&file_id).cloned() else {
-        return 0;
-    };
+fn read_file(system: &mut System, file_id: u32, offset: u64, size: u32, dest: u32) -> Result<u32, ResultCode> {
+    let file = system.services.fs.files.get(&file_id).cloned().ok_or(errors::FS_FILE_NOT_FOUND)?;
 
     match file.backing {
         FileBacking::RomImage {
@@ -1188,40 +1319,49 @@ fn read_file(system: &mut System, file_id: u32, offset: u64, size: u32, dest: u3
             size: total,
         } => {
             if offset >= total {
-                return 0;
+                return Ok(0);
             }
             let count = (size as u64).min(total - offset) as usize;
             let start = (base + offset) as usize;
             let Some(slice) = image.data().get(start..start + count) else {
                 log::warn!("fs: read past the end of the ROM image");
-                return 0;
+                return Ok(0);
             };
             // copying through a temporary keeps the borrow of title from
             // overlapping the mutable borrow of memory.
             let data = slice.to_vec();
             system.write_from_service(dest, &data);
-            count as u32
+            Ok(count as u32)
         }
         FileBacking::Host(path) => {
-            let mut data = vec![0u8; size as usize];
-            let count = host_archive::read_at(&path, offset, &mut data);
-            system.write_from_service(dest, &data[..count]);
-            count as u32
+            // CodexAstraUlt: A host save read uses bounded staging and preserves
+            // host errors instead of silently treating them as end-of-file.
+            let mut file = host_archive::open_read_at(&path, offset)?;
+            let mut data = vec![0u8; (size as usize).min(IO_CHUNK)];
+            let mut total = 0u32;
+            while total < size {
+                let count = ((size - total) as usize).min(data.len());
+                let read = file.read(&mut data[..count]).map_err(host_archive::io_error)?;
+                if read == 0 { break; }
+                system.write_from_service(dest + total, &data[..read]);
+                total += read as u32;
+            }
+            Ok(total)
         }
         FileBacking::Memory(data) => {
             if offset >= data.len() as u64 {
-                return 0;
+                return Ok(0);
             }
             let start = offset as usize;
             let count = (size as usize).min(data.len() - start);
             system.write_from_service(dest, &data[start..start + count]);
-            count as u32
+            Ok(count as u32)
         }
         FileBacking::Layered(layered, image) => {
             let mut data = vec![0u8; (size as u64).min(layered.len().saturating_sub(offset)) as usize];
             let count = layered.read(image.data(), offset, &mut data);
             system.write_from_service(dest, &data[..count]);
-            count as u32
+            Ok(count as u32)
         }
     }
 }
@@ -1252,3 +1392,9 @@ fn decode_path(system: &mut System, path_type: u32, path_size: u32, path_ptr: u3
 /// kept so the descriptor helper stays in scope for the mapped-buffer replies
 /// above, which build their descriptors by hand.
 pub const _MAPPED_BUFFER_RW: u32 = Descriptor::static_buffer(0, 0);
+
+// CodexAstraUlt: Focused original controls cover failure-accurate save I/O,
+// permissions, bounded transfers, persistence metadata and selected commits.
+#[cfg(test)]
+#[path = "fs_save_tests.rs"]
+mod save_tests;

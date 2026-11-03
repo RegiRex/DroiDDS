@@ -63,7 +63,7 @@ class TitleReleaseTests(unittest.TestCase):
         self.report = {"schema_version": 1, "kind": "droidds_android_title_build", "status": "built",
             "version": RELEASE.VERSION, "device_execution": "not_run", "apk": RELEASE.APK_SOURCE,
             "diagnostic_signing": True, "preserved_inputs_verified": True, "source": self.source,
-            "original_fixture": {"fixture": "droidds-original-homebrew-v1", "producer": "droidds-runtime-probe",
+            "original_fixture": {"fixture": "droidds-original-homebrew-v2", "producer": "droidds-runtime-probe",
                 "action": "emit-homebrew", "input": self.input_identity, "producer_sources": RELEASE.producer_sources()},
             "manifest": copy.deepcopy(RELEASE.MANIFEST), "title_manifest": self.title, "elf": self.elf,
             "signing_certificate_sha256": CERTIFICATE,
@@ -130,7 +130,10 @@ class TitleReleaseTests(unittest.TestCase):
 
     def test_changed_or_noninteractive_producer_and_private_fields_reject(self):
         saved = copy.deepcopy(self.report["original_fixture"])
-        for field, value in (("fixture", "droidds-original-runtime-v1"), ("action", "emit"),
+        for field, value in (("fixture", "droidds-original-runtime-v1"),
+                             # CodexAstraUlt: Historical v1 remains readable as
+                             # evidence but cannot be relabeled for preview 3.
+                             ("fixture", "droidds-original-homebrew-v1"), ("action", "emit"),
                              ("producer_sources", {}), ("owner_path", "/private/game")):
             self.report["original_fixture"] = {**saved, field: value}
             self.save()
@@ -182,6 +185,19 @@ class TitleReleaseTests(unittest.TestCase):
         self.save()
         with self.assertRaisesRegex(ValueError, "original title manifest"):
             self.prepare()
+
+    def test_previous_guest_preparation_cannot_be_relabelled_as_current(self):
+        # CodexAstraUlt: Rehashing an outer package cannot hide the previous
+        # guest's original code/text identities inside a current title manifest.
+        for section, old_hash in (
+                ("components", "f2898dee9bd6a54aa0465085d967103f4e00b07932c9eaff3ad263deda55e871"),
+                ("segments", "c9f10a7653727f12d1e669b953e1fd58546bb4077e31f383f233722451c05d2a")):
+            self.title["prepared"] = copy.deepcopy(RELEASE.PREPARED)
+            self.title["prepared"][section][0]["sha256"] = old_hash
+            self.contents["assets/title-manifest.json"] = RELEASE.canonical(self.title)
+            self.save()
+            with self.subTest(section=section), self.assertRaisesRegex(ValueError, "original title manifest"):
+                self.prepare()
 
     def test_duplicate_manifest_keys_reject(self):
         self.contents["assets/title-manifest.json"] = self.contents["assets/title-manifest.json"].replace(
@@ -262,15 +278,16 @@ class PublicPolicyTests(unittest.TestCase):
 
     def test_only_exact_reviewed_tag_and_commit_are_accepted(self):
         self.assertEqual(RELEASE.identity(RELEASE.TAG, COMMIT), (RELEASE.VERSION, RELEASE.APK_NAME))
-        for tag, commit in (("v0.0.7-preview.1", COMMIT), ("v0.0.7-preview.3", COMMIT),
+        for tag, commit in (("v0.0.7-preview.1", COMMIT), ("v0.0.7-preview.2", COMMIT),
+                            ("v0.0.7-preview.4", COMMIT),
                             ("v0.1.0", COMMIT), (RELEASE.TAG, "main"),
-                            (RELEASE.TAG, "A" * 40), ("../v0.0.7-preview.2", COMMIT)):
+                            (RELEASE.TAG, "A" * 40), ("../v0.0.7-preview.3", COMMIT)):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 RELEASE.identity(tag, commit)
 
     def test_original_identity_is_fixed_independently_of_builder_report(self):
         self.assertEqual(RELEASE.INPUT, {"bytes": 30720,
-            "sha256": "efbf68988056b7973f14b934d792d87af430a15e7549cdf3a022e261b9aecbfd"})
+            "sha256": "09cf47cc188f140a8bd0e146efce5d9ef63ff10bbaa035c8c557fac32e4a8003"})
         self.assertEqual(RELEASE.PROGRAM, "000400000d5d0006")
         self.assertEqual(set(RELEASE.PUBLIC_FIELDS), set(RELEASE.PUBLIC_FIELDS) - {"commands", "owner_profile"})
 
