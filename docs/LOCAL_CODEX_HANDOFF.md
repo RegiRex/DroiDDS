@@ -28,6 +28,10 @@ trace or projecting original-title evidence onto a private game. -->
   stopped before compilation at `2d55dc7`: Rust's Android target, SDK/NDK, Java
   and an offline dependency were missing. No private Android compilation or
   device test occurred in that attempt.
+- The follow-up on `e76f5d5` failed twice resolving the pinned NDK download
+  hostname. No `env.sh`, Android compilation or device result was produced.
+  Follow the [name-resolution guidance](ANDROID_TITLE_TOOL_SETUP.md#download-name-resolution-failures)
+  instead of repeating the same setup in the same failing network context.
 
 ## Continue setup and compilation
 

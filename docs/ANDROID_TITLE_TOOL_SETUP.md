@@ -57,6 +57,42 @@ sizes and SHA-256 hashes. The Google archives were also checked against their
 official SDK repository metadata; Rust and JDK hashes match official release
 metadata. Setup rejects a checksum mismatch before extraction or execution.
 
+## Download name-resolution failures
+
+<!-- CodexAstraUlt: The owner's local setup failed resolving the NDK download
+host. Separate that process's network context from the cloud's successful build;
+do not prescribe repeated downloads or speculative system network changes. -->
+`Temporary failure in name resolution` means the setup process could not resolve
+a required network hostname, potentially including a configured proxy. This
+message alone does not distinguish local Codex's network context from the
+laptop's DNS or proxy configuration. Successful cloud setup does not validate
+the laptop's connectivity.
+
+If setup has failed this way inside local Codex, the owner can run the same
+setup once in a normal, authorized Nobara terminal. Open Terminal/Konsole in the
+DroiDDS checkout containing `Cargo.toml` and `tools/`, then run:
+
+```bash
+python3 tools/setup_android_title_tools.py \
+  --output "$HOME/droidds-android-tools-1.95.0-r27d"
+```
+
+Use the same output path as the failed attempt. The installer recognizes its
+own failed setup directory and reuses verified completed components. Initial
+setup needs network access for both tool archives and locked Cargo dependencies;
+do not add `--offline` to this first successful setup. Downloading only the NDK
+would leave the remaining components and dependency fetch unresolved.
+
+Wait for `"status": "ready"` and the generated `env.sh`. Local Codex can then
+source that file **in each shell used for build commands** and continue the
+existing consolidated compilation/package/device task. The normal build uses
+offline, locked Cargo dependencies; no new host comparison is needed.
+
+If the normal terminal reports the same DNS error, stop repeating setup and
+retain that output for host-connectivity diagnosis. Do not change DNS servers,
+proxy settings or firewall rules based only on this message. No game sources,
+existing Linux objects or original game files need to be changed.
+
 ## Reuse and verification
 
 <!-- CodexAstraUlt: Make repeat setup bounded and read-only for existing tools;
