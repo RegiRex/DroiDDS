@@ -2,7 +2,7 @@
 
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
-As of **2026-11-02**, the public title-player candidate is
+As of **2026-11-03**, the public title-player candidate is
 **[0.0.7-preview.2](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.7-preview.2)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. Private host preparation,
@@ -31,6 +31,11 @@ input transitions during cooperative yields and falsely successful save-file
 operations. Original native/interpreter guests now exercise actual save IPC and
 fresh-session reads. This advances shared gameplay/save infrastructure while
 Dark Moon's Android boot and owned-title save compatibility remain unqualified.
+The corrected original fixture and preview.3 development APK pass cloud checks.
+The owner's first Android attempt stopped before compilation on missing tools;
+the [isolated setup](ANDROID_TITLE_TOOL_SETUP.md) now supplies those prerequisites
+and passes a complete original APK build. The next local batch can proceed from
+setup through private compilation and device testing using the retained C.
 
 Cloud work now proceeds across those product components in parallel with native
 correctness and scheduler optimization. Another Dark Moon checkpoint is not a

@@ -105,3 +105,13 @@ or device execution was involved. All **37** focused fixture tests pass,
 covering rejected paths/archives, receipt tampering, safe reuse and process
 output/time bounds; the main workflow discovers them with the other
 `tools/tests/test_*.py` files.
+
+<!-- CodexAstraUlt: Confirm the installer supports the complete existing build
+path, including notices, Java, shaders, packaging and signed-asset verification. -->
+The same fresh tools then completed the full original-title compilation and APK
+path at source `ac42b38`: all three authored ARM64 objects, the offline generic
+runtime, Java checks and signed APK audits passed. The four original-only assets
+also passed independent bundle verification. See the
+[integration evidence](builds/0.0.7-input-save-corrections.md#final-cloud-integration-checks).
+This closes the cloud tool-setup check; the private title compilation remains
+the local session's next task.

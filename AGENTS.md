@@ -56,6 +56,12 @@ setup and continue the authorized build, without global installation changes. --
   The current preview.3 development candidate uses authored homebrew-v2 to fix
   startup pitch updates clearing pending DSP flags. Historical v1 reports and
   published preview.2 remain unchanged; private generated title C is unaffected.
+<!-- CodexAstraUlt: Retain the owner's deferred cleanup preference separately
+from the current test prompt; no removals are part of this Android build. -->
+- At version 0.1.0, provide selective local cleanup guidance using
+  docs/HOST_SETUP_CLEANUP.md and actual tool ownership records. The new isolated
+  installation records its components in setup-state.json and receipts/. Do not
+  remove preexisting/shared software or add this deferred task to test prompts.
 
 <!-- CodexAstraUlt: The owner now authorizes development and reuse from multiple
 open-source projects; continue from measured foundation results, not the old
