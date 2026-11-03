@@ -242,6 +242,9 @@ Android task; preserve the existing host library and all earlier evidence.
 Use the current RegiRex/DroiDDS checkout, preserving existing work.
 Read docs/ANDROID_TITLE_BUILD.md and docs/ANDROID_TITLE_CONTRACT.md.
 Reuse the successful private preparation; preserve the completed Linux library.
+First verify all required installed tools, offline dependencies and the chosen
+output/signing locations, so a missing prerequisite is reported before the long
+title compilation begins.
 
 Compile that preparation into a separate ARM64 Android output with the pinned
 installed NDK and default limits. Allow at most four default compilation batches
