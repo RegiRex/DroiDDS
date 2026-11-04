@@ -2,17 +2,18 @@
 
 <!-- CodexAstraUlt: Reuse the completed preparation while keeping host and
 Android artifacts, signing identity and qualification evidence distinct. -->
-The current development candidate is **0.0.8-preview.1**, with explicit install code
-**11** for the original homebrew candidate. The published Thor-tested
-release remains **0.0.7-preview.2/code 9**. The player uses a separate application
-ID, `org.droidds.title.t<program_id>`. Read the
+The current published development candidate is **0.0.8-preview.1/code 11** for
+the original homebrew title. Its local/main/tag gates and independently downloaded
+public assets pass. The owner-tested original **0.0.7-preview.2/code 9** remains
+historical device evidence; the new candidate's device check is pending.
+The player uses a separate application ID, `org.droidds.title.t<program_id>`. Read the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md) for admission and storage
 rules. The owner has now reported Dark Moon's first interactive menu boot on
 Thor, achieving the central 0.0.7 boot objective. This development candidate
 targets audio delivery and timing diagnostics toward 0.0.8's playable segment.
-Local implementation, original APK repackaging and sanitized-bundle gates pass;
-see the [build record](builds/0.0.8-audio-performance-followup.md). Hosted main CI
-and the release workflow remain pending. Playable qualification remains open.
+See the [build record](builds/0.0.8-audio-performance-followup.md) for release
+source `64ff16b`, artifact identities and completed local/main/tag/public-download
+gates. The private update's device result and playable qualification remain open.
 
 An existing successful preparation supplies the same generated C and headers to
 both compilers. Reuse it without regenerating title code. The completed Linux

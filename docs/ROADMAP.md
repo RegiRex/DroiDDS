@@ -2,16 +2,16 @@
 
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
-As of **2026-11-03**, the public title-player candidate is
-**[0.0.7-preview.2](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.7-preview.2)**;
+As of **2026-11-04 UTC**, the public title-player candidate is
+**[0.0.8-preview.1/code 11](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.1)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. The published candidate implements the generic per-title
 Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
-The [candidate build record](builds/0.0.7-android-title-candidate.md) records
-the completed local APK, actual original guest/Vulkan checks and remaining
-qualification scope.
+The [candidate build record](builds/0.0.8-audio-performance-followup.md) records
+release source `64ff16b`, exact public artifact identities and executed gates.
+Device validation of the new candidate and private update remains pending.
 
 <!-- CodexAstraUlt: Record actual private interactive boot as progress into the
 next alpha stage; a menu and an underrun total do not establish playable speed. -->
@@ -24,25 +24,25 @@ and native library and record Native CPU/Vulkan work. Remaining full APK/signing
 identity comes from local build records; no repeated unchanged boot test is
 needed to retrieve it.
 
-The next development candidate is **0.0.8-preview.1/code 11**, targeting audio
+The current development candidate is **0.0.8-preview.1/code 11**, targeting audio
 delivery and timing diagnostics on the path to the first playable segment.
 The two prior reports retain **1,361 and 2,889 audio underruns**, zero reported
 PCM drops and all converted samples written. Their core timing establishes slow
 sample production; the queue correction addresses a separate reproduced defect.
-Local implementation gates, original APK repackaging and sanitized-bundle
-verification pass; hosted main CI and the release workflow remain pending.
+Local implementation gates, original APK repackaging, hosted main/tag CI and
+independent public-download verification pass.
 See the [build record](builds/0.0.8-audio-performance-followup.md) for exact results.
 Gameplay, reliable audio, save/resume and sustained speed remain unqualified;
 the version names development work, not a passed playability milestone.
 
 <!-- CodexAstraUlt: Record the newly supplied original-title device execution
 without turning absent manual observations or private boot into passes. -->
-The [owner's Thor report](device-tests/0.0.7-preview2-thor-title.md) now binds
-the published title artifacts and records native CPU execution, Vulkan draws,
-PCM and pause/resume with no reported runtime failure. The owner separately
-confirms both images, D-pad/A, touch, pause/resume and steady sound. This closes
-the original-title preview's device check; the later private boot is recorded
-separately above.
+The [0.0.7-preview.2 Thor report](device-tests/0.0.7-preview2-thor-title.md) binds
+that historical preview's artifacts and records native CPU execution, Vulkan
+draws, PCM and pause/resume without reported runtime failure. The owner confirmed
+both images, D-pad/A, touch, pause/resume and steady sound for that build. This
+closes its original-title device check, not the new 0.0.8-preview.1 check; the
+later private boot is recorded separately above.
 
 <!-- CodexAstraUlt: Record independently testable gameplay prerequisites while
 the owner's private build proceeds; fixtures do not promote title milestones. -->
@@ -355,8 +355,8 @@ gates; public fixture progress must not silently close the private baseline. -->
    erase its eleven underruns. Keep scheduler/CRO, first-use pipeline-stall and
    sustained-memory work.
 3. Preserve Dark Moon's completed host/Android builds and the first Thor menu
-   result. Finish the 0.0.8-preview.1 audio/timing candidate's cloud gates, then
-   repackage its existing Android library with the same owner key. Preserve the
+   result. The 0.0.8-preview.1 cloud and publication gates pass; now repackage
+   its existing Android library with the same owner key. Preserve the
    latest report before one matched bounded Native menu run. Use the resulting
    timing/PCM evidence to select the next performance correction; do not repeat
    setup, source generation, title compilation or unchanged host reconnaissance.

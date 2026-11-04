@@ -2,15 +2,16 @@
 
 <!-- CodexAstraUlt: Replace the completed setup/compilation/first-boot task with
 repackaging and one matched audio test, retaining all successful title artifacts. -->
-Current task, **2026-11-03**: repackage the completed private Android library with
+Current task, **2026-11-04 UTC**: repackage the completed private Android library with
 the **0.0.8-preview.1** audio/timing development candidate, then run one bounded
 Native menu comparison. Use `RegiRex/DroiDDS` and preserve local work.
 Read [AGENTS.md](../AGENTS.md), the [title contract](ANDROID_TITLE_CONTRACT.md) and
 the [current repackaging procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
-The [local implementation and original APK gates](builds/0.0.8-audio-performance-followup.md)
-pass, including repackaging an existing title compilation and verifying the
-sanitized bundle. Hosted main CI and the release workflow remain pending;
-a candidate version does not qualify a playable game segment.
+The [build and publication gates](builds/0.0.8-audio-performance-followup.md)
+pass: existing-title repackaging, local checks, hosted main/tag CI and independent
+verification of the public original-fixture assets at release source `64ff16b`.
+The new original candidate and private update still need their own device results;
+publication does not qualify a playable game segment.
 
 ## Completed and preserved
 

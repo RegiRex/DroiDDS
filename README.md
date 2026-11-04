@@ -10,21 +10,21 @@ a shared runtime will retain 3DS services, graphics, audio and interpreter fallb
 
 <!-- CodexAstraUlt: Lead with the current product work instead of making readers
 infer progress from the historical probe and private tracing records below. -->
-**[0.0.7-preview.2 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.7-preview.2), the first generic Android title player candidate.**
+**[0.0.8-preview.1 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.1), the current generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest.
 Host, main and release CI pass for that published candidate; the four public
 downloads are independently verified.
-[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.7-preview.2/DroiDDS-0.0.7-preview.2-original-android-arm64.apk).
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.1/DroiDDS-0.0.8-preview.1-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
-The [candidate build record](docs/builds/0.0.7-android-title-candidate.md)
-records the completed original APK and executed host checks.
+The [candidate build record](docs/builds/0.0.8-audio-performance-followup.md)
+records the release source, exact artifact identities and executed gates.
 
-<!-- CodexAstraUlt: Credit the first private menu boot and name the next alpha
-development stage without claiming a playable segment or a new public release. -->
+<!-- CodexAstraUlt: Credit private menu boot separately from the new public
+original-fixture release; neither establishes a qualified playable segment. -->
 **Dark Moon now reaches interactive title and file-selection menus on the Thor
 in the owner's Native test.** The A button responds and the bounded run stopped
 normally with no reported runtime faults. This achieves the central **0.0.7 boot
@@ -33,23 +33,24 @@ retain **1,361 and 2,889 audio underruns**, with zero reported PCM drops and all
 converted samples written. Their core timing establishes slow sample production,
 consistent with the owner's crackling/slow-frame observation.
 
-**0.0.8-preview.1 is the next development candidate**, focused on audio delivery
-and timing diagnostics toward a playable segment. Its local implementation,
-original APK repackaging and sanitized-bundle checks pass; hosted main CI and
-the release workflow remain pending. See the [build record](docs/builds/0.0.8-audio-performance-followup.md)
-for exact results. Gameplay, reliable audio, save/resume and sustained speed
-remain unqualified. The local follow-up [repackages the completed Android
+**0.0.8-preview.1 is the current development candidate**, focused on audio delivery
+and timing diagnostics toward a playable segment. Local implementation, original
+APK repackaging, hosted main/tag gates and independently downloaded public assets
+pass. See the [build record](docs/builds/0.0.8-audio-performance-followup.md) for
+exact results. Device validation of this candidate and the private update remain
+pending; gameplay, reliable audio, save/resume and sustained speed are unqualified.
+The local follow-up [repackages the completed Android
 library](docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test)
 with the existing owner signing identity. No title recompilation is required.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->
-The [owner's Thor title-player report](docs/device-tests/0.0.7-preview2-thor-title.md)
-now records 368,884 native instructions and 5,658 Vulkan draws with no reported
-runtime errors or software raster fallback. The reported title-artifact hashes
-match the published preview. The owner confirms both images, D-pad/A, touch,
-pause/resume and steady sound. That original-title evidence remains distinct
-from the later private Dark Moon result above.
+The [0.0.7-preview.2 Thor report](docs/device-tests/0.0.7-preview2-thor-title.md)
+records 368,884 native instructions and 5,658 Vulkan draws with no reported
+runtime errors or software raster fallback. Its title-artifact hashes match that
+historical preview. The owner confirmed both images, D-pad/A, touch, pause/resume
+and steady sound for that build. Those observations remain separate from the
+new candidate's pending device check and the private Dark Moon result above.
 
 <!-- CodexAstraUlt: Replace planning-only status after the first verified host
 build; keep its small CPU proof separate from Android and game qualification. -->

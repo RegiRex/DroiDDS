@@ -20,8 +20,10 @@ interactive menus; advance to audio/playability work without repeating setup. --
 - The next development candidate is 0.0.8-preview.1/code 11 for audio delivery
   and bounded timing diagnostics. Read docs/builds/0.0.8-audio-performance-followup.md
   for the passed local checks and retained-library original APK repackaging at
-  0a98428. Hosted/publication gates have their own recorded outcomes; the latest
-  verified published original title remains 0.0.7-preview.2 until those complete.
+  0a98428. Main CPU/Android and tag build/publish gates pass; the public
+  0.0.8-preview.1 assets at documentation-only follow-up 64ff16b were independently
+  downloaded and verified. Its original-fixture and private-update device results
+  remain unperformed; the earlier 0.0.7-preview.2 Thor result stays historical.
   Follow docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test.
   Preserve the existing latest title report before another session overwrites
   it. Repackage the completed ARM64 compilation with the same owner key and a
