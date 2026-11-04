@@ -1,0 +1,16 @@
+CodexAstraUlt: Reviewed bounded diagnostic excerpt from the failed Native/Vulkan GPU-vertex trial.
+Source: title-app process log captured after the failure; no restart.
+Driver: Adreno 740, 0676.53; shader compiler E031.41.03.47.
+Process identifiers omitted; private raw log retained locally.
+Repeated lines retained; they do not establish a total pipeline-attempt count.
+
+AdrenoVK-0: Failed to link shaders.
+AdrenoVK-0: Pipeline create failed
+AdrenoVK-0: Shader compilation failed for shaderType: 0
+AdrenoVK-0: Pipeline create failed
+AdrenoVK-0: Failed to link shaders.
+AdrenoVK-0: Pipeline create failed
+AdrenoVK-0: Shader compilation failed for shaderType: 0
+AdrenoVK-0: Pipeline create failed
+AdrenoVK-0: Failed to link shaders.
+AdrenoVK-0: Pipeline create failed
