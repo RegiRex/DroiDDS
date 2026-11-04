@@ -2,15 +2,16 @@
 
 <!-- CodexAstraUlt: Carry the completed code 11 test into a comparison update
 that reuses the compiled title and signer instead of repeating setup. -->
-The next development candidate is **0.0.8-preview.2/code 12**, implementing a
-triangle-allocation correction and explicit CPU/GPU vertex selection. Local unit,
-frontend, actual C ABI and exact original image/PCM checks pass for the required
+The current published development candidate is **0.0.8-preview.2/code 12**,
+implementing a triangle-allocation correction and explicit CPU/GPU vertex selection.
+Local unit, frontend, actual C ABI and exact original image/PCM checks pass for the required
 routes, including normal and forced-static blend. Original APK repackaging and
 four-asset sanitization/independent bundle verification also pass at `fc8db14`,
 reusing the retained ARM64 compilation with inputs verified unchanged. Hosted main
-and tag/publication gates remain pending; see the
-[candidate record](builds/0.0.8-vertex-comparison.md). The latest verified public
-original-title release remains **0.0.8-preview.1/code 11**. The player retains
+and tag build/publish gates pass; public assets at release source `cf31580` were
+independently downloaded and verified. See the
+[candidate record](builds/0.0.8-vertex-comparison.md). The new original-fixture and
+private CPU/GPU Thor checks remain unperformed. The player retains
 application ID `org.droidds.title.t<program_id>` and the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
 
@@ -28,11 +29,10 @@ this update rebuilds the shared player/frontend, not the 521 title objects.
 
 <!-- CodexAstraUlt: Keep this existing anchor stable while replacing the
 completed single audio run with one controlled CPU/GPU vertex comparison. -->
-Preview.2's explicit **cloud CPU/GPU original image/PCM and original APK/package
-gates pass**; complete the remaining hosted and publication checks before the
-local comparison. The Thor
-batch is the device experiment itself; it does not require a separate public
-diagnostic app installation.
+Preview.2's explicit **cloud CPU/GPU image/PCM, original APK/package, hosted and
+publication/download gates pass**. The next step is the compatible private
+repackaging and bounded Thor comparison. That batch is the device experiment
+itself; it does not require a separate public diagnostic app installation.
 The current Automatic setting stays the default. For the deliberate comparison,
 keep guest execution **Native** and change only **vertex shaders: CPU / GPU**
 between the two runs. GPU rasterization remains Vulkan in both cases.

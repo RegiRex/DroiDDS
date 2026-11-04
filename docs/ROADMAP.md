@@ -3,16 +3,17 @@
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
 As of **2026-11-04** (America/New_York), the public title-player candidate is
-**[0.0.8-preview.1/code 11](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.1)**;
+**[0.0.8-preview.2/code 12](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.2)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. The published candidate implements the generic per-title
 Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
-The [candidate build record](builds/0.0.8-audio-performance-followup.md) records
-release source `64ff16b`, exact public artifact identities and executed gates.
-The original candidate's device check remains separate from the
-[reported private code 11 follow-up](device-tests/0.0.8-preview1-dark-moon-thor.md).
+The [candidate build record](builds/0.0.8-vertex-comparison.md) records release
+source `cf31580`, exact public artifact identities and executed gates. The new
+original candidate and private CPU/GPU comparison have no Thor result yet; the
+[reported code 11 follow-up](device-tests/0.0.8-preview1-dark-moon-thor.md) remains
+separate historical evidence.
 
 <!-- CodexAstraUlt: Record actual private interactive boot as progress into the
 next alpha stage; a menu and an underrun total do not establish playable speed. -->
@@ -33,16 +34,17 @@ A later restart replaced its JSON; that separate report is summarized as
 **57.6% command-processing/core time**. Raw restart timing fields have not yet
 been supplied here. Preserve that distinction and the older full-report evidence.
 
-The next development candidate is **0.0.8-preview.2/code 12**. Its triangle
-allocation correction, explicit per-session CPU/GPU choice and bounded path/time
+The current published development candidate is **0.0.8-preview.2/code 12**. Its
+triangle allocation correction, explicit per-session CPU/GPU choice and bounded path/time
 metrics are implemented; Automatic retains the current behavior. Local unit,
 frontend, actual C ABI and original Automatic/CPU/GPU image/audio checks pass,
 including forced-static blend. The original APK repack and four-asset bundle
 verification also pass at `fc8db14`, with the retained compilation and inputs
-preserved. Hosted main and tag/publication gates remain pending; see the
-[candidate record](builds/0.0.8-vertex-comparison.md). No Thor speed gain
-or private GPU rendering result is established by these cloud checks.
-The published preview.1 [build record](builds/0.0.8-audio-performance-followup.md)
+preserved. Hosted main and tag build/publish gates pass; public downloads at
+release source `cf31580` were independently verified. See the
+[candidate record](builds/0.0.8-vertex-comparison.md). No Thor speed gain or private
+GPU rendering result is established by these cloud checks. The earlier preview.1
+[build record](builds/0.0.8-audio-performance-followup.md)
 retains its passed local/main/tag/download gates. Gameplay, reliable audio,
 save/resume and sustained speed remain unqualified.
 
@@ -52,8 +54,8 @@ The [0.0.7-preview.2 Thor report](device-tests/0.0.7-preview2-thor-title.md) bin
 that historical preview's artifacts and records native CPU execution, Vulkan
 draws, PCM and pause/resume without reported runtime failure. The owner confirmed
 both images, D-pad/A, touch, pause/resume and steady sound for that build. This
-closes its original-title device check, not the new 0.0.8-preview.1 check; the
-later private boot is recorded separately above.
+closes its historical original-title device check, not the new 0.0.8-preview.2
+check; later private boot and code 11 observations are recorded separately above.
 
 <!-- CodexAstraUlt: Record independently testable gameplay prerequisites while
 the owner's private build proceeds; fixtures do not promote title milestones. -->
@@ -368,8 +370,8 @@ gates; public fixture progress must not silently close the private baseline. -->
 3. Preserve Dark Moon's completed host/Android builds and code 11 menu evidence.
    Keep the overwritten 110-second test separate from the later restart's 57.6%
    command-processing summary. Preview.2's local triangle and explicit vertex
-   route and original APK/package gates pass; complete hosted/publication gates,
-   then consolidate its compatible private repackaging/device comparison.
+   route, original APK/package, hosted/publication and downloaded-asset gates
+   pass. Consolidate its compatible private repackaging/device comparison.
    Export each report immediately before another restart. Do not repeat setup,
    source generation, title compilation or unchanged host reconnaissance.
 

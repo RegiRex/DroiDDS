@@ -2,14 +2,16 @@
 
 <!-- CodexAstraUlt: Replace the completed code 11 audio task with one bounded
 comparison that keeps the existing title library, signer and surviving evidence. -->
-Current task, **2026-11-04** (America/New_York): after the remaining hosted and
-publication gates pass, repackage the completed private ARM64 library with
-**0.0.8-preview.2** and run one bounded CPU/GPU vertex comparison. Its local unit,
-frontend, actual C ABI and exact Automatic/CPU/GPU image/audio gates pass under
-normal and forced-static blend. The original APK repack and four-asset bundle
+Current task, **2026-11-04** (America/New_York): repackage the completed private
+ARM64 library with published **0.0.8-preview.2/code 12** and run one bounded CPU/GPU
+vertex comparison. Its local unit, frontend, actual C ABI and exact
+Automatic/CPU/GPU image/audio gates pass under normal and forced-static blend.
+The original APK repack and four-asset bundle
 verification also pass at `fc8db14`, reusing the retained ARM64 compilation with
-inputs verified unchanged. Hosted main and tag/publication checks remain pending;
-the latest verified public release is preview.1. Read
+inputs verified unchanged. Hosted main and tag build/publish gates pass, and the
+public assets at release source `cf31580` were independently downloaded and
+verified. The new original candidate and private CPU/GPU comparison remain
+untested on Thor; the code 11 summary is historical. Read
 [AGENTS.md](../AGENTS.md), the [candidate record](builds/0.0.8-vertex-comparison.md)
 and the [current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
 
@@ -34,12 +36,11 @@ for another reset; preserve all remaining saves and imports.
 
 <!-- CodexAstraUlt: The cloud original-route gate precedes the private device
 experiment; an unrelated public diagnostic APK is not a prerequisite. -->
-Explicit CPU/GPU original-image/PCM and original APK/package checks have passed
-in the cloud; finish hosted and publication gates before the private comparison.
-No separate
-public original app installation is required. Reuse the successful tools,
-preparation, ARM64 directory with
-`compiled-manifest.json` and existing owner signing profile. Package a compatible
+Explicit CPU/GPU original-image/PCM, original APK/package, hosted/publication
+and independent public-download checks have passed. No separate public original
+app installation is required for the private comparison. Reuse the successful
+tools, preparation, ARM64 directory with `compiled-manifest.json`, and existing
+owner signing profile. Package a compatible
 update with the same package/certificate and a version code above the installed
 one, **at least 12**. Neither generated game C nor the 521 title objects needs
 recompilation.

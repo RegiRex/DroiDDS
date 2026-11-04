@@ -28,7 +28,7 @@ restart summary, and progress from completed code 11 testing into route analysis
   not join that percentage to the 110-second duration or earlier speed bounds.
   Preserve the surviving report without another unchanged run. The owner's
   reported intentional save deletion is historical, not permission to repeat it.
-- The next development candidate is 0.0.8-preview.2/code 12. Read
+- The current published development candidate is 0.0.8-preview.2/code 12. Read
   docs/builds/0.0.8-vertex-comparison.md for the triangle-allocation correction,
   explicit Automatic/CPU/GPU vertex comparison and required route gates. The
   current Automatic behavior stays the default; native guest ARM and PICA vertex
@@ -43,9 +43,11 @@ restart summary, and progress from completed code 11 testing into route analysis
   distinguish requested policy from actual work. The original APK repack and
   four-asset sanitization/independent bundle verification pass at fc8db14, reusing
   the retained ARM64 compilation with preserved_inputs_verified=true. Hosted main
-  and tag/publication gates remain pending. The latest verified public release
-  is 0.0.8-preview.1 at 64ff16b;
-  its original-fixture device gate remains separate from the private code 11 run.
+  and tag build/publish gates pass; the public assets at documentation-only tag
+  source cf31580e666d284c4776a5544fd010e97bd3f364 were independently downloaded and
+  verified. The new original-fixture and private CPU/GPU Thor results remain
+  unperformed. Preserve the code 11 summary as historical evidence, not a result
+  for this new comparison.
   Repackage the retained ARM64 library with the same owner key and an install code
   above the installed one, at least 12; no setup, preparation, Linux/Android title
   compilation or permission reconfiguration. Passing explicit cloud CPU/GPU

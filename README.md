@@ -10,18 +10,18 @@ a shared runtime will retain 3DS services, graphics, audio and interpreter fallb
 
 <!-- CodexAstraUlt: Lead with the current product work instead of making readers
 infer progress from the historical probe and private tracing records below. -->
-**[0.0.8-preview.1 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.1), the current generic Android title player candidate.**
+**[0.0.8-preview.2/code 12 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.2), the current generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest.
 Host, main and release CI pass for that published candidate; the four public
 downloads are independently verified.
-[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.1/DroiDDS-0.0.8-preview.1-original-android-arm64.apk).
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.2/DroiDDS-0.0.8-preview.2-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
-The [candidate build record](docs/builds/0.0.8-audio-performance-followup.md)
-records the release source, exact artifact identities and executed gates.
+The [candidate build record](docs/builds/0.0.8-vertex-comparison.md) records
+release source `cf31580`, exact public artifact identities and executed gates.
 
 <!-- CodexAstraUlt: Credit private menu boot separately from the new public
 original-fixture release; neither establishes a qualified playable segment. -->
@@ -48,11 +48,13 @@ image/audio oracles for Automatic, CPU and GPU under normal and forced-static
 blend. Bounded CPU batch timing and actual rendering-path counters separate
 policy from work. The original APK repack and four-asset bundle checks also pass
 at `fc8db14`, reusing the retained ARM64 compilation with inputs verified unchanged.
-Hosted main and tag/publication gates remain pending; see the
-[candidate record](docs/builds/0.0.8-vertex-comparison.md). The private update
-reuses the completed Android library and owner signer. No Thor improvement is
-yet measured; gameplay, reliable audio, save/resume and sustained speed remain
-unqualified.
+Hosted main and tag build/publish gates pass, and the public assets at release
+source `cf31580` were independently downloaded and verified; see the
+[candidate record](docs/builds/0.0.8-vertex-comparison.md). The new original
+candidate and private CPU/GPU comparison have no Thor result yet. The private
+update reuses the completed Android library and owner signer. No device speed
+gain is measured; gameplay, reliable audio, save/resume and sustained speed
+remain unqualified.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->
