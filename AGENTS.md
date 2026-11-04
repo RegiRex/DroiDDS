@@ -18,8 +18,10 @@ interactive menus; advance to audio/playability work without repeating setup. --
   established; Java queue loss is not evidenced in these runs. Do not request
   another unchanged boot merely to obtain already supplied counters.
 - The next development candidate is 0.0.8-preview.1/code 11 for audio delivery
-  and bounded timing diagnostics. Cloud validation and publication need their
-  own recorded gates; the published original title remains 0.0.7-preview.2.
+  and bounded timing diagnostics. Read docs/builds/0.0.8-audio-performance-followup.md
+  for the passed local checks and retained-library original APK repackaging at
+  0a98428. Hosted/publication gates have their own recorded outcomes; the latest
+  verified published original title remains 0.0.7-preview.2 until those complete.
   Follow docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test.
   Preserve the existing latest title report before another session overwrites
   it. Repackage the completed ARM64 compilation with the same owner key and a

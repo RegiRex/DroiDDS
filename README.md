@@ -28,12 +28,16 @@ development stage without claiming a playable segment or a new public release. -
 **Dark Moon now reaches interactive title and file-selection menus on the Thor
 in the owner's Native test.** The A button responds and the bounded run stopped
 normally with no reported runtime faults. This achieves the central **0.0.7 boot
-objective**. The [device record](docs/device-tests/0.0.7-dark-moon-thor-menu.md)
-also retains 1,361 audio underruns and the owner's crackling/slow-frame observation.
+objective**. The [two device reports](docs/device-tests/0.0.7-dark-moon-thor-menu.md)
+retain **1,361 and 2,889 audio underruns**, with zero reported PCM drops and all
+converted samples written. Their core timing establishes slow sample production,
+consistent with the owner's crackling/slow-frame observation.
 
 **0.0.8-preview.1 is the next development candidate**, focused on audio delivery
-and timing diagnostics toward a playable segment. Cloud validation is pending
-its recorded gates; gameplay, reliable audio, save/resume and sustained speed
+and timing diagnostics toward a playable segment. Its local implementation,
+original APK repackaging and sanitized-bundle checks pass; hosted main CI and
+the release workflow remain pending. See the [build record](docs/builds/0.0.8-audio-performance-followup.md)
+for exact results. Gameplay, reliable audio, save/resume and sustained speed
 remain unqualified. The local follow-up [repackages the completed Android
 library](docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test)
 with the existing owner signing identity. No title recompilation is required.

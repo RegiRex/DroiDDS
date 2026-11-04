@@ -7,8 +7,10 @@ the **0.0.8-preview.1** audio/timing development candidate, then run one bounded
 Native menu comparison. Use `RegiRex/DroiDDS` and preserve local work.
 Read [AGENTS.md](../AGENTS.md), the [title contract](ANDROID_TITLE_CONTRACT.md) and
 the [current repackaging procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
-Cloud validation of this new candidate is pending its recorded gates; a candidate
-version does not qualify a playable game segment.
+The [local implementation and original APK gates](builds/0.0.8-audio-performance-followup.md)
+pass, including repackaging an existing title compilation and verifying the
+sanitized bundle. Hosted main CI and the release workflow remain pending;
+a candidate version does not qualify a playable game segment.
 
 ## Completed and preserved
 
@@ -39,8 +41,8 @@ Linux/Android title compilation is part of this update.
 
 <!-- CodexAstraUlt: Save the previous single-file report before a new session,
 and reuse the existing signer for an update that retains the app's data. -->
-Preserve the prior build/device summaries and exported title JSON. If the app
-has the only copy of its latest report, export it before starting another session:
+Preserve the prior build/device summaries and both exported title JSON reports.
+If the app has the only copy of its latest report, export it before starting another session:
 `files/latest-title-report.json` is replaced by later sessions.
 
 Use the successful build's existing tool environment, validated preparation,

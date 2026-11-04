@@ -9,9 +9,10 @@ ID, `org.droidds.title.t<program_id>`. Read the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md) for admission and storage
 rules. The owner has now reported Dark Moon's first interactive menu boot on
 Thor, achieving the central 0.0.7 boot objective. This development candidate
-targets audio delivery and timing diagnostics toward 0.0.8's playable segment;
-cloud validation is pending its recorded gates, and playable qualification
-remains open.
+targets audio delivery and timing diagnostics toward 0.0.8's playable segment.
+Local implementation, original APK repackaging and sanitized-bundle gates pass;
+see the [build record](builds/0.0.8-audio-performance-followup.md). Hosted main CI
+and the release workflow remain pending. Playable qualification remains open.
 
 An existing successful preparation supplies the same generated C and headers to
 both compilers. Reuse it without regenerating title code. The completed Linux
@@ -25,12 +26,15 @@ reuses every validated Android object and preserves the previous device report. 
 Dark Moon's **521 Android objects, linked library and first private APK are now
 complete**. The [owner's Thor run](device-tests/0.0.7-dark-moon-thor-menu.md)
 reached Native title/file menus and responded to A, then stopped normally with
-no reported runtime faults. Its 1,361 underruns and audible crackling/slow frame
-progression remain the baseline. The earlier setup and device-access blockers
+no reported runtime faults. The two supplied reports retain **1,361 and 2,889
+underruns**, zero PCM drops and all converted samples written. Core timing
+establishes slow sample production, consistent with the audible crackling/slow
+frame progression. These remain the baseline; the queue correction addresses a
+separate reproduced bug. The earlier setup and device-access blockers
 are superseded; do not repeat setup, title preparation, Linux/Android title
 compilation or permission configuration for this follow-up.
 
-First preserve the existing exported JSON and local build/device summaries. If
+First preserve both exported JSON reports and the local build/device summaries. If
 the latest title report exists only in the app, export it **before** starting
 another session: the app keeps one `files/latest-title-report.json` and replaces
 it on subsequent sessions. Existing records supply artifact identity and raw

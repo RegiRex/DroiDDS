@@ -19,16 +19,21 @@ The [owner's Dark Moon result](device-tests/0.0.7-dark-moon-thor-menu.md) now re
 all **521 Android objects** and a private APK completed, followed by Native title
 and file-selection menus on the Thor, a responding A button and normal stop with
 no reported runtime faults. This achieves the central **0.0.7 first owned-game
-boot objective**. Existing reports will supply detailed artifact/fallback data;
-no repeated unchanged boot test is needed to retrieve it.
+boot objective**. Both supplied JSON reports bind the admitted input, manifest
+and native library and record Native CPU/Vulkan work. Remaining full APK/signing
+identity comes from local build records; no repeated unchanged boot test is
+needed to retrieve it.
 
 The next development candidate is **0.0.8-preview.1/code 11**, targeting audio
 delivery and timing diagnostics on the path to the first playable segment.
-The prior run's **1,361 audio underruns**, crackling and slow visible progression
-remain unresolved device evidence. Cloud validation of the new candidate is
-pending its recorded gates. Gameplay, reliable audio, save/resume and sustained
-speed remain unqualified; the version names development work, not a passed
-playability milestone.
+The two prior reports retain **1,361 and 2,889 audio underruns**, zero reported
+PCM drops and all converted samples written. Their core timing establishes slow
+sample production; the queue correction addresses a separate reproduced defect.
+Local implementation gates, original APK repackaging and sanitized-bundle
+verification pass; hosted main CI and the release workflow remain pending.
+See the [build record](builds/0.0.8-audio-performance-followup.md) for exact results.
+Gameplay, reliable audio, save/resume and sustained speed remain unqualified;
+the version names development work, not a passed playability milestone.
 
 <!-- CodexAstraUlt: Record the newly supplied original-title device execution
 without turning absent manual observations or private boot into passes. -->
@@ -230,7 +235,7 @@ start ownership, memory bounds and mobile compatibility before game workloads. -
 | **0.0.4 — qualify the runtime foundation** | Complete for its bounded diagnostic scope: eight CPU fixtures, code-safety controls, Vulkan capability/backend operations and New 3DS audit. The owner's Thor report passes. | Native/interpreter and safety controls, required Vulkan capabilities and exact graphics/compute output passed on the Thor. Its optional dynamic blend/logic states are absent. This version does not execute PICA, full scheduler/CRO behavior or a game. |
 | **0.0.5 — integrate the runtime** | Published and downloads verified: selected Zakuro loader/services/PICA, original NCCH guest in three execution routes, actual New/Old loader/kernel corrections, compiler conditional-flow budget correction, bounded shader work and retained resources. Required host/CI gates and the bounded Thor runtime report pass. | Exact PICA output and native/interpreter work, observed Vulkan execution, static-state device rendering, five device memory layouts and code guards pass. The Thor uses CPU vertex shading with Vulkan rasterization; the CPU PICA JIT remains disabled. Private Linux baselines remain open because no retail inputs are present; this public probe does not close M3 or the remaining M2 cold-stall/sustained-memory gates. |
 | **0.0.6 — visible Android 3DS application** | Published and downloads verified; local/main/tag CI gates pass: original NCCH HID/GSP/DSP guest; three-route image/PCM oracles; stacked 400×240 and 320×240 views with D-pad/A/touch, resampled guest audio and session lifecycle. CPU readback/Bitmap/Canvas presents actual Vulkan-rasterized guest images on one Android display. The corrected Thor run observes both views/sound, 42 touch frames and six view replacements. | Local automatic, package, FFI and JVM logic gates pass. The corrected device run covers touch, pause/resume, view replacement and normal exit. The owner confirms steady audio; historical A evidence is carried separately because this run omitted A. This combined evidence supports 0.0.7 development, while the standalone latest report remains pending for A. Automatic success alone cannot qualify this manual gate or permit 0.0.7 promotion. This does not qualify physical dual-display output, direct Vulkan presentation or a retail title. |
-| **0.0.7 — first owned-game boot on Android** | Central boot objective observed: the owner completed all 521 Android objects and the private APK, reached Dark Moon title/file menus in Native mode on Thor and confirmed A-button response and normal stop without reported runtime faults. | Retain exact title/APK/signing identity and native/fallback measurements from existing reports. Preserve safe wrong-revision rejection and compatible-update/app-data checks. No unchanged boot replay is needed merely to supply those records. The menu result does not qualify sustained playability; 1,361 underruns remain recorded. |
+| **0.0.7 — first owned-game boot on Android** | Central boot objective observed: the owner completed all 521 Android objects and the private APK, reached Dark Moon title/file menus in Native mode on Thor and confirmed A-button response and normal stop without reported runtime faults. Both JSON reports bind admitted title/library identity and Native/Vulkan work. | Retain full APK/signing identity from existing build records and preserve safe wrong-revision rejection and compatible-update/app-data checks. No unchanged boot replay is needed merely to supply those records. The menu result does not qualify sustained playability; the two reports retain 1,361/2,889 underruns with zero PCM drops, establishing slow production through core timing. |
 | **0.0.8 — first playable game segment** | Make one defined control-title route repeatably playable with controls, touch, audio, saving/loading and lifecycle recovery. Fix reproducible CPU/service/PICA problems. Continue Dark Moon moon/ghost/opening diagnosis and targeted corrections. | The same gameplay route can be played, saved, exited normally and resumed on the Thor at 1× with correct output. Compare native/interpreter and graphics paths where relevant. A title screen or a single cutscene is insufficient. Report Dark Moon's visual, speed and crash status separately. |
 | **0.0.9 — sustained and cold-run qualification** | Stress the existing resource limits, cold generic-rendering coverage, cache handling, logging cost and repeated teardown. Optimize measured bottlenecks. Measure 1× first, then 2×/4×; qualify Thor display options separately. | Required draws survive delayed/failed/full shader workers. Memory settles during the chosen workload and recovers over normal exits. Collect repeated frame-time/speed/audio/thermal evidence and a 30-minute route. Record which resolutions meet the playability target and which remain limited. Limits and safe cleanup are strengthened here, not introduced for the first time. |
 | **0.1.0 — limited first beta** | Deliver the usable Android runtime plus repeatable local title-building instructions, stable updates/saves and a measured compatibility list. | At least one explicitly named owned title/revision has repeatable playable gameplay on the tested Thor configuration, including the sustained route and save/restart tests below. Publish exact supported scope, known failures, resolution results and Dark Moon status. Full-library compatibility is not implied. |
