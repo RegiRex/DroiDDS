@@ -694,13 +694,16 @@ fn shade_with<T: Send>(
     inputs: &[[Vec4; shader::INPUT_REGISTERS]],
     then: impl Fn([Vec4; shader::OUTPUT_REGISTERS]) -> T + Sync,
 ) -> Vec<T> {
+    // CodexAstraUlt: Pack completed batches directly into smaller raster
+    // vertices instead of a draw-sized register vector; full-width geometry
+    // retains its old path. Keep parallel thresholds, chunking and ordering.
     if inputs.len() < PARALLEL_VERTICES {
-        return shader::run_vertices(unit, inputs).into_iter().map(then).collect();
+        return shader::run_vertices_with(unit, inputs, then);
     }
     // a few chunks a thread, handing out many small ones costs more than
     // the threads waiting on the last
     let chunk = (inputs.len() / (rayon::current_num_threads() * 4)).next_multiple_of(8).max(PARALLEL_CHUNK);
-    inputs.par_chunks(chunk).flat_map_iter(|chunk| shader::run_vertices(unit, chunk).into_iter().map(&then)).collect()
+    inputs.par_chunks(chunk).flat_map_iter(|chunk| shader::run_vertices_with(unit, chunk, &then)).collect()
 }
 
 fn geometry_stage(
@@ -2849,6 +2852,42 @@ mod tests {
     const RED: Vec4 = [1.0, 0.0, 0.0, 1.0];
     const GREEN: Vec4 = [0.0, 1.0, 0.0, 1.0];
     const BLUE: Vec4 = [0.0, 0.0, 1.0, 1.0];
+
+    // CodexAstraUlt: Direct output packing must preserve every input's position
+    // and constant color on both sides of the unchanged parallel threshold,
+    // including the last partial chunk and SIMD batch.
+    #[test]
+    fn mapped_vertex_packing_preserves_serial_and_parallel_order() {
+        const IDENTITY: u32 = 0x1B << 5 | 0x1B << 14 | 0x1B << 23;
+        let mut unit = ShaderUnit::new();
+        unit.descriptors[0] = 0xF | IDENTITY;
+        let mov = |destination: u32, source: u32| 0x13 << 26 | destination << 21 | source << 12;
+        unit.program[..3].copy_from_slice(&[mov(0, 0), mov(2, 0x20), 0x22 << 26]);
+        unit.float_uniforms[0] = [0.25, 0.5, 0.75, 1.0];
+        unit.prepare();
+        let mut registers = target_registers();
+        registers[REG_SHADER_OUTPUT_TOTAL] = 2;
+        registers[REG_SHADER_OUTPUT_MAP] = 0x0302_0100;
+        registers[REG_SHADER_OUTPUT_MAP + 1] = 0x0B0A_0908;
+        registers[REG_VS_OUTPUT_MASK] = 0b101;
+        let map = read_output_map(&registers);
+        let all_inputs: Vec<_> = (0..PARALLEL_VERTICES * 2 + 17).map(|i| {
+            let mut input = [shader::ZERO; shader::INPUT_REGISTERS];
+            input[0] = [i as f32, -(i as f32), -0.5, 1.0];
+            input
+        }).collect();
+        for count in [0, 7, 9, PARALLEL_VERTICES - 1, PARALLEL_VERTICES, PARALLEL_VERTICES + 1, all_inputs.len()] {
+            let packed = shade_with(&unit, &all_inputs[..count], |outputs| {
+                to_vertex(&map, &pack_outputs(&outputs, registers[REG_VS_OUTPUT_MASK]))
+            });
+            assert_eq!(packed.len(), count);
+            for (i, vertex) in packed.iter().enumerate() {
+                assert_eq!(vertex.clip.map(f32::to_bits), all_inputs[i][0].map(f32::to_bits));
+                assert_eq!(vertex.color.map(f32::to_bits), unit.float_uniforms[0].map(f32::to_bits));
+                assert_eq!(vertex.texcoords, [[0.0; 2]; 3]);
+            }
+        }
+    }
 
     // CodexAstraUlt: An indexed-order batch counts unique shader inputs, while
     // already-shaded draws and cache invalidation neither recount nor erase it.

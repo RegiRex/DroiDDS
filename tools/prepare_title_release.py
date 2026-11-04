@@ -19,19 +19,19 @@ from prepare_probe_release import bounded_file, exact_fields, require_values, si
 
 # CodexAstraUlt: This release policy intentionally admits one authored input,
 # not arbitrary title packages bearing a diagnostic flag or familiar program ID.
-# The v2 authored guest stays unchanged for the vertex-path comparison;
+# The v2 authored guest stays unchanged for the pipeline and CPU-output follow-up;
 # private menu evidence never authorizes retail-derived public assets.
-TAG = "v0.0.8-preview.2"
-VERSION = "0.0.8-preview.2"
+TAG = "v0.0.8-preview.3"
+VERSION = "0.0.8-preview.3"
 PROGRAM = "000400000d5d0006"
 APK_SOURCE = "droidds-title.apk"
-APK_NAME = "DroiDDS-0.0.8-preview.2-original-android-arm64.apk"
+APK_NAME = "DroiDDS-0.0.8-preview.3-original-android-arm64.apk"
 NOTICE = "THIRD_PARTY_NOTICES.txt"
 INPUT = {"bytes": 30720, "sha256": "09cf47cc188f140a8bd0e146efce5d9ef63ff10bbaa035c8c557fac32e4a8003"}
 MIB = 1024 * 1024
 MAX_APK = 128 * MIB
 PACKAGE = "org.droidds.title.t" + PROGRAM
-MANIFEST = {"package": PACKAGE, "version_code": 12, "version_name": VERSION,
+MANIFEST = {"package": PACKAGE, "version_code": 13, "version_name": VERSION,
             "debuggable": True, "test_only": False, "minimum_api": 29, "target_api": 35}
 PREPARED = {
     "container": "ncch", "ncch_format_version": 0, "remaster_version": 0,

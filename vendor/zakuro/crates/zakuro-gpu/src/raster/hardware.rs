@@ -1001,7 +1001,9 @@ enum Made {
     /// the SPIR-V and the source it came from, which programs that run
     /// the same share a module by.
     Translated(ProgramKey, Result<(Vec<u32>, String), String>),
-    Compiled(PipelineKey, Result<vk::Pipeline, String>),
+    // CodexAstraUlt: Preserve the driver's numeric result until the owner can
+    // associate the failed attempt with its exact stages and pipeline state.
+    Compiled(PipelineKey, Result<vk::Pipeline, vk::Result>),
 }
 
 // CodexAstraUlt: Admission limits bound this diagnostic integration's retained
@@ -1047,6 +1049,124 @@ impl Admission {
     }
 }
 
+/// CodexAstraUlt: Identify a module without retaining or exposing its bytes.
+/// FNV-1a is a stable diagnostic fingerprint, not a security/authenticity hash.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ShaderModuleIdentity {
+    pub byte_count: usize,
+    pub fnv1a64: String,
+}
+
+impl ShaderModuleIdentity {
+    fn from_bytes(bytes: impl Iterator<Item = u8>, byte_count: usize) -> Self {
+        let hash = bytes.fold(0xcbf2_9ce4_8422_2325u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3)
+        });
+        Self { byte_count, fnv1a64: format!("{hash:016x}") }
+    }
+
+    fn spirv_bytes(bytes: &[u8]) -> Self {
+        Self::from_bytes(bytes.iter().copied(), bytes.len())
+    }
+
+    fn spirv_words(words: &[u32]) -> Self {
+        Self::from_bytes(words.iter().flat_map(|word| word.to_le_bytes()), words.len() * 4)
+    }
+}
+
+/// CodexAstraUlt: One failed creation attempt, including the *attempted*
+/// generic/translated stages rather than the draw's originally requested route.
+/// These fixed fields contain no guest program, attribute data or raw handles.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct PipelineFailure {
+    pub vk_result: i32,
+    pub vertex_stage: &'static str,
+    pub fragment_mode: &'static str,
+    pub fragment_depth: &'static str,
+    pub vertex_spirv: Option<ShaderModuleIdentity>,
+    pub fragment_spirv: Option<ShaderModuleIdentity>,
+    pub color_format: i32,
+    pub depth_format: i32,
+    pub blend: Option<u32>,
+    pub logic_op: Option<i32>,
+    pub color_mask: u32,
+    pub depth_attachment: bool,
+    pub dynamic_blend: bool,
+    pub dynamic_logic_op: bool,
+    pub creation_flags: u32,
+    pub fragment_specialization: [u32; FRAGMENT_CONSTANTS],
+}
+
+// CodexAstraUlt: Centralize the exact attempted-state projection so original
+// tests can distinguish generic/translated and static/dynamic failures without
+// provoking undefined Vulkan calls or relying on a driver to reject a shader.
+impl PipelineFailure {
+    fn from_key(
+        key: &PipelineKey,
+        dynamic: Dynamic,
+        flags: vk::PipelineCreateFlags,
+        error: vk::Result,
+        [vertex_spirv, fragment_spirv]: [Option<ShaderModuleIdentity>; 2],
+    ) -> Self {
+        Self {
+            vk_result: error.as_raw(),
+            vertex_stage: match key.vertex {
+                VertexStage::Placed => "placed",
+                VertexStage::Interpreted => "interpreted",
+                VertexStage::Translated(_) => "translated",
+            },
+            fragment_mode: if key.fragment[FRAGMENT_CONSTANTS - 1] == 0 { "specialized" } else { "generic" },
+            fragment_depth: if key.fragment[28] & WRITES_DEPTH == 0 { "rasterized" } else { "shader_written" },
+            vertex_spirv,
+            fragment_spirv,
+            color_format: COLOR_FORMAT.as_raw(),
+            depth_format: if key.depth { DEPTH_FORMAT.as_raw() } else { vk::Format::UNDEFINED.as_raw() },
+            blend: key.blend,
+            logic_op: key.logic_op.map(|op| logic_op(op).as_raw()),
+            color_mask: key.mask,
+            depth_attachment: key.depth,
+            dynamic_blend: dynamic.blend,
+            dynamic_logic_op: dynamic.logic_op,
+            creation_flags: flags.as_raw(),
+            fragment_specialization: key.fragment,
+        }
+    }
+}
+
+// CodexAstraUlt: Contexts remain distinct because a background result is
+// observed when collected, not necessarily in the driver's chronological order.
+#[derive(Debug, Clone, Copy)]
+enum PipelineAttempt {
+    Foreground,
+    Background,
+    CacheProbe,
+}
+
+/// CodexAstraUlt: Retain only the first meaningful observation in each of three
+/// contexts; later fallback/errors cannot overwrite the initial evidence.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+pub struct PipelineFailures {
+    pub foreground: Option<PipelineFailure>,
+    pub background: Option<PipelineFailure>,
+    pub cache_probe: Option<PipelineFailure>,
+}
+
+impl PipelineFailures {
+    fn record(&mut self, attempt: PipelineAttempt, error: vk::Result, failure: impl FnOnce() -> PipelineFailure) {
+        if matches!(attempt, PipelineAttempt::CacheProbe) && error == vk::Result::PIPELINE_COMPILE_REQUIRED {
+            return;
+        }
+        let slot = match attempt {
+            PipelineAttempt::Foreground => &mut self.foreground,
+            PipelineAttempt::Background => &mut self.background,
+            PipelineAttempt::CacheProbe => &mut self.cache_probe,
+        };
+        if slot.is_none() {
+            *slot = Some(failure());
+        }
+    }
+}
+
 /// CodexAstraUlt: Bounded lifetime evidence distinguishes successful Vulkan
 /// rendering from an accurate software fallback. These are counts, not a memory
 /// measurement or proof of whole-renderer memory boundedness.
@@ -1085,6 +1205,9 @@ pub struct HardwareDiagnostics {
     // actual draw paths; geometry-shader draws can still arrive already placed.
     pub vertex_shading_policy: VertexShading,
     pub last_error: Option<String>,
+    // CodexAstraUlt: Failed Vulkan creation needs stage/state evidence even
+    // when the asynchronous compiler-failure counter remains zero.
+    pub pipeline_failures: PipelineFailures,
 }
 
 // CodexAstraUlt: Resolve policy without mutating process environment. Automatic
@@ -1329,7 +1452,7 @@ fn compile_pipeline(
     key: &PipelineKey,
     flags: vk::PipelineCreateFlags,
     dynamic: Dynamic,
-) -> Result<vk::Pipeline, String> {
+) -> Result<vk::Pipeline, vk::Result> {
     let entries: Vec<vk::SpecializationMapEntry> = (0..FRAGMENT_CONSTANTS as u32)
         .map(|id| vk::SpecializationMapEntry::default().constant_id(id).offset(id * 4).size(4))
         .collect();
@@ -1447,7 +1570,7 @@ fn compile_pipeline(
     // returns
     unsafe { device.create_graphics_pipelines(cache, &[info], None) }
         .map(|pipelines| pipelines[0])
-        .map_err(|(_, error)| format!("could not create a pipeline, {error}"))
+        .map_err(|(_, error)| error)
 }
 
 pub struct Hardware {
@@ -1490,6 +1613,9 @@ pub struct Hardware {
     /// the modules made, by their source, which programs differing only in
     /// words they never run share, and so their pipelines.
     modules: HashMap<String, vk::ShaderModule>,
+    // CodexAstraUlt: Small identities share the existing bounded module
+    // lifetime; hashes are computed at creation, never on a successful draw.
+    module_identities: QuickMap<vk::ShaderModule, ShaderModuleIdentity>,
     // CodexAstraUlt: Host source plus SPIR-V admission accounting, without
     // treating unknown driver-side module allocations as measured bytes.
     shader_bytes: usize,
@@ -1794,6 +1920,12 @@ impl Hardware {
                 translated: QuickMap::default(),
                 last_translation: None,
                 modules: HashMap::new(),
+                module_identities: [
+                    (vertex_shader, ShaderModuleIdentity::spirv_bytes(VERTEX_SPIRV)),
+                    (fragment_shader, ShaderModuleIdentity::spirv_bytes(FRAGMENT_SPIRV)),
+                    (depth_fragment_shader, ShaderModuleIdentity::spirv_bytes(FRAGMENT_DEPTH_SPIRV)),
+                    (shade_shader, ShaderModuleIdentity::spirv_bytes(SHADE_SPIRV)),
+                ].into_iter().collect(),
                 shader_bytes: 0,
                 limits: Limits::default(),
                 diagnostics: HardwareDiagnostics { vertex_shading_policy: policy, ..HardwareDiagnostics::default() },
@@ -3000,6 +3132,19 @@ impl Hardware {
         self.diagnostics.last_error = Some(format!("DroidDS renderer resource budget reached: {detail}"));
     }
 
+    // CodexAstraUlt: Construct a fixed snapshot only after a meaningful driver
+    // failure and only if this context has no earlier observation. Background
+    // snapshots use the same key that the worker actually attempted.
+    fn pipeline_failed(&mut self, attempt: PipelineAttempt, key: &PipelineKey, flags: vk::PipelineCreateFlags, error: vk::Result) {
+        let vertex = self.vertex_module(key.vertex);
+        let fragment = fragment_module(self.fragment_modules(), key);
+        let identities = &self.module_identities;
+        let dynamic = self.dynamic;
+        self.diagnostics.pipeline_failures.record(attempt, error, || {
+            PipelineFailure::from_key(key, dynamic, flags, error, [identities.get(&vertex).cloned(), identities.get(&fragment).cloned()])
+        });
+    }
+
     fn pipeline(&mut self, key: PipelineKey) -> Result<vk::Pipeline, String> {
         if let Some(&pipeline) = self.pipelines.get(&key) {
             return Ok(pipeline);
@@ -3021,7 +3166,10 @@ impl Hardware {
             &key,
             vk::PipelineCreateFlags::empty(),
             self.dynamic,
-        )?;
+        ).map_err(|error| {
+            self.pipeline_failed(PipelineAttempt::Foreground, &key, vk::PipelineCreateFlags::empty(), error);
+            format!("could not create a pipeline, {error}")
+        })?;
         log::debug!(
             target: "zakuro_gpu::pipelines",
             "compiled pipeline {} on the draw in {:.1} ms",
@@ -3043,7 +3191,13 @@ impl Hardware {
         let modules = [self.vertex_module(key.vertex), fragment_module(self.fragment_modules(), &key)];
         let started = std::time::Instant::now();
         let flags = vk::PipelineCreateFlags::FAIL_ON_PIPELINE_COMPILE_REQUIRED;
-        let pipeline = compile_pipeline(&self.device, self.pipeline_cache, self.layout, modules, &key, flags, self.dynamic).ok()?;
+        let pipeline = match compile_pipeline(&self.device, self.pipeline_cache, self.layout, modules, &key, flags, self.dynamic) {
+            Ok(pipeline) => pipeline,
+            Err(error) => {
+                self.pipeline_failed(PipelineAttempt::CacheProbe, &key, flags, error);
+                return None;
+            }
+        };
         log::debug!(
             target: "zakuro_gpu::pipelines",
             "took pipeline {} from the cache in {:.1} ms",
@@ -3490,6 +3644,9 @@ impl Hardware {
                         // SAFETY: the words are SPIR-V naga made and validated
                         match unsafe { self.device.create_shader_module(&info, None) } {
                             Ok(module) => {
+                                // CodexAstraUlt: Fingerprint the admitted SPIR-V
+                                // before its temporary words are released.
+                                self.module_identities.insert(module, ShaderModuleIdentity::spirv_words(&words));
                                 self.modules.insert(source, module);
                                 self.shader_bytes += bytes;
                                 module
@@ -3519,6 +3676,7 @@ impl Hardware {
                 Entry::Occupied(_) => unsafe { self.device.destroy_pipeline(pipeline, None) },
             },
             Made::Compiled(key, Err(error)) => {
+                self.pipeline_failed(PipelineAttempt::Background, &key, vk::PipelineCreateFlags::empty(), error);
                 self.diagnostics.compiler_failures = self.diagnostics.compiler_failures.saturating_add(1);
                 match key.vertex {
                 // a translated program the driver turns down goes back to
@@ -5771,6 +5929,80 @@ fn pick(instance: &ash::Instance) -> Result<(vk::PhysicalDevice, u32), String> {
 mod tests {
     use super::*;
 
+    // CodexAstraUlt: Fingerprints are over canonical little-endian SPIR-V bytes,
+    // independent of whether a built-in blob or Naga word vector supplied them.
+    #[test]
+    fn shader_module_identity_uses_canonical_bytes() {
+        let known = ShaderModuleIdentity::spirv_bytes(b"hello");
+        assert_eq!(known.fnv1a64, "a430d84680aabd0b");
+        assert_eq!(known.byte_count, 5);
+        let words = [0x0403_0201, 0x0807_0605];
+        let bytes = [1, 2, 3, 4, 5, 6, 7, 8];
+        assert_eq!(ShaderModuleIdentity::spirv_words(&words), ShaderModuleIdentity::spirv_bytes(&bytes));
+        assert_ne!(ShaderModuleIdentity::spirv_bytes(&bytes[..7]), ShaderModuleIdentity::spirv_bytes(&bytes));
+    }
+
+    // CodexAstraUlt: Only cache-probe compile-required is an ordinary miss;
+    // failure slots retain their first observation without constructing later
+    // payloads, and background completion cannot erase foreground evidence.
+    #[test]
+    fn pipeline_failures_keep_first_per_context_and_ignore_cache_misses() {
+        let key = generic_keys(true)[0];
+        let make = |error| PipelineFailure::from_key(&key, Dynamic::default(), vk::PipelineCreateFlags::empty(), error, [None, None]);
+        let mut failures = PipelineFailures::default();
+        failures.record(PipelineAttempt::CacheProbe, vk::Result::PIPELINE_COMPILE_REQUIRED, || panic!("a cache miss needs no snapshot"));
+        assert_eq!(failures, PipelineFailures::default());
+        failures.record(PipelineAttempt::Foreground, vk::Result::ERROR_UNKNOWN, || make(vk::Result::ERROR_UNKNOWN));
+        failures.record(PipelineAttempt::Foreground, vk::Result::ERROR_DEVICE_LOST, || panic!("retain the first failure"));
+        failures.record(PipelineAttempt::Background, vk::Result::ERROR_OUT_OF_HOST_MEMORY, || make(vk::Result::ERROR_OUT_OF_HOST_MEMORY));
+        failures.record(PipelineAttempt::CacheProbe, vk::Result::ERROR_OUT_OF_DEVICE_MEMORY, || make(vk::Result::ERROR_OUT_OF_DEVICE_MEMORY));
+        assert_eq!(failures.foreground.as_ref().unwrap().vk_result, vk::Result::ERROR_UNKNOWN.as_raw());
+        assert_eq!(failures.background.as_ref().unwrap().vk_result, vk::Result::ERROR_OUT_OF_HOST_MEMORY.as_raw());
+        assert_eq!(failures.cache_probe.as_ref().unwrap().vk_result, vk::Result::ERROR_OUT_OF_DEVICE_MEMORY.as_raw());
+        let mut unexpected = PipelineFailures::default();
+        unexpected.record(PipelineAttempt::Foreground, vk::Result::PIPELINE_COMPILE_REQUIRED, || make(vk::Result::PIPELINE_COMPILE_REQUIRED));
+        assert!(unexpected.foreground.is_some(), "compile-required without a cache probe is not an expected miss");
+    }
+
+    // CodexAstraUlt: Project the actual pipeline attempt rather than the desired
+    // draw route; preserve every specialization value for bounded reproduction.
+    #[test]
+    fn pipeline_failure_identifies_stages_static_state_and_module_bytes() {
+        let mut key = generic_keys(true)[0];
+        key.blend = Some(0x1234_0102);
+        key.logic_op = Some(LogicOp::Xor);
+        key.mask = 5;
+        key.depth = false;
+        key.fragment[28] = WRITES_DEPTH;
+        let ids = [Some(ShaderModuleIdentity::spirv_bytes(SHADE_SPIRV)), Some(ShaderModuleIdentity::spirv_bytes(FRAGMENT_DEPTH_SPIRV))];
+        let first = PipelineFailure::from_key(&key, Dynamic::default(), vk::PipelineCreateFlags::FAIL_ON_PIPELINE_COMPILE_REQUIRED, vk::Result::ERROR_UNKNOWN, ids.clone());
+        assert_eq!(first.vertex_stage, "interpreted");
+        assert_eq!(first.fragment_mode, "generic");
+        assert_eq!(first.fragment_depth, "shader_written");
+        assert_eq!(first.blend, Some(0x1234_0102));
+        assert_eq!(first.logic_op, Some(vk::LogicOp::XOR.as_raw()));
+        assert_eq!(first.color_mask, 5);
+        assert_eq!(first.depth_format, vk::Format::UNDEFINED.as_raw());
+        assert!(!first.depth_attachment && !first.dynamic_blend && !first.dynamic_logic_op);
+        assert_eq!(first.fragment_specialization, key.fragment);
+        assert_eq!([first.vertex_spirv, first.fragment_spirv], ids);
+        assert_eq!(first.creation_flags, vk::PipelineCreateFlags::FAIL_ON_PIPELINE_COMPILE_REQUIRED.as_raw());
+
+        key.vertex = VertexStage::Translated(vk::ShaderModule::null());
+        key.fragment[FRAGMENT_CONSTANTS - 1] = 0;
+        key.fragment[28] = 0;
+        key.depth = true;
+        let translated = PipelineFailure::from_key(&key, Dynamic { blend: true, logic_op: true }, vk::PipelineCreateFlags::empty(), vk::Result::ERROR_UNKNOWN, [None, None]);
+        assert_eq!(translated.vertex_stage, "translated");
+        assert_eq!(translated.fragment_mode, "specialized");
+        assert_eq!(translated.fragment_depth, "rasterized");
+        assert_eq!(translated.depth_format, DEPTH_FORMAT.as_raw());
+        assert!(translated.dynamic_blend && translated.dynamic_logic_op && translated.depth_attachment);
+        key.vertex = VertexStage::Placed;
+        let placed = PipelineFailure::from_key(&key, Dynamic::default(), vk::PipelineCreateFlags::empty(), vk::Result::ERROR_UNKNOWN, [None, None]);
+        assert_eq!(placed.vertex_stage, "placed");
+    }
+
     // CodexAstraUlt: Exhaust the environment/device combinations without
     // process-global test mutation, including contradictory override variables.
     #[test]
@@ -5817,7 +6049,7 @@ mod tests {
             let Job::Compile(key, _) = waiting.compiles.pop().unwrap() else { unreachable!() };
             drop(waiting);
             if started.send(()).is_err() || next.recv_timeout(std::time::Duration::from_secs(5)).is_err() { return; }
-            if sent.send(Made::Compiled(key, Err("controlled compiler failure".into()))).is_err() { return; }
+            if sent.send(Made::Compiled(key, Err(vk::Result::ERROR_UNKNOWN))).is_err() { return; }
         });
         let mut compiler = Compiler { queue, made, admission: Admission::default(), asked: QuickSet::default(), threads: vec![worker] };
         let key = generic_keys(false)[0];

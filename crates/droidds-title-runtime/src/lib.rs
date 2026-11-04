@@ -442,7 +442,8 @@ impl Session {
             .map_or(0, |library| library.fallbacks());
         // CodexAstraUlt: Retain actual blend/logic capability selection so the
         // static-state route used by Thor can be required in host qualification.
-        let hardware = self.system.gpu.hardware_diagnostics().map(|gpu| json!({
+        let hardware = self.system.gpu.hardware_diagnostics().map(|gpu| {
+            let mut hardware = json!({
             "recorded_draws":gpu.recorded_draws,"submissions":gpu.submissions,
             "draw_errors":gpu.draw_errors,"software_raster_fallbacks":gpu.software_raster_fallbacks,
             "resource_limit_events":gpu.resource_limit_events,"compiler_outstanding":gpu.compiler_outstanding,
@@ -453,7 +454,13 @@ impl Session {
             "vertex_shading_policy":gpu.vertex_shading_policy.as_str(),
             "gpu_vertex_draws":gpu.gpu_vertex_draws,"placed_vertex_draws":gpu.placed_vertex_draws,
             "dynamic_blend":gpu.dynamic_blend,"dynamic_logic_op":gpu.dynamic_logic_op,
-            "last_error":gpu.last_error.as_ref().map(|value|value.chars().take(256).collect::<String>())}));
+            "last_error":gpu.last_error.as_ref().map(|value|value.chars().take(256).collect::<String>())});
+            // CodexAstraUlt: Keep the first actual pipeline failure in each
+            // bounded context. Stage/module identities and the static state
+            // survive later fallback attempts without exposing shader contents.
+            hardware["pipeline_failures"] = json!(&gpu.pipeline_failures);
+            hardware
+        });
         let mut report = json!({"schema_version":1,"kind":"droidds_title_session","program_id":self.manifest.program_id,
             "manifest_sha256":self.manifest_sha256,"input_sha256":self.manifest.input.sha256,
             "native_sha256":self.manifest.native.sha256,

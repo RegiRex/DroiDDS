@@ -30,10 +30,10 @@ from build_foundation import ROOT, interrupted, snapshot, terminate_group, valid
 from validate_runtime_shaders import validate_runtime_shaders
 import collect_android_notices as NOTICES
 
-# CodexAstraUlt: Preserve the completed title library while comparing explicit
-# vertex paths and removing temporary triangle allocations. This candidate's
-# version does not establish device performance or a playable game segment.
-VERSION = "0.0.8-preview.2"
+# CodexAstraUlt: Reuse completed title libraries while removing intermediate CPU
+# vertex output and identifying actual failing pipelines. Device gains and the
+# reported Adreno shader failure still require their own qualification.
+VERSION = "0.0.8-preview.3"
 DIAGNOSTIC_FIXTURES = {
     "runtime": "droidds-original-runtime-v1",
     "homebrew": "droidds-original-homebrew-v2",

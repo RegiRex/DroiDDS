@@ -44,20 +44,24 @@ and zero reported PCM loss. It remains separate from the 110-second test.
 Local testing now [uploads reviewed diagnostic reports](docs/DEVICE_REPORT_HANDOFF.md)
 with verified GitHub links for cloud retrieval.
 
-**0.0.8-preview.2/code 12 implements a triangle-allocation correction and a
-controlled CPU/GPU vertex-shader comparison**, preserving the current default.
-Local unit, frontend and actual C ABI checks pass, including exact original
-image/audio oracles for Automatic, CPU and GPU under normal and forced-static
-blend. Bounded CPU batch timing and actual rendering-path counters separate
-policy from work. The original APK repack and four-asset bundle checks also pass
-at `fc8db14`, reusing the retained ARM64 compilation with inputs verified unchanged.
-Hosted main and tag build/publish gates pass, and the public assets at release
-source `cf31580` were independently downloaded and verified; see the
-[candidate record](docs/builds/0.0.8-vertex-comparison.md). The new original
-candidate and private CPU/GPU comparison have no Thor result yet. The private
-update reuses the completed Android library and owner signer. No device speed
-gain is measured; gameplay, reliable audio, save/resume and sustained speed
-remain unqualified.
+<!-- CodexAstraUlt: A failed GPU trial closes the comparison attempt without
+qualifying GPU performance; retain the measured CPU path and next candidate. -->
+The [code 12 Thor comparison](docs/device-tests/0.0.8-preview2-dark-moon-thor.md)
+is complete. Native/CPU vertices reached file selection at **17.72% emulated
+speed**, with **1,426 underruns** and no recorded PCM loss. CPU vertex processing
+consumed **33.42% of core time**. Native/GPU vertices failed during pipeline
+creation before any GPU-vertex draw or Vulkan submission; there is no usable
+GPU performance comparison. The owner’s later Interpreter observations remain
+separate. Unmatched code 11/12 scene coverage and duration do not establish a regression.
+
+**0.0.8-preview.3/code 13 is in development.** It targets an unnecessary CPU
+vertex-output array and adds bounded identification of the failed pipeline.
+Its [build record](docs/builds/0.0.8-pipeline-followup.md) records passing local
+correctness/runtime checks, with APK/publication pending. The next local task follows
+those gates: retained-library repackaging, one CPU control and a short GPU
+failure diagnostic. Automatic stays the default; no driver fix or device speed
+gain is yet established. Gameplay, reliable audio, save/resume and sustained
+speed remain unqualified.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->

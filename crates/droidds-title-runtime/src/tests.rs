@@ -780,6 +780,13 @@ fn native_vulkan_oracle(fixture: &Fixture, vertex_shading: VertexShading) {
     assert_eq!(report["vertex_shading_policy"], vertex_shading.as_str());
     let gpu = &report["gpu"]["hardware"];
     assert_eq!(gpu["vertex_shading_policy"], vertex_shading.as_str());
+    // CodexAstraUlt: Successful authored routes must expose the complete
+    // pipeline-failure schema with no failed foreground, worker or cache attempt.
+    // An absent field cannot pass this object comparison as an implicit null.
+    assert_eq!(
+        gpu["pipeline_failures"],
+        json!({"foreground":null,"background":null,"cache_probe":null})
+    );
     // CodexAstraUlt: The required static variant matches Thor's unavailable
     // dynamic blend/logic state, rather than silently exercising host features.
     if std::env::var_os("ZAKURO_STATIC_BLEND").is_some() {

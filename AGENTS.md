@@ -43,34 +43,35 @@ exports become retrievable evidence instead of another attachment-only handoff. 
   commit/file links. A local download or rename is not an upload. If transfer is
   actually blocked, identify the reason and exact reviewed attachment paths;
   preserve results without repeating tests or claiming the cloud received them.
-- The current published development candidate is 0.0.8-preview.2/code 12. Read
-  docs/builds/0.0.8-vertex-comparison.md for the triangle-allocation correction,
-  explicit Automatic/CPU/GPU vertex comparison and required route gates. The
-  current Automatic behavior stays the default; native guest ARM and PICA vertex
-  execution remain distinct. Local implementation checks pass: 591 Python,
-  107 title JVM plus 76 audio JVM, 24 runtime plus 6 player tests, and 176 unique
-  GPU tests (two intentional speed benchmarks remain ignored). Original exact
-  image/PCM oracles pass Automatic/CPU/GPU under normal and forced-static blend;
-  actual C ABI interpreter/software and native/software/CPU-Vulkan/GPU-Vulkan
-  controls pass with no Vulkan API errors. See the build record for the existing
-  spirv-val PATH correction and successful four-test GLSL rerun. Bounded CPU
-  batch/input/time, recorded GPU/placed draw and dynamic blend/logic flags now
-  distinguish requested policy from actual work. The original APK repack and
-  four-asset sanitization/independent bundle verification pass at fc8db14, reusing
-  the retained ARM64 compilation with preserved_inputs_verified=true. Hosted main
-  and tag build/publish gates pass; the public assets at documentation-only tag
-  source cf31580e666d284c4776a5544fd010e97bd3f364 were independently downloaded and
-  verified. The new original-fixture and private CPU/GPU Thor results remain
-  unperformed. Preserve the code 11 summary as historical evidence, not a result
-  for this new comparison.
-  Repackage the retained ARM64 library with the same owner key and an install code
-  above the installed one, at least 12; no setup, preparation, Linux/Android title
-  compilation or permission reconfiguration. Passing explicit cloud CPU/GPU
-  original-oracle gates precede one bounded private comparison batch on Thor;
-  that batch is the device experiment itself. No separate public APK installation
-  is required. Export each report immediately after stopping and before any
-  restart, with route/session evidence separate. Stop a GPU trial on a new failure
-  or visual corruption; do not uninstall, clear data or substitute signing keys.
+<!-- CodexAstraUlt: The code 12 device comparison is complete; use its first
+pipeline failure and measured CPU subset instead of requesting a longer run. -->
+- Read docs/device-tests/0.0.8-preview2-dark-moon-thor.md and the reviewed reports
+  uploaded in 22f14e0. Native/CPU vertices reached file selection at 17.72%
+  emulated speed, with 1,426 underruns and zero reported PCM loss. CPU vertex
+  work consumed 33.446 seconds: 33.42% of core / 54.42% of command processing.
+  Native/GPU failed during pipeline creation before any GPU-vertex draw or
+  Vulkan submission. It supplies no usable performance comparison. Later
+  Interpreter observations have no supplied JSON and remain separate. Do not
+  infer a regression from unlike code 11/12 runs, or treat guest allocation as
+  process/driver memory. Do not repeat the failed code 12 GPU launch.
+- The next candidate is 0.0.8-preview.3/code 13. Read
+  docs/builds/0.0.8-pipeline-followup.md. It targets the intermediate CPU output
+  array and bounded identification of the actual failed Vulkan pipeline. These
+  changes do not establish a driver fix or Thor speed gain. Keep Automatic and
+  error handling unchanged; no shader dumps, growing logs or optional JIT.
+  Implementation and local correctness/runtime gates pass; APK and hosted/
+  publication gates remain pending in the build record. The latest verified public release remains
+  0.0.8-preview.2 at cf31580; its passed cloud gates are historical, not a pass
+  for changed code. No separate public diagnostic APK installation is needed.
+  After the new cloud gates pass, repackage the retained ARM64 library with the
+  same owner key and an install code above the installed one, at least 13.
+  Keep Native/Vulkan 1×: one CPU-vertex menu control at most 120 wall seconds,
+  then GPU until its first failure/corruption or 30 wall seconds after Play,
+  startup included. Record worker time separately and stop observing a failed
+  app as if it were still running. Export each full JSON immediately before any
+  restart, upload reviewed reports/log excerpts and return verified links.
+  Preserve imports, saves, both 521-object builds and previous reports. No setup,
+  preparation, title compilation or permission reconfiguration is required.
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->

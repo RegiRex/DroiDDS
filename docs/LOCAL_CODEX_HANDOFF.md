@@ -1,96 +1,92 @@
-# Local Dark Moon vertex comparison handoff
+# Local Dark Moon pipeline diagnostic handoff
 
-<!-- CodexAstraUlt: Replace the completed code 11 audio task with one bounded
-comparison that keeps the existing title library, signer and surviving evidence. -->
-Current task, **2026-11-04** (America/New_York): repackage the completed private
-ARM64 library with published **0.0.8-preview.2/code 12** and run one bounded CPU/GPU
-vertex comparison. Its local unit, frontend, actual C ABI and exact
-Automatic/CPU/GPU image/audio gates pass under normal and forced-static blend.
-The original APK repack and four-asset bundle
-verification also pass at `fc8db14`, reusing the retained ARM64 compilation with
-inputs verified unchanged. Hosted main and tag build/publish gates pass, and the
-public assets at release source `cf31580` were independently downloaded and
-verified. The new original candidate and private CPU/GPU comparison remain
-untested on Thor; the code 11 summary is historical. Read
-[AGENTS.md](../AGENTS.md), the [candidate record](builds/0.0.8-vertex-comparison.md)
-and the [current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
+<!-- CodexAstraUlt: Replace the completed code 12 comparison with one retained-
+library update that measures CPU output work and isolates the first GPU failure. -->
+Current task, **2026-11-04** (America/New_York): after preview.3's required cloud
+and publication gates pass, repackage the completed private ARM64 library with
+**0.0.8-preview.3/code 13**. Run one CPU-vertex control and a short GPU diagnostic.
+Implementation and local correctness/runtime gates pass; packaging and hosted
+publication remain pending in the
+[build record](builds/0.0.8-pipeline-followup.md); the latest verified public
+release is preview.2. Read [AGENTS.md](../AGENTS.md), the
+[code 12 device evidence](device-tests/0.0.8-preview2-dark-moon-thor.md) and the
+[current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
 
 ## Completed evidence
 
-<!-- CodexAstraUlt: Preserve the distinction between a bounded run and the
-later replacement JSON instead of creating a combined timing result. -->
+<!-- CodexAstraUlt: Separate the measured Native routes, the earlier restart
+and unsupplied Interpreter reports; preserve data instead of repeating tests. -->
 The owner has completed the preparation, **521 Linux objects/library** and
-**521 Android objects/library**. Code 11 packaging passed with the same retained
-library and signer. The [reported 110-second Native test](device-tests/0.0.8-preview1-dark-moon-thor.md)
-reached file selection and stopped normally; severe slowdown and crackling remain.
+**521 Android objects/library**. Code 12 was packaged with the same retained
+library and signer, preserving imports, saves and earlier reports.
 
-A later manual restart replaced that run's latest JSON. Its **separate** raw
-report has now reached the cloud: 43.117 seconds of worker time, 40.408 seconds of
-core time, 23.290 seconds of command processing (**57.64% of core time**), and
-0.411 seconds of scanout. It records 568 underruns and zero PCM loss. Preserve
-that report without repeating its test. Do not attach its counters to the
-110-second test or older speed estimates. The owner's intentional save deletion
-is historical, not permission for another reset; preserve all remaining saves
-and imports.
+Native/CPU vertices reached file selection and stopped normally, with persistent
+crackling, **1,426 underruns**, zero reported PCM loss and **17.72% emulated
+speed** over 102.699 worker seconds. CPU vertex work consumed **33.446 seconds**,
+**33.42% of core time / 54.42% of command time**. Native/GPU failed in Vulkan
+pipeline creation before any GPU-vertex draw or submission. It provides no
+usable speed comparison. Later Interpreter observations have no supplied JSON
+and remain separate; unlike code 11/12 runs do not establish a regression.
+
+The code 11 110-second test and later 43.117-second restart remain separate
+historical evidence. No unchanged CPU/GPU run is needed to recover existing
+reports. Preserve the owner's remaining saves and all prior output.
 
 ## Current update
 
-<!-- CodexAstraUlt: The cloud original-route gate precedes the private device
-experiment; an unrelated public diagnostic APK is not a prerequisite. -->
-Explicit CPU/GPU original-image/PCM, original APK/package, hosted/publication
-and independent public-download checks have passed. No separate public original
-app installation is required for the private comparison. Reuse the successful
-tools, preparation, ARM64 directory with `compiled-manifest.json`, and existing
-owner signing profile. Package a compatible
-update with the same package/certificate and a version code above the installed
-one, **at least 12**. Neither generated game C nor the 521 title objects needs
-recompilation.
+<!-- CodexAstraUlt: Require new cloud correctness/package gates while retaining
+the already compiled title, compatible signer and short observable test bounds. -->
+Preview.3 targets the intermediate CPU vertex-output array and bounded metadata
+identifying the actual failed pipeline. It does not claim a GPU fix or handheld
+speed gain. After the new cloud gates pass, reuse successful tools, preparation,
+ARM64 directory with `compiled-manifest.json`, and existing owner signing profile.
+Package a compatible update with the same package/certificate and a version
+code above the installed one, **at least 13**. No title C or either set of 521
+objects needs recompilation; no separate public original APK installation is
+required.
 
-Keep **Native** guest execution and the same menu route, resolution and settings.
-Run CPU vertex selection, then GPU vertex selection, at most **120 wall seconds
-each**. This is an explicit device experiment; Automatic remains the app default.
-Stop the GPU trial at its first new failure or visual corruption. Export and label
-each JSON immediately after normal stop and **before any restart**. Compare the
-CPU batch/input/time subset against command processing and record actual GPU/
-placed draw counts plus dynamic blend/logic flags; requested policy alone does
-not prove which work ran where. Keep actual hearing observations separate from
-underrun counts; if nobody listened, report
-that limitation instead of claiming steady or broken audio from counters alone.
+Keep **Native guest execution, Vulkan 1×** and comparable menu progression/settings.
+Run one CPU-vertex control at most **120 wall seconds**. Then run GPU vertices
+only until first failure/corruption or **30 wall seconds after Play**, startup
+included. Preserve actual worker time separately. Do not replay a failed launch
+or mistake an observer waiting after app failure for guest execution.
 
-<!-- CodexAstraUlt: Make report delivery part of the local task, with reviewed
-diagnostic copies in GitHub and preserved private originals on the laptop. -->
-Follow [report transfer](DEVICE_REPORT_HANDOFF.md) after the batch: upload both
-reviewed diagnostic JSON copies, the summary and needed bounded failure logs to
-`RegiRex/DroiDDS`, verify the remote files, and return commit/file links. Local
-download or renaming is not transfer to the cloud. Existing completed reports
-can be transferred without another test.
+Export each full JSON immediately after stop/failure and **before any restart**.
+Use `runtime.gpu.hardware.pipeline_failures` to identify the failing stage before
+requesting private shader capture. Its first observed foreground/background/cache
+failures and diagnostic fingerprints remain distinct; an expected cache miss is
+not a failure. Keep actual audio/visual observations separate from counters.
+Follow [report transfer](DEVICE_REPORT_HANDOFF.md): upload reviewed reports,
+summary and needed bounded driver-log excerpts, verify remote bytes and return
+commit/file links. Raw originals and private game/build/signing data stay local.
 
 ## Suggested task for local Codex
 
-<!-- CodexAstraUlt: Keep this prompt confined to the authorized update and
-comparison, without reinstalling tools, replacing keys or resetting save state. -->
+<!-- CodexAstraUlt: Keep the prompt confined to this compatible update and
+bounded evidence collection; transfer is part of finishing the actual test. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Confirm the new cloud CPU/GPU route and packaging gates passed.
-Preserve the surviving code 11 restart report and all earlier evidence.
-Reuse the working tools, preparation, completed ARM64 compilation and same
-owner signing profile. Repackage only with a version code above the installed
-one, at least 12. Install a compatible update preserving imports and saves.
+Confirm preview.3 cloud route/package/publication gates passed.
+Preserve existing code 11/code 12 reports and earlier evidence. Reuse working
+tools, preparation, completed ARM64 compilation and the same owner signing
+profile. Repackage only with the same package/certificate and an install code
+above the installed one, at least 13. Preserve imports and saves.
 
-Run one Native menu comparison: CPU vertex shaders, then GPU vertex shaders,
-with the same route/settings and at most 120 wall seconds per run. Stop on a
-new failure or visual corruption. Export each run's JSON immediately after
-stopping and before any restart. Record separate requested/selected/path,
-timing, audible/visible and failure observations; mark unobserved audio honestly.
-Return a short android-title-build-summary.md and both separately named reports.
-Follow docs/DEVICE_REPORT_HANDOFF.md to upload reviewed diagnostic copies and
-needed failure logs to RegiRex/DroiDDS; verify the remote files and return
-commit/file links. Keep raw originals locally.
-Do not repeat setup, preparation, title compilation, host traces or permission
-configuration, reset saves, or publish private game/build/signing files.
+Keep Native execution, Vulkan 1x and comparable menu progression/settings.
+Run one CPU-vertex control at most 120 wall seconds, then GPU until first
+failure/corruption or 30 wall seconds after Play, startup included. Do not
+extend or replay failure. Export each complete JSON after stop/failure and
+before any restart. Record actual worker time, CPU processing, rendering paths,
+first pipeline failure and actual audio/visual observations separately.
+
+Follow docs/DEVICE_REPORT_HANDOFF.md to upload reviewed full reports, a short
+android-title-build-summary.md and any needed bounded driver-log excerpt.
+Verify remote files and return commit/file links. Preserve raw originals and
+both title builds. Do not repeat setup, preparation, title compilation,
+historical traces or permission configuration, reset saves, or publish private
+shader/game/build/signing files.
 ```
 
-The comparison does not establish a playable segment, reliable saving/loading,
-sustained performance or the 0.1.0 limited-beta requirements. Preserve prior
-native-comparison and device records without rerunning unchanged historical tasks.
+This batch does not establish a playable segment, reliable saving/loading,
+sustained performance or the 0.1.0 limited-beta requirements.

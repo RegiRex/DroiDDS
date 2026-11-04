@@ -648,6 +648,58 @@ pub fn run_vertices(unit: &ShaderUnit, inputs: &[[Vec4; INPUT_REGISTERS]]) -> Ve
     outputs
 }
 
+// CodexAstraUlt: Pack small raster vertices from fixed eight-lane scratch
+// instead of materializing a draw-sized vector of 256-byte register rows.
+// Full-width geometry outputs retain the original allocation/reuse path, and
+// optional JIT builds keep their original output ABI and fallback behavior.
+pub(crate) fn run_vertices_with<T>(
+    unit: &ShaderUnit,
+    inputs: &[[Vec4; INPUT_REGISTERS]],
+    then: impl FnMut([Vec4; OUTPUT_REGISTERS]) -> T,
+) -> Vec<T> {
+    if std::mem::size_of::<T>() >= std::mem::size_of::<[Vec4; OUTPUT_REGISTERS]>() {
+        return run_vertices(unit, inputs).into_iter().map(then).collect();
+    }
+    #[cfg(feature = "jit")]
+    {
+        run_vertices(unit, inputs).into_iter().map(then).collect()
+    }
+    #[cfg(not(feature = "jit"))]
+    {
+        let decoded;
+        let program = match &unit.decoded {
+            Some(program) => program.as_ref(),
+            None => {
+                decoded = Program::decode(unit);
+                &decoded
+            }
+        };
+        let trace_nan = log::log_enabled!(target: "zakuro_gpu::shader::nan", log::Level::Trace);
+        let (mut blocks, mut forks) = (Vec::with_capacity(16), Vec::new());
+        let mut mapped = Vec::with_capacity(inputs.len());
+        let mut state = ShaderState::new();
+        let uniforms = batch::Uniforms::new(unit);
+        let mut then = then;
+        for inputs in inputs.chunks(batch::LANES) {
+            // CodexAstraUlt: Reset all output registers for every batch so
+            // masked/unwritten components cannot leak from a previous batch.
+            let mut outputs = [[ZERO; OUTPUT_REGISTERS]; batch::LANES];
+            let outputs = &mut outputs[..inputs.len()];
+            if !trace_nan {
+                batch::run(unit, &uniforms, program, inputs, outputs, &mut blocks, &mut forks);
+            } else {
+                for (input, output) in inputs.iter().zip(outputs.iter_mut()) {
+                    state.input = *input;
+                    execute(unit, program, &mut state, None);
+                    *output = state.output;
+                }
+            }
+            mapped.extend(outputs.iter().copied().map(&mut then));
+        }
+        mapped
+    }
+}
+
 /// runs the shader over one vertex.
 pub fn run(unit: &ShaderUnit, state: &mut ShaderState) {
     match &unit.decoded {
@@ -1155,6 +1207,65 @@ mod tests {
     fn same(a: &[[Vec4; OUTPUT_REGISTERS]], b: &[[Vec4; OUTPUT_REGISTERS]]) -> bool {
         let same = |x: f32, y: f32| (x.is_nan() && y.is_nan()) || x.to_bits() == y.to_bits();
         a.len() == b.len() && a.iter().flatten().flatten().zip(b.iter().flatten().flatten()).all(|(&x, &y)| same(x, y))
+    }
+
+    // CodexAstraUlt: Check direct packing against the independent scalar
+    // interpreter, with masked/swizzled outputs, a constant, untouched registers,
+    // zero inputs and partial SIMD batches. The callback must run exactly once
+    // for each real input, in order, even when scratch lanes repeat the last one.
+    #[test]
+    fn mapped_vertex_batches_preserve_outputs_and_order() {
+        let mov = |destination: u32, source: u32, descriptor: u32| {
+            (0x13 << 26) | (destination << 21) | (source << 12) | descriptor
+        };
+        let reversed_xz = 0b1010 | (0b11_10_01_00 << 5) | (0b00_01_10_11 << 14);
+        let program = [mov(0, 0x20, 0), mov(3, 0, 1), mov(8, 0x1F, 0), 0x22 << 26];
+        let mut unit = unit_with(&program, &[IDENTITY, reversed_xz]);
+        unit.float_uniforms[0] = [11.0, -0.0, f32::from_bits(0x7FC0_1234), f32::INFINITY];
+        let all_inputs: Vec<_> = (0..513).map(|i| {
+            let mut input = [ZERO; INPUT_REGISTERS];
+            input[0] = [i as f32, -(i as f32) - 0.25, 1.0, i as f32 + 0.75];
+            input
+        }).collect();
+        let project = |output: [Vec4; OUTPUT_REGISTERS]| {
+            [output[0], output[3], output[8], output[15]].map(|row| row.map(f32::to_bits))
+        };
+        for prepared in [false, true] {
+            if prepared {
+                unit.prepare();
+            }
+            for count in [0, 1, 7, 8, 9, 16, 19, 513] {
+                let inputs = &all_inputs[..count];
+                let expected: Vec<_> = one_by_one(&unit, inputs).into_iter().map(project).enumerate().collect();
+                let mut calls = 0;
+                let actual = run_vertices_with(&unit, inputs, |outputs| {
+                    for register in (0..OUTPUT_REGISTERS).filter(|register| ![0, 3, 8].contains(register)) {
+                        assert_eq!(outputs[register].map(f32::to_bits), [0; 4]);
+                    }
+                    let result = (calls, project(outputs));
+                    calls += 1;
+                    result
+                });
+                assert_eq!(calls, count);
+                assert_eq!(actual, expected, "prepared={prepared}, inputs={count}");
+                // CodexAstraUlt: A full-width mapper, as geometry uses, keeps
+                // the old materialized route and must apply its transform too.
+                let expected_full: Vec<_> = one_by_one(&unit, inputs).into_iter().map(|mut outputs| {
+                    outputs.swap(0, 15);
+                    outputs
+                }).collect();
+                let actual_full = run_vertices_with(&unit, inputs, |mut outputs| {
+                    outputs.swap(0, 15);
+                    outputs
+                });
+                assert!(same(&actual_full, &expected_full), "full-width prepared={prepared}, inputs={count}");
+                for (index, outputs) in actual {
+                    assert_eq!(outputs[0], unit.float_uniforms[0].map(f32::to_bits));
+                    assert_eq!(outputs[1], [index as f32 + 0.75, 0.0, -(index as f32) - 0.25, 0.0].map(f32::to_bits));
+                    assert_eq!(outputs[2], [0.0, 0.0, 0.0, 1.0].map(f32::to_bits));
+                }
+            }
+        }
     }
 
     /// the uniforms that feed an output are those its value comes from,
