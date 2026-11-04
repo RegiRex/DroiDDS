@@ -37,8 +37,10 @@ The next development candidate is **0.0.8-preview.2/code 12**. Its triangle
 allocation correction, explicit per-session CPU/GPU choice and bounded path/time
 metrics are implemented; Automatic retains the current behavior. Local unit,
 frontend, actual C ABI and original Automatic/CPU/GPU image/audio checks pass,
-including forced-static blend. APK, hosted and publication gates remain pending;
-see the [candidate record](builds/0.0.8-vertex-comparison.md). No Thor speed gain
+including forced-static blend. The original APK repack and four-asset bundle
+verification also pass at `fc8db14`, with the retained compilation and inputs
+preserved. Hosted main and tag/publication gates remain pending; see the
+[candidate record](builds/0.0.8-vertex-comparison.md). No Thor speed gain
 or private GPU rendering result is established by these cloud checks.
 The published preview.1 [build record](builds/0.0.8-audio-performance-followup.md)
 retains its passed local/main/tag/download gates. Gameplay, reliable audio,
@@ -366,8 +368,8 @@ gates; public fixture progress must not silently close the private baseline. -->
 3. Preserve Dark Moon's completed host/Android builds and code 11 menu evidence.
    Keep the overwritten 110-second test separate from the later restart's 57.6%
    command-processing summary. Preview.2's local triangle and explicit vertex
-   route gates pass; complete APK/hosted/publication gates, then consolidate its
-   compatible repackaging/device comparison.
+   route and original APK/package gates pass; complete hosted/publication gates,
+   then consolidate its compatible private repackaging/device comparison.
    Export each report immediately before another restart. Do not repeat setup,
    source generation, title compilation or unchanged host reconnaissance.
 

@@ -46,7 +46,9 @@ controlled CPU/GPU vertex-shader comparison**, preserving the current default.
 Local unit, frontend and actual C ABI checks pass, including exact original
 image/audio oracles for Automatic, CPU and GPU under normal and forced-static
 blend. Bounded CPU batch timing and actual rendering-path counters separate
-policy from work. APK, hosted and publication gates remain pending; see the
+policy from work. The original APK repack and four-asset bundle checks also pass
+at `fc8db14`, reusing the retained ARM64 compilation with inputs verified unchanged.
+Hosted main and tag/publication gates remain pending; see the
 [candidate record](docs/builds/0.0.8-vertex-comparison.md). The private update
 reuses the completed Android library and owner signer. No Thor improvement is
 yet measured; gameplay, reliable audio, save/resume and sustained speed remain

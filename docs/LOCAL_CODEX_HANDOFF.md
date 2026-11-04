@@ -2,11 +2,13 @@
 
 <!-- CodexAstraUlt: Replace the completed code 11 audio task with one bounded
 comparison that keeps the existing title library, signer and surviving evidence. -->
-Current task, **2026-11-04** (America/New_York): after the remaining APK and
+Current task, **2026-11-04** (America/New_York): after the remaining hosted and
 publication gates pass, repackage the completed private ARM64 library with
 **0.0.8-preview.2** and run one bounded CPU/GPU vertex comparison. Its local unit,
 frontend, actual C ABI and exact Automatic/CPU/GPU image/audio gates pass under
-normal and forced-static blend. APK, hosted and publication checks remain pending;
+normal and forced-static blend. The original APK repack and four-asset bundle
+verification also pass at `fc8db14`, reusing the retained ARM64 compilation with
+inputs verified unchanged. Hosted main and tag/publication checks remain pending;
 the latest verified public release is preview.1. Read
 [AGENTS.md](../AGENTS.md), the [candidate record](builds/0.0.8-vertex-comparison.md)
 and the [current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
@@ -32,8 +34,9 @@ for another reset; preserve all remaining saves and imports.
 
 <!-- CodexAstraUlt: The cloud original-route gate precedes the private device
 experiment; an unrelated public diagnostic APK is not a prerequisite. -->
-Explicit CPU/GPU original-image/PCM checks have passed in the cloud; finish the
-remaining APK and publication gates before the private comparison. No separate
+Explicit CPU/GPU original-image/PCM and original APK/package checks have passed
+in the cloud; finish hosted and publication gates before the private comparison.
+No separate
 public original app installation is required. Reuse the successful tools,
 preparation, ARM64 directory with
 `compiled-manifest.json` and existing owner signing profile. Package a compatible

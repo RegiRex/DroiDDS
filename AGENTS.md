@@ -40,8 +40,11 @@ restart summary, and progress from completed code 11 testing into route analysis
   controls pass with no Vulkan API errors. See the build record for the existing
   spirv-val PATH correction and successful four-test GLSL rerun. Bounded CPU
   batch/input/time, recorded GPU/placed draw and dynamic blend/logic flags now
-  distinguish requested policy from actual work. APK, hosted and publication
-  gates remain pending. The latest verified public release is 0.0.8-preview.1 at 64ff16b;
+  distinguish requested policy from actual work. The original APK repack and
+  four-asset sanitization/independent bundle verification pass at fc8db14, reusing
+  the retained ARM64 compilation with preserved_inputs_verified=true. Hosted main
+  and tag/publication gates remain pending. The latest verified public release
+  is 0.0.8-preview.1 at 64ff16b;
   its original-fixture device gate remains separate from the private code 11 run.
   Repackage the retained ARM64 library with the same owner key and an install code
   above the installed one, at least 12; no setup, preparation, Linux/Android title
