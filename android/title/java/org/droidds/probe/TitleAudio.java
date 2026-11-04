@@ -11,22 +11,22 @@ import org.json.JSONObject;
  * unavailable audio is reported without replacing guest execution or PCM. */
 final class TitleAudio {
     private static final int RATE = 48000;
-    private final short[] queue = new short[8192 * 2];
-    private final PcmResampler resampler;
+    private final TitlePcmQueue queue;
     private final AudioStartup startup = new AudioStartup(RATE / 20);
     private final double inputRate;
     private AudioTrack track;
-    private int read, count;
-    private long generated, converted, written, dropped, discardedInput, flushed, underruns;
-    private long trackWritten, trackPlayed, starts;
+    private long generated, discardedInput, flushed, underruns;
+    private long trackWrittenStart, starts;
     private String error;
-    private final PcmResampler.Sink enqueue = this::enqueueFrame;
+    // CodexAstraUlt: One reusable callback avoids allocating per-slice writers.
+    private final TitlePcmQueue.Writer output = (samples, offset, count) ->
+            track.write(samples, offset, count, AudioTrack.WRITE_NON_BLOCKING);
 
-    TitleAudio(double rate) { inputRate = rate; resampler = new PcmResampler(rate, RATE); }
+    TitleAudio(double rate) { inputRate = rate; queue = new TitlePcmQueue(rate, RATE, 8192); }
 
     void start() {
         if (track != null || error != null) return;
-        trackWritten = 0; trackPlayed = 0; startup.reset();
+        trackWrittenStart = queue.writtenFrames(); startup.reset();
         try {
             int minimum = AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_STEREO,
                     AudioFormat.ENCODING_PCM_16BIT);
@@ -46,54 +46,69 @@ final class TitleAudio {
     }
 
     void accept(short[] pcm, int frames, boolean foreground) {
-        if (frames < 0 || frames > pcm.length / 2) throw new IllegalArgumentException("PCM frame count");
+        if (pcm == null || frames < 0 || frames > pcm.length / 2) throw new IllegalArgumentException("PCM frame count");
         generated += frames;
         if (!foreground || error != null || track == null) { discardedInput += frames; return; }
-        resampler.accept(pcm, frames, enqueue);
+        long beforeInput = queue.resampledInputFrames();
         try {
-            for (int attempt = 0; attempt < 2 && count > 0; attempt++) {
-                int requested = Math.min(count, queue.length - read);
-                int accepted = track.write(queue, read, requested, AudioTrack.WRITE_NON_BLOCKING);
-                if (accepted < 0 || accepted > requested || accepted % 2 != 0) {
-                    throw new IllegalStateException("Audio write failed");
-                }
-                count -= accepted; read = (read + accepted) % queue.length;
-                written += accepted / 2; trackWritten += accepted / 2;
-                startup.accepted(accepted / 2);
-                if (accepted == 0) break;
-            }
+            // CodexAstraUlt: Pre-drain preserves PCM under backpressure without
+            // increasing queue capacity or replacing missing guest samples.
+            long before = queue.writtenFrames();
+            queue.accept(pcm, frames, output);
+            startup.accepted((int)(queue.writtenFrames() - before));
             if (startup.ready()) { track.play(); startup.started(); starts++; }
-            trackPlayed = Integer.toUnsignedLong(track.getPlaybackHeadPosition());
-        } catch (RuntimeException failure) { error = failure.getClass().getSimpleName(); pause(); }
-    }
-
-    private void enqueueFrame(short left, short right) {
-        converted++;
-        if (count + 2 > queue.length) { dropped++; return; }
-        int end = (read + count) % queue.length;
-        queue[end] = left; queue[(end + 1) % queue.length] = right; count += 2;
+            // CodexAstraUlt: Playback position is needed only when closing a
+            // track; remove the unused per-slice platform query.
+        } catch (RuntimeException failure) {
+            // CodexAstraUlt: A failed pre-drain has not consumed this new guest
+            // chunk. Keep that input explicitly discarded rather than losing it
+            // between generated-input and converted-output accounting.
+            discardedInput += frames - (queue.resampledInputFrames() - beforeInput);
+            error = failure.getClass().getSimpleName(); pause();
+        }
     }
 
     void pause() {
-        resampler.reset(); startup.reset();
-        flushed += count / 2; count = 0; read = 0;
+        startup.reset();
+        flushed += queue.flush();
         if (track == null) return;
+        // CodexAstraUlt: Detach ownership before platform cleanup so failures,
+        // including release(), cannot leave a stale track or escape native
+        // teardown. Each cleanup operation still gets its own attempt.
+        AudioTrack closing = track;
+        track = null;
         try {
-            trackPlayed = Integer.toUnsignedLong(track.getPlaybackHeadPosition());
-            flushed += Math.max(0, trackWritten - trackPlayed);
-            underruns += track.getUnderrunCount();
-            track.pause(); track.flush(); track.stop();
-        } catch (RuntimeException failure) { error = failure.getClass().getSimpleName(); }
-        finally { track.release(); track = null; }
+            closing.pause();
+        } catch (RuntimeException failure) { recordError(failure); }
+        try {
+            long played = Integer.toUnsignedLong(closing.getPlaybackHeadPosition());
+            flushed += Math.max(0, queue.writtenFrames() - trackWrittenStart - played);
+        } catch (RuntimeException failure) { recordError(failure); }
+        try { underruns += closing.getUnderrunCount(); }
+        catch (RuntimeException failure) { recordError(failure); }
+        try { closing.flush(); }
+        catch (RuntimeException failure) { recordError(failure); }
+        try { closing.stop(); }
+        catch (RuntimeException failure) { recordError(failure); }
+        try { closing.release(); }
+        catch (RuntimeException failure) { recordError(failure); }
+    }
+
+    private void recordError(RuntimeException failure) {
+        if (error == null) error = failure.getClass().getSimpleName();
     }
 
     JSONObject report() throws JSONException {
         return new JSONObject().put("status", error == null ? "measured" : "failed")
                 .put("error", error == null ? JSONObject.NULL : error)
                 .put("guest_sample_rate", inputRate).put("output_sample_rate", RATE)
-                .put("generated_frames", generated).put("converted_frames", converted)
-                .put("written_frames", written).put("dropped_frames", dropped)
+                .put("resampled_input_frames", queue.resampledInputFrames())
+                .put("generated_frames", generated).put("converted_frames", queue.convertedFrames())
+                .put("written_frames", queue.writtenFrames()).put("dropped_frames", queue.droppedFrames())
                 .put("discarded_input_frames", discardedInput)
-                .put("flushed_frames", flushed).put("underruns", underruns).put("playback_starts", starts);
+                .put("flushed_frames", flushed).put("underruns", underruns).put("playback_starts", starts)
+                .put("queue_capacity_frames", queue.capacityFrames()).put("queued_frames", queue.queuedFrames())
+                .put("queue_high_water_frames", queue.highWaterFrames())
+                .put("partial_writes", queue.partialWrites()).put("zero_writes", queue.zeroWrites());
     }
 }

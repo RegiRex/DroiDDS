@@ -132,7 +132,7 @@ class TitleReleaseTests(unittest.TestCase):
         saved = copy.deepcopy(self.report["original_fixture"])
         for field, value in (("fixture", "droidds-original-runtime-v1"),
                              # CodexAstraUlt: Historical v1 remains readable as
-                             # evidence but cannot be relabeled for preview 3.
+                             # evidence but cannot be relabeled as this candidate.
                              ("fixture", "droidds-original-homebrew-v1"), ("action", "emit"),
                              ("producer_sources", {}), ("owner_path", "/private/game")):
             self.report["original_fixture"] = {**saved, field: value}
@@ -279,9 +279,9 @@ class PublicPolicyTests(unittest.TestCase):
     def test_only_exact_reviewed_tag_and_commit_are_accepted(self):
         self.assertEqual(RELEASE.identity(RELEASE.TAG, COMMIT), (RELEASE.VERSION, RELEASE.APK_NAME))
         for tag, commit in (("v0.0.7-preview.1", COMMIT), ("v0.0.7-preview.2", COMMIT),
-                            ("v0.0.7-preview.4", COMMIT),
+                            ("v0.0.7-preview.3", COMMIT), ("v0.0.7-preview.4", COMMIT),
                             ("v0.1.0", COMMIT), (RELEASE.TAG, "main"),
-                            (RELEASE.TAG, "A" * 40), ("../v0.0.7-preview.3", COMMIT)):
+                            (RELEASE.TAG, "A" * 40), ("../v0.0.8-preview.1", COMMIT)):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 RELEASE.identity(tag, commit)
 

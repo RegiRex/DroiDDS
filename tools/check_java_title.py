@@ -16,7 +16,9 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     java = args.java_home / "bin"
     sources = [root / "android/title/java/org/droidds/probe" / name
-               for name in ("TitleImport.java", "TitleInput.java", "TitleLoop.java")]
+               # CodexAstraUlt: Execute the production timing/lifecycle counters
+               # under deterministic clocks without an Android device or timer.
+               for name in ("TitleImport.java", "TitleInput.java", "TitleLoop.java", "TitleTiming.java")]
     sources.append(root / "tools/java-tests/org/droidds/probe/TitleLogicTest.java")
     subprocess.run([str(java / "javac"), "--release", "8", "-Xlint:all", "-Werror", "-d", str(args.output),
                     *map(str, sources)], check=True, timeout=60)
@@ -27,7 +29,7 @@ def main():
             or report.get("status") != "passed" or report.get("checks", 0) < 40
             or report.get("controls") != ["verified_import_reuse_preservation", "rejection_cancel_io_cleanup",
                  "atomic_publication_races", "symlink_and_atomic_report_preservation", "input_edges_axes_release",
-                 "pause_resume_retires_delayed_callbacks"]):
+                 "pause_resume_retires_delayed_callbacks", "active_timing_and_delivery_gap_accounting"]):
         raise ValueError("Required title frontend controls did not execute")
     print(json.dumps(report, indent=2))
 

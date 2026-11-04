@@ -1,88 +1,84 @@
-# Local Android title build handoff
+# Local Dark Moon update handoff
 
-<!-- CodexAstraUlt: Replace completed reconnaissance/comparison instructions
-with the actual next task, so local agents do not replay old tests or stop on
-prerequisites that the isolated setup now supplies. Historical evidence stays
-in linked result records instead of competing with current instructions. -->
-Current task, **2026-11-03**: build Dark Moon for Android from its retained,
-validated preparation, then perform the first bounded title test on the Thor.
-Use `RegiRex/DroiDDS` and preserve the local checkout's existing work.
-Read [AGENTS.md](../AGENTS.md), the [Android title contract](ANDROID_TITLE_CONTRACT.md)
-and the [consolidated build/device task](ANDROID_TITLE_BUILD.md#one-consolidated-local-build-and-device-task).
+<!-- CodexAstraUlt: Replace the completed setup/compilation/first-boot task with
+repackaging and one matched audio test, retaining all successful title artifacts. -->
+Current task, **2026-11-03**: repackage the completed private Android library with
+the **0.0.8-preview.1** audio/timing development candidate, then run one bounded
+Native menu comparison. Use `RegiRex/DroiDDS` and preserve local work.
+Read [AGENTS.md](../AGENTS.md), the [title contract](ANDROID_TITLE_CONTRACT.md) and
+the [current repackaging procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
+Cloud validation of this new candidate is pending its recorded gates; a candidate
+version does not qualify a playable game segment.
 
-## Completed evidence
+## Completed and preserved
 
-<!-- CodexAstraUlt: Preserve measured results without requiring another host
-trace or projecting original-title evidence onto a private game. -->
-- The owner reports a successful private preparation and **521/521 Linux
-  objects plus a linked library**. Reuse the preparation; Android needs separate
-  ARM64 objects. Preserve the Linux objects, library, manifests and reports.
-- The [857ff47 host comparison](host-tests/dark-moon-native-2026-11-02.md) is
-  complete. Raw CPSR differences remain; one synchronized sample agrees and
-  three later boundaries are missing on both routes. Do not repeat this test
-  unchanged, increase its limits or treat the bounded match as full parity.
-- The [preview.2 Thor result](device-tests/0.0.7-preview2-thor-title.md) passes
-  its original-title checks. The owner confirms both images, controls, touch,
-  pause/resume and steady sound. This does not establish Dark Moon boot.
-- The [first Android attempt](host-tests/dark-moon-android-prerequisites-2026-11-03.md)
-  stopped before compilation at `2d55dc7`: Rust's Android target, SDK/NDK, Java
-  and an offline dependency were missing. No private Android compilation or
-  device test occurred in that attempt.
-- The follow-up on `e76f5d5` failed twice resolving the pinned NDK download
-  hostname. No `env.sh`, Android compilation or device result was produced.
-  Follow the [name-resolution guidance](ANDROID_TITLE_TOOL_SETUP.md#download-name-resolution-failures)
-  instead of repeating the same setup in the same failing network context.
+<!-- CodexAstraUlt: Credit the reported interactive menu result and supplied
+JSON while keeping untested gameplay distinct from the observed boot. -->
+The owner has completed the preparation, **521/521 Linux objects and library**,
+**521/521 Android objects and library**, and a private APK. The subsequent
+[Thor test](device-tests/0.0.7-dark-moon-thor-menu.md) reached Dark Moon's title and
+file-selection menus in Native mode; A responded and the bounded test stopped
+normally with no reported runtime faults. This achieves the central **0.0.7 boot
+objective**. The app is stopped; the previous device-access and setup blockers
+are superseded. No permission change or tool reinstallation follows from them.
 
-## Continue setup and compilation
+The supplied JSON reports retain **1,361 and 2,889 audio underruns**. They advance
+21.255 and 34.140 guest seconds in 100.010 and 201.650 seconds of core work,
+with zero reported PCM drops and all converted samples written. This establishes
+slow sample production, consistent with the owner's crackling/slow-frame
+observation. Read the analysis linked above; do not repeat an unchanged boot
+test for counters already supplied. Gameplay, reliable audio, saving/loading
+and sustained speed remain unqualified.
 
-<!-- CodexAstraUlt: A tested owned tool directory resolves missing prerequisites
-without global installs, source regeneration or another tool-only handoff. -->
-Use the [isolated Android tool setup](ANDROID_TITLE_TOOL_SETUP.md) when any
-prerequisite is missing. It supplies Rust 1.95.0 and the Android target, pinned
-SDK/NDK, JDK 17 and locked dependencies in one directory outside Git. Source its
-`env.sh`, then continue the consolidated task immediately. Normal permitted
-network access is needed for initial downloads; no system packages, shell
-profiles or existing Rust installations are modified.
+The [857ff47 comparison](host-tests/dark-moon-native-2026-11-02.md) and all earlier
+reports remain historical evidence. Preserve its raw CPSR differences and
+bounded synchronized match. No repeated host trace, source regeneration or
+Linux/Android title compilation is part of this update.
 
-The [input/save corrections](builds/0.0.7-input-save-corrections.md) are tested
-shared-runtime improvements. They preserve private preparation and compiler
-helper identities. If another compilation is already running, finish it with
-its existing checkout; updated APK packaging can consume those completed Android
-objects afterward. Use separate output directories for concurrent builds, and
-serialize jobs sharing one Cargo target directory.
+## Repackage and test
 
-Keep game data, generated C, title libraries, private APKs, captures and signing
-keys local. Use a persistent owner signing profile for the private title. The
-documented first-install procedure may create a new dedicated key if none exists;
-it must never replace a prior key or bypass an installed app's signature check.
-Only one session operates the Thor at a time. Preserve existing app data and
-return the exact unperformed step if device access is unavailable.
+<!-- CodexAstraUlt: Save the previous single-file report before a new session,
+and reuse the existing signer for an update that retains the app's data. -->
+Preserve the prior build/device summaries and exported title JSON. If the app
+has the only copy of its latest report, export it before starting another session:
+`files/latest-title-report.json` is replaced by later sessions.
+
+Use the successful build's existing tool environment, validated preparation,
+completed ARM64 directory containing `compiled-manifest.json`, and owner signing
+profile. Source its environment in each build shell. Rebuild only the shared
+player/frontend APK into a fresh private output with the same package/certificate
+and an install code **greater than the installed code and at least 11**. Preserve
+the retained title objects/library, imported game and saves. No new signing key
+or reinstall is needed for a compatible update.
+
+Only one session operates the Thor. Run the same Native title/file-menu route
+for at most **120 wall seconds** or until its first failure, then stop normally.
+Record audible gaps/crackling, visible progression, controls, duration, PCM/queue
+and timing/pacing counters, native/fallback work and any first blocker separately.
+Export the new JSON to fresh evidence. Use an Interpreter comparison only when
+a new Native failure needs classification.
 
 ## Suggested task for local Codex
 
-<!-- CodexAstraUlt: Limit this prompt to the current build and device test;
-deferred project preferences do not belong in its execution instructions. -->
+<!-- CodexAstraUlt: Keep the prompt limited to the current update and test;
+completed setup, title compilation and permission work must not restart. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
-Read docs/ANDROID_TITLE_TOOL_SETUP.md and docs/ANDROID_TITLE_BUILD.md.
-Run the isolated setup for missing prerequisites, then source its env.sh.
-Continue the consolidated Android compilation, packaging and device task in
-docs/ANDROID_TITLE_BUILD.md without stopping after setup succeeds.
-Reuse the validated Dark Moon preparation and preserve all 521 Linux objects,
-their library and prior reports. Return android-title-build-summary.md.
+Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
+Preserve the existing title JSON before any new session overwrites it.
+Reuse the successful tool environment, validated preparation, completed ARM64
+compilation and existing owner signing profile. Build a fresh APK only, with
+the same package/certificate and a version code above the installed one,
+at least 11. Install a compatible update retaining the import and saves.
+
+Run one matched Native title/file-menu audio test for at most 120 wall seconds,
+then stop normally and export its report. Use Interpreter only if a new Native
+failure needs classification. Return android-title-build-summary.md with the
+build/device identities, timing/audio observations, counters and preservation.
+Do not repeat setup, preparation, title compilation, host traces or permission
+configuration. Keep private game data, APKs and signing files local.
 ```
 
-<!-- CodexAstraUlt: Keep practical limits explicit without turning source or
-original-fixture results into playable-beta qualification. -->
-The consolidated task specifies at most four default compilation batches, only
-resuming a progressing `incomplete / batch_budget` result, then fresh private
-APK packaging and one bounded Native opening test. A bounded Interpreter
-comparison may classify a Native failure. Report actual images, controls,
-audio, execution/rendering counters and the first blocker separately.
-
-The cloud session does not share the laptop's private files or Thor connection.
-A successful build is not a game-boot result; an opening scene is not sustained
-playability. Follow the [roadmap](ROADMAP.md) and [title matrix](TEST_STRATEGY.md#primary-title-matrix)
-for subsequent qualification of Dark Moon, Xenoblade Chronicles 3D and Sonic &
-All-Stars Racing Transformed. Roadmap 0.0.7's owned-game boot gate and the
-0.1.0 beta gates remain open.
+The [roadmap](ROADMAP.md) now moves toward 0.0.8's first playable segment. A menu
+comparison measures this correction; it does not by itself qualify gameplay,
+save/resume, graphics throughout a scene or the sustained 0.1.0 beta requirements.

@@ -69,6 +69,13 @@ jobs:
           escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           print("::error::Python validation: " + escaped, file=sys.stderr)
           PY
+      # CodexAstraUlt: Generic title queue/timing regressions must run on main,
+      # including partial writes and lifecycle controls outside the probe APK.
+      - name: Execute title frontend and audio controls
+        shell: bash
+        run: |
+          python3 tools/check_java_title.py --java-home "$JAVA_HOME_17_X64" --output "$RUNNER_TEMP/title-java-controls"
+          python3 tools/check_java_title_audio.py --java-home "$JAVA_HOME_17_X64" --output "$RUNNER_TEMP/title-audio-controls"
       - name: Build and audit Android probe
         shell: bash
         run: |

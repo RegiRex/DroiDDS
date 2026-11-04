@@ -13,15 +13,30 @@ infer progress from the historical probe and private tracing records below. -->
 **[0.0.7-preview.2 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.7-preview.2), the first generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
-controls, touch and audio. Cloud checks use an original interactive guest;
-an owned-game Android boot and playable beta remain unqualified. Host, main and
-release CI pass; the four public downloads are independently verified.
+controls, touch and audio. Cloud checks use an original interactive guest.
+Host, main and release CI pass for that published candidate; the four public
+downloads are independently verified.
 [Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.7-preview.2/DroiDDS-0.0.7-preview.2-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
 The [candidate build record](docs/builds/0.0.7-android-title-candidate.md)
-records the completed local APK and executed host checks.
+records the completed original APK and executed host checks.
+
+<!-- CodexAstraUlt: Credit the first private menu boot and name the next alpha
+development stage without claiming a playable segment or a new public release. -->
+**Dark Moon now reaches interactive title and file-selection menus on the Thor
+in the owner's Native test.** The A button responds and the bounded run stopped
+normally with no reported runtime faults. This achieves the central **0.0.7 boot
+objective**. The [device record](docs/device-tests/0.0.7-dark-moon-thor-menu.md)
+also retains 1,361 audio underruns and the owner's crackling/slow-frame observation.
+
+**0.0.8-preview.1 is the next development candidate**, focused on audio delivery
+and timing diagnostics toward a playable segment. Cloud validation is pending
+its recorded gates; gameplay, reliable audio, save/resume and sustained speed
+remain unqualified. The local follow-up [repackages the completed Android
+library](docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test)
+with the existing owner signing identity. No title recompilation is required.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->
@@ -29,8 +44,8 @@ The [owner's Thor title-player report](docs/device-tests/0.0.7-preview2-thor-tit
 now records 368,884 native instructions and 5,658 Vulkan draws with no reported
 runtime errors or software raster fallback. The reported title-artifact hashes
 match the published preview. The owner confirms both images, D-pad/A, touch,
-pause/resume and steady sound; the next game build uses the retained private
-sources and Android builder.
+pause/resume and steady sound. That original-title evidence remains distinct
+from the later private Dark Moon result above.
 
 <!-- CodexAstraUlt: Replace planning-only status after the first verified host
 build; keep its small CPU proof separate from Android and game qualification. -->
@@ -129,16 +144,17 @@ Original fixtures execute and match both routes. The first
 1,999,970 native instructions with raw CPU/scheduler differences. The
 [completed follow-up](docs/host-tests/dark-moon-native-2026-11-02.md) has matching
 first-checkpoint scheduling and one matching synchronized state, while raw CPSR
-differences remain. General mutable native code and private boot evidence
-remain unfinished. Android packaging now has its own implementation and
-qualification path described above; host results alone do not qualify it.
+differences remain. General mutable native code remains unfinished. The owner
+has since completed the separate ARM64 compilation and reported private menu
+boot on Thor; host results alone did not establish that device result.
 
 The corrected-device evidence now includes measured touch and view recreation
 plus the owner's steady-tone confirmation. Automated success alone cannot qualify
 human observations. Original NCCH fixtures
-do not establish a 3DSX loader or retail-title support. Private Dark Moon,
-Xenoblade and Sonic baselines remain open because their inputs are not present
-here. See [Android instructions](docs/ANDROID_PROBE.md) for testing and signing.
+do not establish a 3DSX loader or broad retail-title support. Dark Moon's playable
+route and the other primary titles remain separate qualification work, using
+private local inputs. See the [title build instructions](docs/ANDROID_TITLE_BUILD.md)
+for current packaging and signing.
 
 <!-- CodexAstraUlt: Persist the owner's report-driven release instruction in the
 public overview without promising background execution or bypassing hardware. -->

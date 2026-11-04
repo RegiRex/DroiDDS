@@ -1,6 +1,8 @@
 package org.droidds.probe;
 
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.net.Uri;
 import android.os.CancellationSignal;
@@ -53,6 +55,9 @@ final class TitleController {
             task -> new Thread(task, "droidds-title"));
     private final TitleInput input = new TitleInput();
     private final TitleLoop loop = new TitleLoop();
+    // CodexAstraUlt: UI boundaries and worker aggregates share a tiny locked
+    // counter set; no timer, trace history or extra work thread is introduced.
+    private final TitleTiming timing = new TitleTiming();
     private final AtomicLong generation = new AtomicLong();
     private final AtomicLong lifecycle = new AtomicLong();
     private final AtomicBoolean deliveryPending = new AtomicBoolean();
@@ -77,6 +82,9 @@ final class TitleController {
     private boolean paused = true, closing, frameInProgress, nativeMode;
     private TitleAudio audio;
     private FramePacer pacer;
+    // CodexAstraUlt: Query this installed frontend once during configuration;
+    // matching game/native hashes alone cannot identify its APK version.
+    private JSONObject appIdentity;
     private TitleInput.Sample currentInput = new TitleInput.Sample(0, 0, 0, false, 0, 0, 0, 0);
     private final int[] top = new int[400 * 240], bottom = new int[320 * 240];
     private final int[] displayedTop = new int[400 * 240], displayedBottom = new int[320 * 240];
@@ -119,6 +127,7 @@ final class TitleController {
 
     private void configure() {
         try {
+            appIdentity = installedAppIdentity();
             final byte[] loaded;
             try (InputStream source = application.getAssets().open("title-manifest.json")) {
                 loaded = read(source, 1024 * 1024);
@@ -243,6 +252,7 @@ final class TitleController {
         final long id = generation.incrementAndGet();
         final String inputPath = imported.getAbsolutePath();
         busy = true; running = true; userPaused = false; stopRequested = false;
+        timing.reset(foreground);
         // CodexAstraUlt: Retire the preceding session's visible image before
         // startup; this UI reset is never counted as new guest output.
         synchronized (presentationLock) { cachedPlanes = 0; }
@@ -284,6 +294,7 @@ final class TitleController {
 
     void foreground(boolean active) {
         foreground = active;
+        timing.foreground(active, SystemClock.elapsedRealtimeNanos());
         if (!active) { lifecycle.incrementAndGet(); input.release(); }
         final long id = generation.get();
         worker.execute(() -> updateLifecycle(id));
@@ -291,7 +302,9 @@ final class TitleController {
 
     void pauseOrResume() {
         if (!running) return;
-        userPaused = !userPaused; lifecycle.incrementAndGet(); input.release(); notifyObserver();
+        userPaused = !userPaused;
+        timing.userPaused(userPaused, SystemClock.elapsedRealtimeNanos());
+        lifecycle.incrementAndGet(); input.release(); notifyObserver();
         final long id = generation.get(); worker.execute(() -> updateLifecycle(id));
     }
 
@@ -302,6 +315,7 @@ final class TitleController {
         boolean shouldPause = !foreground || userPaused;
         try {
             if ((shouldPause || boundary) && !paused) {
+                timing.running(false, SystemClock.elapsedRealtimeNanos());
                 loop.pause();
                 TitleNative.pause(token, true); paused = true; frameInProgress = false;
                 if (audio != null) audio.pause();
@@ -310,8 +324,10 @@ final class TitleController {
                 TitleNative.pause(token, false); paused = false;
                 currentInput = new TitleInput.Sample(0, 0, 0, false, 0, 0, 0, 0);
                 audio.start(); pacer.resume(SystemClock.elapsedRealtimeNanos()); frameInProgress = false;
+                timing.running(true, SystemClock.elapsedRealtimeNanos());
                 final long ticket = loop.resume();
-                worker.execute(() -> step(id, ticket));
+                final long queuedAt = SystemClock.elapsedRealtimeNanos();
+                worker.execute(() -> step(id, ticket, queuedAt, 0));
             }
             postMessage(id, userPaused ? "Paused." : frames == 0 ? "Starting game…" : "Running.");
         } catch (Exception | LinkageError failure) { finish(id, "failed", safeMessage(failure)); }
@@ -320,7 +336,8 @@ final class TitleController {
     // CodexAstraUlt: Yielded slices keep progressing without declaring a slow
     // startup to be a bad frame. Only actual completed frames affect pacing;
     // only ready image planes update the UI, and PCM is drained on every slice.
-    private void step(long id, long ticket) {
+    private void step(long id, long ticket, long queuedAt, long requestedDelay) {
+        final long arrivedAt = SystemClock.elapsedRealtimeNanos();
         if (generation.get() != id || !loop.accepts(ticket) || closing || paused || token == 0) return;
         if (!foreground || userPaused) { updateLifecycle(id); return; }
         if (stopRequested) { finish(id, "stopped", null); return; }
@@ -330,35 +347,55 @@ final class TitleController {
             currentInput = input.next(currentInput, frames);
             long beforeLifecycle = lifecycle.get();
             long start = SystemClock.elapsedRealtimeNanos();
-            if (!frameInProgress) { pacer.begin(start); frameInProgress = true; }
-            int result = TitleNative.slice(token, currentInput.buttons, currentInput.circleX, currentInput.circleY,
-                    currentInput.cStickX, currentInput.cStickY, currentInput.x, currentInput.y, currentInput.touched,
-                    top, bottom, pcm, metrics);
-            if (result == -2) { loop.pause(); paused = true; frameInProgress = false; audio.pause(); updateLifecycle(id); return; }
+            timing.callback(queuedAt, requestedDelay, arrivedAt);
+            if (!frameInProgress) { pacer.begin(start); timing.beginFrame(start); frameInProgress = true; }
+            // CodexAstraUlt: Include JNI transfer/readback in this call's wall
+            // cost, even if it throws or finishes after a UI pause. Active wall
+            // time is separately closed at the actual UI lifecycle boundary.
+            long nativeStarted = SystemClock.elapsedRealtimeNanos();
+            final int result;
+            try {
+                result = TitleNative.slice(token, currentInput.buttons, currentInput.circleX, currentInput.circleY,
+                        currentInput.cStickX, currentInput.cStickY, currentInput.x, currentInput.y, currentInput.touched,
+                        top, bottom, pcm, metrics);
+            } finally { timing.nativeCall(nativeStarted, SystemClock.elapsedRealtimeNanos()); }
+            if (result == -2) {
+                timing.running(false, SystemClock.elapsedRealtimeNanos());
+                loop.pause(); paused = true; frameInProgress = false; audio.pause(); updateLifecycle(id); return;
+            }
             if (result != 0 || metrics[2] < 0 || metrics[2] > 4096 || metrics[4] < 0 || metrics[4] > 3
                     || metrics[0] < frames || metrics[1] < cycles || metrics[3] < 0 || metrics[3] > 1) {
                 throw new IOException("Game returned invalid slice data");
             }
             slices++; cycles = metrics[1];
             boolean active = foreground && !userPaused && lifecycle.get() == beforeLifecycle && !stopRequested;
-            audio.accept(pcm, (int)metrics[2], active);
+            long audioStarted = SystemClock.elapsedRealtimeNanos();
+            boolean submitted = false;
+            try { audio.accept(pcm, (int)metrics[2], active); submitted = true; }
+            finally { timing.audioSubmit(audioStarted, SystemClock.elapsedRealtimeNanos(), (int)metrics[2], active && submitted); }
             // CodexAstraUlt: Retain a newly ready plane across a pause that
             // arrives during this slice, even if the guest later stays still.
             pendingPlanes |= (int)metrics[4];
             if (active && pendingPlanes != 0) present(id, 0, beforeLifecycle);
             long delay = 0;
             if (metrics[0] > frames) {
-                frames = metrics[0]; delay = pacer.finish(SystemClock.elapsedRealtimeNanos()); frameInProgress = false;
+                long finished = SystemClock.elapsedRealtimeNanos();
+                frames = metrics[0]; delay = pacer.finish(finished); timing.finishFrame(finished); frameInProgress = false;
             }
             if (metrics[3] != 0) { finish(id, "guest_exited", null); return; }
             if (stopRequested) { finish(id, "stopped", null); return; }
             long now = SystemClock.elapsedRealtime();
             if (now >= nextStatus) { nextStatus = now + 1000; postMessage(id, frames == 0 ? "Starting game…" : "Running."); }
-            if (active) worker.schedule(() -> step(id, ticket), delay, TimeUnit.NANOSECONDS);
+            if (active) {
+                final long nextQueuedAt = SystemClock.elapsedRealtimeNanos();
+                final long nextDelay = delay;
+                worker.schedule(() -> step(id, ticket, nextQueuedAt, nextDelay), nextDelay, TimeUnit.NANOSECONDS);
+            }
             else {
                 // CodexAstraUlt: A pause/resume pair can both arrive during one
                 // slice. Force that missed pause boundary before consulting the
                 // latest foreground state, so the work loop cannot become idle.
+                timing.running(false, SystemClock.elapsedRealtimeNanos());
                 loop.pause(); TitleNative.pause(token, true); paused = true; frameInProgress = false;
                 audio.pause(); updateLifecycle(id);
             }
@@ -391,7 +428,9 @@ final class TitleController {
 
     void stop() {
         if (!running) return;
-        stopRequested = true; lifecycle.incrementAndGet(); input.release();
+        stopRequested = true;
+        timing.requestStop(SystemClock.elapsedRealtimeNanos());
+        lifecycle.incrementAndGet(); input.release();
         message = "Stopping…"; notifyObserver();
         final long id = generation.get(); worker.execute(() -> { if (generation.get() == id && token != 0) finish(id, "stopped", null); });
     }
@@ -399,6 +438,13 @@ final class TitleController {
     private void finish(long id, String outcome, String error) {
         if (generation.get() != id || closing) return;
         loop.pause(); closing = true; paused = true; frameInProgress = false;
+        // CodexAstraUlt: Retire output before native report/resource teardown.
+        // Previously AudioTrack could starve during slow GPU destruction and
+        // add those shutdown underruns to the active-run report. Audio failure
+        // must still preserve the earlier error and allow native cleanup.
+        timing.stop(SystemClock.elapsedRealtimeNanos());
+        try { if (audio != null) audio.pause(); }
+        catch (RuntimeException failure) { outcome = "failed"; if (error == null) error = safeMessage(failure); }
         JSONObject nativeReport = null;
         try { if (token != 0) nativeReport = json(TitleNative.report(token)); }
         catch (Exception | LinkageError failure) { outcome = "failed"; if (error == null) error = safeMessage(failure); }
@@ -408,7 +454,6 @@ final class TitleController {
                 catch (Exception | LinkageError failure) { outcome = "failed"; if (error == null) error = safeMessage(failure); }
                 token = 0;
             }
-            if (audio != null) audio.pause();
         }
         boolean saved = true;
         try { writeReport(outcome, error, nativeReport); }
@@ -422,13 +467,71 @@ final class TitleController {
     private void writeReport(String outcome, String error, JSONObject nativeReport) throws IOException, JSONException {
         JSONObject report = new JSONObject().put("schema_version", 1).put("kind", "droidds_android_title_session")
                 .put("status", outcome).put("route", nativeMode ? "native" : "interpreter")
+                .put("app", appIdentity == null ? JSONObject.NULL : appIdentity)
                 .put("input_sha256", expectedHash).put("slices", slices).put("frames", frames).put("cycles", cycles)
                 .put("presentation", "android-canvas-readback").put("image_deliveries", presented)
                 .put("input_queue_overflows", Math.max(0, input.overflows() - inputOverflowStart))
                 .put("error", error == null ? JSONObject.NULL : error)
                 .put("runtime", nativeReport == null ? JSONObject.NULL : nativeReport)
-                .put("audio", audio == null ? JSONObject.NULL : audio.report());
+                .put("audio", audio == null ? JSONObject.NULL : audio.report())
+                .put("timing", timingReport());
         TitleImport.report(reportFile, report.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    // CodexAstraUlt: Self-package metadata adds no APK hashing or certificate
+    // scan. A query failure stays explicit in reports without preventing a game
+    // from opening; exact APK hash/signer remain in the local build record.
+    private JSONObject installedAppIdentity() throws JSONException {
+        JSONObject identity = new JSONObject().put("package", application.getPackageName())
+                .put("version_name", JSONObject.NULL).put("version_code", JSONObject.NULL)
+                .put("status", "unavailable").put("error", JSONObject.NULL);
+        try {
+            PackageInfo installed = application.getPackageManager().getPackageInfo(application.getPackageName(), 0);
+            if (!application.getPackageName().equals(installed.packageName) || installed.versionName == null
+                    || installed.versionName.isEmpty() || installed.versionName.length() > 128
+                    || installed.getLongVersionCode() <= 0) {
+                identity.put("error", "PackageVersionUnavailable");
+            } else {
+                identity.put("version_name", installed.versionName).put("version_code", installed.getLongVersionCode())
+                        .put("status", "measured");
+            }
+        } catch (PackageManager.NameNotFoundException | RuntimeException failure) {
+            identity.put("error", failure.getClass().getSimpleName());
+        }
+        return identity;
+    }
+
+    // CodexAstraUlt: Report bounded totals only. Requested pacing sleep is
+    // separated from executor lateness; call/work times may include the tail
+    // of an in-flight operation after a UI pause and are not additive parts of
+    // active wall time. PCM submission is not proof of AudioTrack acceptance.
+    private JSONObject timingReport() throws JSONException {
+        TitleTiming.Snapshot measured = timing.snapshot(SystemClock.elapsedRealtimeNanos());
+        JSONObject report = new JSONObject().put("schema_version", 1)
+                .put("clock", "elapsed_realtime_nanoseconds")
+                .put("active_scope", "foreground_unpaused_owner_running_excludes_open_and_teardown")
+                .put("worker_wall_scope", "owner_running_including_in_flight_lifecycle_tail_excludes_open_paused_idle_and_teardown")
+                .put("work_scope", "owner_calls_and_completed_frames_including_in_flight_lifecycle_tail")
+                .put("callback_scope", "accepted_current_work_chain_callbacks")
+                .put("pcm_gap_scope", "after_nonempty_guest_pcm_submission_within_active_epoch")
+                .put("active_wall_ns", measured.activeWall).put("active_epochs", measured.activeEpochs)
+                .put("worker_run_wall_ns", measured.workerWall)
+                .put("native_calls", measured.nativeCalls).put("native_call_ns_total", measured.nativeTotal)
+                .put("native_call_ns_max", measured.nativeMaximum)
+                .put("audio_submit_calls", measured.audioCalls).put("audio_submit_ns_total", measured.audioTotal)
+                .put("audio_submit_ns_max", measured.audioMaximum)
+                .put("completed_frames", measured.completedFrames).put("completed_frame_work_ns_total", measured.frameTotal)
+                .put("completed_frame_work_ns_max", measured.frameMaximum)
+                .put("interrupted_frame_timing_intervals", measured.abandonedFrames)
+                .put("scheduled_callbacks", measured.callbacks).put("requested_delay_ns_total", measured.requestedDelay)
+                .put("scheduler_lateness_ns_total", measured.latenessTotal).put("scheduler_lateness_ns_max", measured.latenessMaximum)
+                .put("nonempty_pcm_submissions", measured.pcmSubmissions).put("pcm_submit_gap_ns_max", measured.pcmGapMaximum);
+        if (pacer != null) report.put("pacing", new JSONObject()
+                .put("policy", "absolute_deadline_bounded_catchup").put("interval_ns", FRAME_NANOS).put("max_catchup_frames", 4)
+                .put("epochs", pacer.epochs()).put("frame_starts", pacer.frames()).put("late_frame_starts", pacer.lateFrames())
+                .put("lateness_ns_total", pacer.totalLateness()).put("lateness_ns_max", pacer.maximumLateness())
+                .put("frame_work_ns_max", pacer.maximumWork()).put("deadline_resets", pacer.resets()));
+        return report;
     }
 
     void exportReport(Uri destination) {

@@ -213,6 +213,78 @@ public final class TitleLogicTest {
         check(sample.buttons == 0, "duplicate source delayed final release");
     }
 
+    // CodexAstraUlt: Model an actual in-flight native call across background,
+    // resume, explicit pause and final teardown. Only the playing foreground
+    // intervals contribute active wall time; full call cost remains observable.
+    private static void timingAcrossLifecycle() {
+        TitleTiming timing = new TitleTiming();
+        timing.reset(true);
+        check(timing.snapshot(1000).activeWall == 0, "opening counted as active emulation");
+        timing.running(true, 1000); timing.beginFrame(1000);
+        timing.foreground(false, 1010);
+        timing.nativeCall(1001, 1020);
+        timing.running(false, 1020);
+        TitleTiming.Snapshot paused = timing.snapshot(5000);
+        check(paused.activeWall == 10 && paused.activeEpochs == 1,
+                "in-flight completion or background idle extended active time");
+        check(paused.workerWall == 20,
+                "worker denominator omitted guest execution after the UI background boundary");
+        check(paused.nativeCalls == 1 && paused.nativeTotal == 19 && paused.nativeMaximum == 19,
+                "native timing hid the in-flight lifecycle tail");
+        check(paused.completedFrames == 0 && paused.abandonedFrames == 1,
+                "abandoned partial frame became completed work");
+        timing.foreground(true, 5000);
+        check(timing.snapshot(5100).activeWall == 10, "foreground resumed timing before owner execution");
+        timing.running(true, 5100); timing.beginFrame(5100); timing.finishFrame(5115);
+        timing.userPaused(true, 5120); timing.running(false, 5150);
+        check(timing.snapshot(8000).activeWall == 30, "user pause included worker retirement delay");
+        timing.userPaused(false, 8000); timing.running(true, 8100); timing.beginFrame(8100);
+        timing.requestStop(8130);
+        check(timing.snapshot(8135).activeWall == 60 && timing.snapshot(8135).workerWall == 105,
+                "requested stop erased the in-flight worker tail");
+        timing.stop(8140); timing.running(true, 8200); timing.stop(9000);
+        TitleTiming.Snapshot stopped = timing.snapshot(1000000);
+        check(stopped.activeWall == 60 && stopped.activeEpochs == 3,
+                "teardown or a stale running update reopened stopped timing");
+        check(stopped.workerWall == 110,
+                "worker-run denominator included paused idle/teardown or lost an in-flight tail");
+        check(stopped.completedFrames == 1 && stopped.frameTotal == 15 && stopped.frameMaximum == 15
+                && stopped.abandonedFrames == 2, "completed and abandoned frame accounting differs");
+        timing.reset(false); timing.running(true, 1000000);
+        TitleTiming.Snapshot replacement = timing.snapshot(2000000);
+        check(replacement.activeWall == 0 && replacement.activeEpochs == 0 && replacement.nativeCalls == 0
+                && replacement.completedFrames == 0 && replacement.abandonedFrames == 0,
+                "new background session inherited old timing or work counters");
+    }
+
+    // CodexAstraUlt: Intended sleep, executor lateness and missing guest PCM
+    // are different evidence. Empty slices, inactive submissions and pause time
+    // must not masquerade as audio production or a long active PCM gap.
+    private static void timingOfSchedulingAndPcm() {
+        TitleTiming timing = new TitleTiming(); timing.reset(true); timing.running(true, 0);
+        timing.callback(0, 10, 10); timing.callback(10, 10, 25); timing.callback(25, 0, 28);
+        timing.audioSubmit(28, 30, 0, true);
+        check(timing.snapshot(500).pcmGapMaximum == 0, "startup silence before any PCM counted as a delivery gap");
+        timing.audioSubmit(501, 503, 160, true);
+        timing.audioSubmit(510, 511, 0, true);
+        timing.audioSubmit(523, 526, 160, true);
+        check(timing.snapshot(530).pcmSubmissions == 2 && timing.snapshot(530).pcmGapMaximum == 23,
+                "empty slice reset an actual PCM producer gap");
+        timing.foreground(false, 550);
+        timing.audioSubmit(600, 610, 160, false);
+        TitleTiming.Snapshot gap = timing.snapshot(5000);
+        check(gap.pcmSubmissions == 2 && gap.pcmGapMaximum == 24,
+                "paused audio or background duration extended the active PCM gap");
+        check(gap.callbacks == 3 && gap.requestedDelay == 20 && gap.latenessTotal == 8 && gap.latenessMaximum == 5,
+                "requested pacing sleep was classified as executor lateness");
+        check(gap.audioCalls == 5 && gap.audioTotal == 18 && gap.audioMaximum == 10,
+                "audio submit wall cost omitted an inactive completion");
+        timing.foreground(true, 5000); timing.audioSubmit(5010, 5012, 160, true); timing.stop(5014);
+        check(timing.snapshot(9000).pcmSubmissions == 3 && timing.snapshot(9000).pcmGapMaximum == 24,
+                "resume included background time in PCM spacing");
+        check(timing.snapshot(9000).activeWall == 564, "active intervals do not match the modeled foreground route");
+    }
+
     public static void main(String[] arguments) throws Exception {
         Path root = Files.createTempDirectory("droidds-title-java-").toRealPath();
         try {
@@ -220,10 +292,11 @@ public final class TitleLogicTest {
             delayedCallbacksAcrossPause();
             inputEdgesAcrossYieldedSlices();
             atomicJoystickFrames();
+            timingAcrossLifecycle(); timingOfSchedulingAndPcm();
             System.out.println("{\"schema\":1,\"kind\":\"droidds-java-title-logic\",\"status\":\"passed\",\"checks\":" + checks
                     + ",\"controls\":[\"verified_import_reuse_preservation\",\"rejection_cancel_io_cleanup\","
                     + "\"atomic_publication_races\",\"symlink_and_atomic_report_preservation\",\"input_edges_axes_release\","
-                    + "\"pause_resume_retires_delayed_callbacks\"]}");
+                    + "\"pause_resume_retires_delayed_callbacks\",\"active_timing_and_delivery_gap_accounting\"]}");
         } finally {
             // CodexAstraUlt: Remove only this test's uniquely created tree.
             try (Stream<Path> paths = Files.walk(root)) {

@@ -169,10 +169,11 @@ pub struct Gpu {
     pub draw_calls: u64,
     pub fills: u64,
     pub transfers: u64,
-    /// vertices actually rasterized, as opposed to draw calls issued, a
-    /// draw call with a degenerate vertex count still counts as a call.
+    // CodexAstraUlt: Submitted vertex references, including indexed duplicates
+    // and some rejected draws; this is not actual shader invocations or pixels.
     pub vertices_drawn: u64,
-    /// host time spent running command lists and display transfers.
+    // CodexAstraUlt: Host wall time inside process_command_list only, including
+    // CPU work and waits; standalone transfers and screen readback are excluded.
     pub busy: std::time::Duration,
     /// decoded textures and the lighting tables, kept across draws.
     resources: raster::Resources,

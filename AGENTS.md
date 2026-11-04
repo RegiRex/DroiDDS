@@ -4,6 +4,30 @@
 and publication; preserve existing artifact identities in historical evidence. -->
 - The repository is `RegiRex/DroiDDS`. Use that spelling in current GitHub links.
 
+<!-- CodexAstraUlt: The owner has completed the private Android build and first
+interactive menus; advance to audio/playability work without repeating setup. -->
+- Read docs/device-tests/0.0.7-dark-moon-thor-menu.md. The owner reports all
+  521 Android objects and the APK completed, followed by Native title/file
+  menus on Thor, a responding A button and normal stop with no reported runtime
+  faults. This achieves the central 0.0.7 owned-game boot objective. Preserve
+  the 1,361/2,889 underruns and reported crackling/slow frame progression; no
+  playable segment, reliable audio or sustained speed is yet qualified. Both
+  uploaded JSON reports bind the same input/manifest/native library and show
+  zero PCM drops with all converted samples written. Core work advances only
+  21.255/34.140 guest seconds in 100.010/201.650 seconds. Slow production is
+  established; Java queue loss is not evidenced in these runs. Do not request
+  another unchanged boot merely to obtain already supplied counters.
+- The next development candidate is 0.0.8-preview.1/code 11 for audio delivery
+  and bounded timing diagnostics. Cloud validation and publication need their
+  own recorded gates; the published original title remains 0.0.7-preview.2.
+  Follow docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test.
+  Preserve the existing latest title report before another session overwrites
+  it. Repackage the completed ARM64 compilation with the same owner key and a
+  version code above the installed one (at least 11). Do not repeat setup,
+  preparation, Linux/Android title compilation or permission configuration.
+  One bounded matched Native menu/audio run is the next device step; use an
+  Interpreter comparison only if a new failure needs classification.
+
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->
 - The 0.0.7-preview.2 generic per-title Android player candidate is published;
@@ -13,8 +37,8 @@ before another isolated local trace; candidate publication does not close boot. 
   original-fixture candidate distinct from qualified owned-game boot and the
   roadmap's 0.1.0 limited beta. Complete cloud implementation/testing first and
   consolidate private compilation/device validation into one local batch.
-  Preserve the completed Linux objects/library and prepared C: Android needs
-  separate ARM64 objects, not regeneration or replacement of those artifacts.
+  Preserve the completed Linux and Android objects/libraries and prepared C.
+  Their separate target artifacts remain reusable by updated APK packaging.
   The six historical host compilation-contract helpers remain byte-identical
   to 857ff47; use the separate Android adapter. New title signing identity is
   explicit and separate from the probe. Preserve keys outside source/release
@@ -23,8 +47,9 @@ before another isolated local trace; candidate publication does not close boot. 
   docs/device-tests/0.0.7-preview2-thor-title.md. Its artifact identities and
   counters agree, with native/Vulkan execution and no reported runtime errors.
   The owner confirms both images, D-pad/A, touch, pause/resume and steady sound;
-  the three measured underruns are retained. Owned-title boot remains
-  unqualified. Its public report
+  the three measured underruns are retained. That original-fixture report does
+  not itself qualify an owned title; the later private menu result is above.
+  Its public report
   binds release source 97e60e0; later main test-only hardening 795b8cc accepts
   Linux ESRCH when an already-dead child disappears during a proc read. That
   main change passes 549 Python tests and both hosted workflows, with no APK
@@ -53,7 +78,7 @@ setup and continue the authorized build, without global installation changes. --
   are missing. The tested setup owns one directory outside Git and never edits
   system packages, shell profiles or existing Rust installations. Source env.sh
   and continue the consolidated task; do not return another tool-only handoff.
-  The current preview.3 development candidate uses authored homebrew-v2 to fix
+  The previous preview.3 development candidate introduced authored homebrew-v2 to fix
   startup pitch updates clearing pending DSP flags. Historical v1 reports and
   published preview.2 remain unchanged; private generated title C is unaffected.
 <!-- CodexAstraUlt: Retain the owner's deferred cleanup preference separately
@@ -157,7 +182,7 @@ rewriting its missing A observation or qualifying private games from a fixture. 
 native admission path instead of reopening compilation or using legacy loading. -->
 - Dark Moon's owner-reported host compilation now completes 521/521 objects and
   a linked/static-validated library. Read docs/PRIVATE_TITLE_NATIVE_RUN.md and
-  docs/builds/0.0.7-native-host-comparison.md for the next private host test.
+  docs/builds/0.0.7-native-host-comparison.md for the retained host evidence.
   Reuse its preparation/library; do not regenerate or recompile title code.
   The new host-only path admits manifests and full ELF pointer tables, seals
   library bytes and binds actual runtime components before loading. Its Linux
@@ -184,9 +209,9 @@ the owner back through an unchanged comparison before the Android build. -->
   are false. One synchronized sample matches at 303,222 cycles; the other three
   boundaries are missing on both routes. Preserve raw differences and the
   bounded match. No title regeneration, Linux recompilation, limit increase or
-  repeated unchanged host trace is justified. Continue the consolidated private
-  ARM64 package/device task using the retained preparation, with the Linux
-  library and previous outputs preserved.
+  repeated unchanged host trace is justified. The later ARM64 build and menu
+  boot are complete; continue the repackaging/audio task above with both target
+  libraries and previous outputs preserved.
 - Read docs/NEW3DS_AUDIT.md for the implemented parser, resolved-layout,
   commitment/configuration, heap-bound and restore-preflight corrections. The
   host compiler is also vendored to repair conditional-flow budget accounting;

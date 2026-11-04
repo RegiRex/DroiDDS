@@ -30,9 +30,10 @@ from build_foundation import ROOT, interrupted, snapshot, terminate_group, valid
 from validate_runtime_shaders import validate_runtime_shaders
 import collect_android_notices as NOTICES
 
-# CodexAstraUlt: This candidate includes guest-frame input and save corrections;
-# only the interactive homebrew's DSP fix changes its original fixture revision.
-VERSION = "0.0.7-preview.3"
+# CodexAstraUlt: After the owner's first private menu boot, this candidate starts
+# playable-segment work with audio delivery fixes and bounded timing evidence.
+# Its version does not qualify gameplay; existing generated title code is reused.
+VERSION = "0.0.8-preview.1"
 DIAGNOSTIC_FIXTURES = {
     "runtime": "droidds-original-runtime-v1",
     "homebrew": "droidds-original-homebrew-v2",
@@ -345,12 +346,26 @@ def build(args):
                 and report["java_title_logic"].get("kind") == "droidds-java-title-logic"
                 # CodexAstraUlt: Retain guest-frame input queue and atomic
                 # joystick regressions in every title package, including private builds.
-                and report["java_title_logic"].get("checks") == 67
+                and report["java_title_logic"].get("checks") == 86
                 and report["java_title_logic"].get("controls") == [
                     "verified_import_reuse_preservation", "rejection_cancel_io_cleanup",
                     "atomic_publication_races", "symlink_and_atomic_report_preservation",
-                    "input_edges_axes_release", "pause_resume_retires_delayed_callbacks"],
+                    "input_edges_axes_release", "pause_resume_retires_delayed_callbacks",
+                    "active_timing_and_delivery_gap_accounting"],
                 "java_title_logic_did_not_pass")
+        # CodexAstraUlt: Exercise actual title queue/adapter code against bounded
+        # partial/zero/error writes before packaging either a private or original APK.
+        report["java_title_audio"] = json.loads(run("java-title-audio", [sys.executable,
+            ROOT / "tools/check_java_title_audio.py", "--java-home", java,
+            "--output", output / "java-title-audio"]))
+        require(report["java_title_audio"].get("schema") == 1
+                and report["java_title_audio"].get("kind") == "droidds-java-title-audio"
+                and report["java_title_audio"].get("status") == "passed"
+                and report["java_title_audio"].get("checks") == 76
+                and report["java_title_audio"].get("controls") == [
+                    "backpressure_preserves_pcm_order", "bounded_partial_zero_write_queue",
+                    "invalid_writes_preserve_accounting", "startup_pause_resume_preserves_ownership",
+                    "cleanup_failures_release_once"], "java_title_audio_did_not_pass")
         metadata = json.loads(run("metadata", ["cargo", "metadata", "--offline", "--locked", "--format-version", "1"]))
         report["sources"] = validate_graph(metadata, tomllib.loads((ROOT / "upstream.lock.toml").read_text()))
         report["dependencies"] = validate_dependencies(run("target-dependencies", ["cargo", "tree", "--offline", "--locked",

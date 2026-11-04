@@ -2,17 +2,94 @@
 
 <!-- CodexAstraUlt: Reuse the completed preparation while keeping host and
 Android artifacts, signing identity and qualification evidence distinct. -->
-The current development candidate is **0.0.7-preview.3**, with explicit install code
-**10** for the corrected original homebrew candidate. The published Thor-tested
+The current development candidate is **0.0.8-preview.1**, with explicit install code
+**11** for the original homebrew candidate. The published Thor-tested
 release remains **0.0.7-preview.2/code 9**. The player uses a separate application
 ID, `org.droidds.title.t<program_id>`. Read the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md) for admission and storage
-rules. This candidate does not complete the 0.0.7 owned-game boot milestone.
+rules. The owner has now reported Dark Moon's first interactive menu boot on
+Thor, achieving the central 0.0.7 boot objective. This development candidate
+targets audio delivery and timing diagnostics toward 0.0.8's playable segment;
+cloud validation is pending its recorded gates, and playable qualification
+remains open.
 
 An existing successful preparation supplies the same generated C and headers to
 both compilers. Reuse it without regenerating title code. The completed Linux
 library and its objects remain intact; Android requires a separate ARM64/Bionic
 compilation directory. A Linux object or library cannot be installed on the Thor.
+
+## Current Dark Moon repackaging and audio test
+
+<!-- CodexAstraUlt: Replace the completed first-build task with an update that
+reuses every validated Android object and preserves the previous device report. -->
+Dark Moon's **521 Android objects, linked library and first private APK are now
+complete**. The [owner's Thor run](device-tests/0.0.7-dark-moon-thor-menu.md)
+reached Native title/file menus and responded to A, then stopped normally with
+no reported runtime faults. Its 1,361 underruns and audible crackling/slow frame
+progression remain the baseline. The earlier setup and device-access blockers
+are superseded; do not repeat setup, title preparation, Linux/Android title
+compilation or permission configuration for this follow-up.
+
+First preserve the existing exported JSON and local build/device summaries. If
+the latest title report exists only in the app, export it **before** starting
+another session: the app keeps one `files/latest-title-report.json` and replaces
+it on subsequent sessions. Existing records supply artifact identity and raw
+counters; no new test is needed merely to recover that old evidence.
+
+Reuse the successful build's tool environment, private preparation, completed
+Android compilation directory containing `compiled-manifest.json`, and owner
+signing profile. Source the recorded environment in each build shell. Use a
+fresh private package output and an install code **greater than the installed
+code and at least 11**. The only build command needed for the retained title is:
+
+```bash
+python3 tools/build_android_title.py \
+  --preparation "$DROIDDS_PREPARATION" \
+  --compilation "$DROIDDS_ARM64" \
+  --output "$DROIDDS_PACKAGE" \
+  --sdk "$DROIDDS_SDK" \
+  --java-home "$DROIDDS_JAVA" \
+  --version-code "$DROIDDS_VERSION_CODE" \
+  --signing-profile /absolute/path/to/existing-owner-title-signing.json
+```
+
+The paths and `DROIDDS_VERSION_CODE` above must be set from the successful local
+build and installed package; the signing path is the existing private profile,
+not a request for another key. Packaging rebuilds the shared player/frontend as
+needed and re-admits the retained title library. It does not recompile its 521
+objects. Use a compatible update of the same package/certificate, preserving
+the existing import and saves; never uninstall or clear data to bypass a mismatch.
+
+<!-- CodexAstraUlt: Keep the next local prompt to one actionable update and
+matched bounded run; diagnostics distinguish audio transport from slow guest work. -->
+```text
+Safely update RegiRex/DroiDDS to current main, preserving local work.
+Read the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
+Preserve the existing title JSON before any new session overwrites it.
+Use the working tools and completed preparation/ARM64 compilation from the
+successful private build. Build only a fresh APK with the same owner signing
+profile and an install code above the installed one, at least 11.
+
+Install a compatible update preserving the existing import and saves. Run one
+Native test through the same title/file-selection menu route for at most
+120 wall seconds or until the first failure, then stop normally. Keep route,
+settings and timing comparable to the prior record where known. Record audible
+gaps/crackling, visible progression, controls, active duration, PCM/queue counts,
+timing/pacing metrics, native/fallback work and the first blocker separately.
+Export the new title report to a fresh evidence directory. Use an Interpreter
+comparison only if a new Native failure needs classification.
+
+Return one short android-title-build-summary.md with source, library/APK hashes,
+package/version/public signing identity, preservation, device/driver, duration,
+observations and local report/APK paths. Retain all previous evidence and both
+Linux/Android title builds. Do not rerun setup, preparation, title compilation,
+host traces or permission configuration, and do not publish private artifacts.
+```
+
+The menu comparison evaluates the corrected audio path and new timing evidence.
+It does not establish a playable game segment, reliable saving/loading or
+sustained speed. Those are later 0.0.8/0.0.9 gates. The first-title procedure below
+is retained for future titles that do not yet have a compiled Android library.
 
 ## Required build tools
 
@@ -164,7 +241,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 10 \
+  --version-code 11 \
   --signing-profile /absolute/path/to/owner-title-signing.json
 ```
 
@@ -219,7 +296,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 10 \
+  --version-code 11 \
   --diagnostic-signing --diagnostic-fixture homebrew
 ```
 
@@ -245,6 +322,9 @@ performance.
 
 <!-- CodexAstraUlt: A finite preparation-to-APK task replaces repeated isolated
 trace handoffs while preserving failures and the completed host compilation. -->
+This is the **first-title** procedure for a preparation without a completed
+Android compilation. Dark Moon has completed it; use the
+[current repackaging task](#current-dark-moon-repackaging-and-audio-test) above.
 Give the local agent the retained preparation, selected signing
 location and fresh output locations once. The following is the integrated task:
 

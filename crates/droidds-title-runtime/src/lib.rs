@@ -69,6 +69,11 @@ pub struct Session {
     resume_count: u64,
     debug_bytes_discarded: u64,
     slice_wall: Duration,
+    // CodexAstraUlt: Separate synchronous scanout/readback from total core
+    // work using two clock reads per completed frame, with no frame history.
+    scanout_attempts: u64,
+    scanout_wall: Duration,
+    scanout_max_wall: Duration,
     // CodexAstraUlt: Core/native state belongs to one emulation owner. Tokens
     // may cross JNI, but the actual session cannot move to another Rust thread.
     _thread_owned: PhantomData<Rc<()>>,
@@ -110,6 +115,9 @@ impl Session {
             resume_count: 0,
             debug_bytes_discarded: 0,
             slice_wall: Duration::ZERO,
+            scanout_attempts: 0,
+            scanout_wall: Duration::ZERO,
+            scanout_max_wall: Duration::ZERO,
             _thread_owned: PhantomData,
         };
         session.check_machine()?;
@@ -229,8 +237,15 @@ impl Session {
             self.yielded += 1;
         }
         let (top, bottom) = if complete {
+            // CodexAstraUlt: This includes GPU synchronization, readback and
+            // pixel conversion for both planes; it is not a pure GPU timer.
+            let scanout_started = Instant::now();
+            self.scanout_attempts += 1;
             let top = self.system.read_screen(Screen::Top);
             let bottom = self.system.read_screen(Screen::Bottom);
+            let scanout_elapsed = scanout_started.elapsed();
+            self.scanout_wall += scanout_elapsed;
+            self.scanout_max_wall = self.scanout_max_wall.max(scanout_elapsed);
             if top.len() != 400 * 240 * 4 || bottom.len() != 320 * 240 * 4 {
                 return Err("title_scanout_size_invalid".into());
             }
@@ -445,6 +460,16 @@ impl Session {
         // existing report macro past Rust's default recursion limit.
         report["first_blocker"] = self.first_blocker.clone().unwrap_or(Value::Null);
         report["memory_faults"] = self.memory_fault_observation();
+        // CodexAstraUlt: Preserve the existing total slice time while exposing
+        // its scanout subset; these counters never change pacing or skip draws.
+        report["scanout"] = json!({"attempts":self.scanout_attempts,
+            "wall_nanoseconds":self.scanout_wall.as_nanos().min(u64::MAX as u128) as u64,
+            "max_wall_nanoseconds":self.scanout_max_wall.as_nanos().min(u64::MAX as u128) as u64});
+        // CodexAstraUlt: Export the existing command-list wall timer without
+        // new draw-level instrumentation. It includes CPU vertex processing,
+        // command recording and waits, and is not a GPU execution timestamp.
+        report["gpu"]["command_processing_wall_nanoseconds"] =
+            json!(self.system.gpu.busy.as_nanos().min(u64::MAX as u128) as u64);
         report
     }
 }

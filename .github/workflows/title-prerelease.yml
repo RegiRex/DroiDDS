@@ -148,7 +148,7 @@ jobs:
         run: |
           # CodexAstraUlt: Preview 3 has its own install identity and pins the
           # corrected v2 original guest; previous candidate artifacts stay fixed.
-          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 10 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
+          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 11 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
       - name: Verify and sanitize exactly four public assets
         id: bundle
         run: |
@@ -227,7 +227,7 @@ jobs:
         with:
           name: original-title-prerelease
           path: |
-            ${{ runner.temp }}/title-release/DroiDDS-0.0.7-preview.3-original-android-arm64.apk
+            ${{ runner.temp }}/title-release/DroiDDS-0.0.8-preview.1-original-android-arm64.apk
             ${{ runner.temp }}/title-release/BUILD_REPORT.json
             ${{ runner.temp }}/title-release/SHA256SUMS
             ${{ runner.temp }}/title-release/THIRD_PARTY_NOTICES.txt
