@@ -30,10 +30,10 @@ from build_foundation import ROOT, interrupted, snapshot, terminate_group, valid
 from validate_runtime_shaders import validate_runtime_shaders
 import collect_android_notices as NOTICES
 
-# CodexAstraUlt: After the owner's first private menu boot, this candidate starts
-# playable-segment work with audio delivery fixes and bounded timing evidence.
-# Its version does not qualify gameplay; existing generated title code is reused.
-VERSION = "0.0.8-preview.1"
+# CodexAstraUlt: Preserve the completed title library while comparing explicit
+# vertex paths and removing temporary triangle allocations. This candidate's
+# version does not establish device performance or a playable game segment.
+VERSION = "0.0.8-preview.2"
 DIAGNOSTIC_FIXTURES = {
     "runtime": "droidds-original-runtime-v1",
     "homebrew": "droidds-original-homebrew-v2",
@@ -344,14 +344,15 @@ def build(args):
             ROOT / "tools/check_java_title.py", "--java-home", java, "--output", output / "java-title-logic"]))
         require(report["java_title_logic"].get("status") == "passed"
                 and report["java_title_logic"].get("kind") == "droidds-java-title-logic"
-                # CodexAstraUlt: Retain guest-frame input queue and atomic
-                # joystick regressions in every title package, including private builds.
-                and report["java_title_logic"].get("checks") == 86
+                # CodexAstraUlt: Retain input/lifecycle checks and prove a valid
+                # vertex policy is latched before every private/public session.
+                and report["java_title_logic"].get("checks") == 107
                 and report["java_title_logic"].get("controls") == [
                     "verified_import_reuse_preservation", "rejection_cancel_io_cleanup",
                     "atomic_publication_races", "symlink_and_atomic_report_preservation",
                     "input_edges_axes_release", "pause_resume_retires_delayed_callbacks",
-                    "active_timing_and_delivery_gap_accounting"],
+                    "active_timing_and_delivery_gap_accounting",
+                    "vertex_policy_validation_and_session_latching"],
                 "java_title_logic_did_not_pass")
         # CodexAstraUlt: Exercise actual title queue/adapter code against bounded
         # partial/zero/error writes before packaging either a private or original APK.

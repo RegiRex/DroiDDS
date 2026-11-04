@@ -93,6 +93,9 @@ jobs:
           cargo clippy --offline --locked -p droidds-title-runtime -p droidds-title-player --all-targets --no-deps -- -D warnings
           cargo test --offline --locked -p zakuro-core -p droidds-title-tools -p droidds-native-title-tools -p droidds-title-builder -p droidds-title-runtime -p droidds-title-player -- --test-threads=1
           VK_LOADER_DEBUG=layer cargo test --offline --locked -p droidds-title-runtime --features vulkan-tests generic_native_vulkan_session_matches_original_image_and_audio_oracles -- --test-threads=1 --nocapture 2>&1 | tee "$RUNNER_TEMP/title-vulkan-validation.log"
+          # CodexAstraUlt: Retain the normal gate and also require each vertex
+          # route without dynamic blend/logic state, matching the Thor's driver.
+          ZAKURO_STATIC_BLEND=1 VK_LOADER_DEBUG=layer cargo test --offline --locked -p droidds-title-runtime --features vulkan-tests generic_native_vulkan_session_matches_original_image_and_audio_oracles -- --test-threads=1 --nocapture 2>&1 | tee -a "$RUNNER_TEMP/title-vulkan-validation.log"
           python3 - <<'PY'
           import os, sys
           from pathlib import Path
@@ -100,8 +103,13 @@ jobs:
           from build_runtime_probe import validate_diagnostics
           log = (Path(os.environ["RUNNER_TEMP"]) / "title-vulkan-validation.log").read_text()
           validate_diagnostics(log)
-          if "1 passed; 0 failed" not in log:
-              raise SystemExit("The original generic Vulkan test did not execute")
+          if log.count("test result: ok. 1 passed; 0 failed") != 2:
+              raise SystemExit("Both normal and static original Vulkan gates must execute")
+          # CodexAstraUlt: The oracle must execute each explicit instance route;
+          # an unchanged test name or automatic device heuristic is insufficient.
+          for policy in ("automatic", "cpu", "gpu"):
+              if log.count("DroiDDS vertex oracle: requested=" + policy + ",") != 2:
+                  raise SystemExit("Missing original vertex-path oracle: " + policy)
           PY
           cargo build --offline --locked --release -p droidds-native-title-tools -p droidds-title-builder
           cargo build --offline --locked --release -p droidds-runtime-probe --features producer
@@ -143,12 +151,24 @@ jobs:
           PY
           timeout 60s python3 tools/check_title_ffi.py --library target/release/libdroidds_title_player.so --manifest "$RUNNER_TEMP/title-host-manifest.json" --input "$RUNNER_TEMP/title-original/homebrew-fixture.cxi" --native-dir "$RUNNER_TEMP/title-host-native" --scratch-dir "$RUNNER_TEMP/title-ffi-interpreter"
           timeout 60s python3 tools/check_title_ffi.py --library target/release/libdroidds_title_player.so --manifest "$RUNNER_TEMP/title-host-manifest.json" --input "$RUNNER_TEMP/title-original/homebrew-fixture.cxi" --native-dir "$RUNNER_TEMP/title-host-native" --scratch-dir "$RUNNER_TEMP/title-ffi-native" --native
+          # CodexAstraUlt: Execute the unchanged C ABI's new renderer values
+          # against original data, including rejection and ownership controls.
+          for vertex_renderer in vulkan-cpu vulkan-gpu; do
+            ZAKURO_STATIC_BLEND=1 VK_LOADER_DEBUG=layer timeout 60s python3 tools/check_title_ffi.py --library target/release/libdroidds_title_player.so --manifest "$RUNNER_TEMP/title-host-manifest.json" --input "$RUNNER_TEMP/title-original/homebrew-fixture.cxi" --native-dir "$RUNNER_TEMP/title-host-native" --scratch-dir "$RUNNER_TEMP/title-ffi-$vertex_renderer" --native --renderer "$vertex_renderer" 2>&1 | tee "$RUNNER_TEMP/title-ffi-$vertex_renderer.log"
+            python3 - "$RUNNER_TEMP/title-ffi-$vertex_renderer.log" <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, "tools")
+          from build_runtime_probe import validate_diagnostics
+          validate_diagnostics(Path(sys.argv[1]).read_text())
+          PY
+          done
       - name: Build signed installable original title candidate
         id: apk
         run: |
-          # CodexAstraUlt: Preview 3 has its own install identity and pins the
-          # corrected v2 original guest; previous candidate artifacts stay fixed.
-          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 11 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
+          # CodexAstraUlt: Give the vertex comparison its own install identity;
+          # the authored guest and all historical release artifacts stay fixed.
+          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 12 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
       - name: Verify and sanitize exactly four public assets
         id: bundle
         run: |
@@ -227,7 +247,7 @@ jobs:
         with:
           name: original-title-prerelease
           path: |
-            ${{ runner.temp }}/title-release/DroiDDS-0.0.8-preview.1-original-android-arm64.apk
+            ${{ runner.temp }}/title-release/DroiDDS-0.0.8-preview.2-original-android-arm64.apk
             ${{ runner.temp }}/title-release/BUILD_REPORT.json
             ${{ runner.temp }}/title-release/SHA256SUMS
             ${{ runner.temp }}/title-release/THIRD_PARTY_NOTICES.txt

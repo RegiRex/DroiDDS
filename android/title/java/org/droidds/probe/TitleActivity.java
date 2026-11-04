@@ -27,7 +27,7 @@ public final class TitleActivity extends Activity implements TitleController.Obs
     private ScreenView top, bottom;
     private TextView status;
     private Button choose, included, play, pause, stop, cancel, save;
-    private Spinner route;
+    private Spinner route, vertex;
     private boolean running, importing;
 
     @Override public void onCreate(Bundle state) {
@@ -71,9 +71,21 @@ public final class TitleActivity extends Activity implements TitleController.Obs
                 new String[]{"Native", "Interpreter"});
         routes.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         route.setAdapter(routes); route.setContentDescription("Execution mode");
-        if (state != null) route.setSelection(state.getInt("route", 0) == 1 ? 1 : 0);
         panel.addView(route);
-        play = action(panel, "Play", () -> controller.start(route.getSelectedItemPosition() == 0));
+        // CodexAstraUlt: Vertex work can be compared independently of guest
+        // CPU execution. The default keeps the existing automatic renderer policy.
+        TextView vertexLabel = new TextView(this); vertexLabel.setText("Vertex shaders"); panel.addView(vertexLabel);
+        vertex = new Spinner(this);
+        ArrayAdapter<String> vertexChoices = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+                new String[]{"Automatic", "CPU", "GPU"});
+        vertexChoices.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        vertex.setAdapter(vertexChoices); vertex.setContentDescription("Vertex shader processing");
+        TitleLaunchOptions restored = TitleLaunchOptions.restored(state == null ? 0 : state.getInt("route", 0),
+                state == null ? TitleLaunchOptions.AUTOMATIC : state.getInt("vertex_policy", TitleLaunchOptions.AUTOMATIC));
+        route.setSelection(restored.nativeMode ? 0 : 1); vertex.setSelection(restored.vertexPolicy);
+        panel.addView(vertex);
+        play = action(panel, "Play", () -> controller.start(route.getSelectedItemPosition() == 0,
+                vertex.getSelectedItemPosition()));
         LinearLayout session = new LinearLayout(this);
         pause = action(session, "Pause", () -> controller.pauseOrResume());
         stop = action(session, "Stop", () -> controller.stop()); panel.addView(session);
@@ -138,6 +150,9 @@ public final class TitleActivity extends Activity implements TitleController.Obs
     }
     @Override protected void onSaveInstanceState(Bundle state) {
         if (route != null) state.putInt("route", route.getSelectedItemPosition());
+        // CodexAstraUlt: Persist only the user's selection; a live controller's
+        // latched options take precedence when the replacement view attaches.
+        if (vertex != null) state.putInt("vertex_policy", vertex.getSelectedItemPosition());
         super.onSaveInstanceState(state);
     }
     @Override protected void onActivityResult(int request, int result, Intent data) {
@@ -159,6 +174,14 @@ public final class TitleActivity extends Activity implements TitleController.Obs
         included.setEnabled(state.canImport); cancel.setVisibility(state.importing ? View.VISIBLE : View.GONE);
         play.setEnabled(state.canPlay); pause.setEnabled(state.running); stop.setEnabled(state.running);
         pause.setText(state.paused ? "Resume" : "Pause"); route.setEnabled(!state.busy); save.setEnabled(state.canExport);
+        // CodexAstraUlt: Neither selector can alter an admitted session, and a
+        // recreated Activity displays its actual choices instead of its defaults.
+        vertex.setEnabled(!state.busy);
+        TitleLaunchOptions displayed = state.options.displayed(state.running,
+                route.getSelectedItemPosition(), vertex.getSelectedItemPosition());
+        int shownRoute = displayed.nativeMode ? 0 : 1;
+        if (route.getSelectedItemPosition() != shownRoute) route.setSelection(shownRoute);
+        if (vertex.getSelectedItemPosition() != displayed.vertexPolicy) vertex.setSelection(displayed.vertexPolicy);
     }
     // CodexAstraUlt: Hide old bitmaps between sessions; only a new guest plane
     // or the current session's retained plane makes that view visible again.

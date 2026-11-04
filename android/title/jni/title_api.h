@@ -14,6 +14,13 @@
 #define DDS_TITLE_READY_TOP 1U
 #define DDS_TITLE_READY_BOTTOM 2U
 
+/* CodexAstraUlt: Preserve software=0 and Vulkan automatic=1 in the existing
+ * open ABI; explicit vertex policies are chosen before renderer initialization. */
+#define DDS_TITLE_RENDERER_SOFTWARE 0U
+#define DDS_TITLE_RENDERER_VULKAN_AUTOMATIC 1U
+#define DDS_TITLE_RENDERER_VULKAN_CPU 2U
+#define DDS_TITLE_RENDERER_VULKAN_GPU 3U
+
 /* CodexAstraUlt: u64 fields match Rust repr(C). PCM counts are stereo frames;
  * ready_mask describes independent optional screen updates, including no frame
  * on a cooperative yield. Cycles/frames are cumulative guest observations. */
@@ -27,9 +34,10 @@ typedef struct DdsTitleMetrics {
 
 /* CodexAstraUlt: Open consumes no caller buffer. It writes zero before work and
  * a unique token only after installation; the caller closes that token if JSON
- * transfer fails. Native/hardware are booleans. Free returned UTF-8 JSON with
- * droidds_title_free exactly once. Paths select input, installer libraries and
- * durable runtime storage; this API never clears the latter. */
+ * transfer fails. Native is boolean; hardware is one DDS_TITLE_RENDERER_* value.
+ * Values outside 0..3 reject without acquiring a token. Free returned UTF-8
+ * JSON with droidds_title_free exactly once. Paths select input, installer
+ * libraries and durable runtime storage; this API never clears the latter. */
 char *droidds_title_open(const uint8_t *manifest, size_t manifest_bytes,
     const char *input, const char *native_directory, const char *data_directory,
     uint32_t native_mode, uint32_t hardware, uint64_t *opened_token);

@@ -92,10 +92,16 @@ impl Fixture {
     }
 
     fn open(&self) -> (u64, Value) {
+        self.open_renderer(0)
+    }
+
+    // CodexAstraUlt: Exercise the C renderer discriminant independently from
+    // the runtime enum, with a nonzero sentinel to detect stale ownership outputs.
+    fn open_renderer(&self, renderer: u32) -> (u64, Value) {
         let input = CString::new(self.input.to_str().unwrap()).unwrap();
         let libraries = CString::new(self.libraries.to_str().unwrap()).unwrap();
         let runtime = CString::new(self.runtime.to_str().unwrap()).unwrap();
-        let mut token = 0;
+        let mut token = 42;
         // SAFETY: All pointers are backed by live distinct strings/bytes/u64.
         let report = unsafe {
             decode(droidds_title_open(
@@ -105,7 +111,7 @@ impl Fixture {
                 libraries.as_ptr(),
                 runtime.as_ptr(),
                 0,
-                0,
+                renderer,
                 &mut token,
             ))
         };
@@ -247,6 +253,31 @@ fn invalid_open_revokes_only_its_output_and_returns_owned_json() {
     unsafe { droidds_title_free(ptr::null_mut()) };
     assert_eq!(std::mem::size_of::<Metrics>(), 40);
     assert_eq!(std::mem::align_of::<Metrics>(), 8);
+}
+
+// CodexAstraUlt: New renderer discriminants must retain the C boundary's
+// ownership rule: an invalid request clears only its token output, never the
+// existing session, guest state, imported input or save storage.
+#[test]
+fn invalid_renderer_selection_does_not_replace_an_existing_owner() {
+    let _serial = SERIAL.lock().unwrap();
+    let fixture = Fixture::new(true);
+    let (token, opened) = fixture.open();
+    assert_eq!(opened["status"], "opened");
+    let _owner = OwnedToken(token);
+    let before = report(token);
+    for renderer in [4, u32::MAX] {
+        let (rejected, value) = fixture.open_renderer(renderer);
+        assert_eq!(rejected, 0);
+        assert_eq!(value["status"], "failed");
+        assert_eq!(
+            value["error"],
+            "invalid title manifest length or route options"
+        );
+        assert_eq!(report(token), before);
+        fixture.preserved();
+    }
+    assert_eq!(Buffers::new().slice(token), 0);
 }
 
 #[test]

@@ -285,6 +285,41 @@ public final class TitleLogicTest {
         check(timing.snapshot(9000).activeWall == 564, "active intervals do not match the modeled foreground route");
     }
 
+    // CodexAstraUlt: A recreated UI must display the admitted route rather than
+    // stale defaults, while idle selections remain editable for the next run.
+    private static void vertexPolicyAcrossViewReplacement() throws Exception {
+        TitleLaunchOptions defaults = TitleLaunchOptions.restored(0, TitleLaunchOptions.AUTOMATIC);
+        check(defaults.nativeMode && defaults.vertexPolicyName().equals("automatic"), "default renderer policy changed");
+        for (boolean nativeRoute : new boolean[]{false, true}) {
+            for (int choice = TitleLaunchOptions.AUTOMATIC; choice <= TitleLaunchOptions.GPU; choice++) {
+                TitleLaunchOptions options = new TitleLaunchOptions(nativeRoute, choice);
+                check(options.nativeMode == nativeRoute && options.vertexPolicy == choice
+                        && options.vertexPolicyName().equals(new String[]{"automatic", "cpu", "gpu"}[choice]),
+                        "vertex selection altered guest CPU mode or report identity");
+            }
+        }
+        for (int invalid : new int[]{Integer.MIN_VALUE, -1, 3, Integer.MAX_VALUE}) {
+            rejects(() -> new TitleLaunchOptions(true, invalid));
+            check(TitleLaunchOptions.restored(1, invalid).vertexPolicy == TitleLaunchOptions.AUTOMATIC,
+                    "invalid saved selector enabled a forced renderer path");
+        }
+        TitleLaunchOptions activeGpu = new TitleLaunchOptions(true, TitleLaunchOptions.GPU);
+        check(activeGpu.displayed(true, 1, TitleLaunchOptions.CPU) == activeGpu,
+                "stale Activity state changed a live native/GPU selection");
+        check(activeGpu.displayed(true, -1, -1) == activeGpu,
+                "missing recreated widgets replaced the active session's selection");
+        TitleLaunchOptions activeCpu = new TitleLaunchOptions(false, TitleLaunchOptions.CPU);
+        check(activeCpu.displayed(true, 0, TitleLaunchOptions.AUTOMATIC) == activeCpu,
+                "Activity defaults hid a live interpreter/CPU selection");
+        TitleLaunchOptions next = activeGpu.displayed(false, 1, TitleLaunchOptions.CPU);
+        check(!next.nativeMode && next.vertexPolicy == TitleLaunchOptions.CPU,
+                "idle selection could not prepare a different next session");
+        check(activeGpu.nativeMode && activeGpu.vertexPolicy == TitleLaunchOptions.GPU,
+                "next-session UI state mutated the prior admitted selection");
+        check(TitleLaunchOptions.restored(99, TitleLaunchOptions.GPU).nativeMode,
+                "invalid saved CPU route changed the default execution mode");
+    }
+
     public static void main(String[] arguments) throws Exception {
         Path root = Files.createTempDirectory("droidds-title-java-").toRealPath();
         try {
@@ -293,10 +328,12 @@ public final class TitleLogicTest {
             inputEdgesAcrossYieldedSlices();
             atomicJoystickFrames();
             timingAcrossLifecycle(); timingOfSchedulingAndPcm();
+            vertexPolicyAcrossViewReplacement();
             System.out.println("{\"schema\":1,\"kind\":\"droidds-java-title-logic\",\"status\":\"passed\",\"checks\":" + checks
                     + ",\"controls\":[\"verified_import_reuse_preservation\",\"rejection_cancel_io_cleanup\","
                     + "\"atomic_publication_races\",\"symlink_and_atomic_report_preservation\",\"input_edges_axes_release\","
-                    + "\"pause_resume_retires_delayed_callbacks\",\"active_timing_and_delivery_gap_accounting\"]}");
+                    + "\"pause_resume_retires_delayed_callbacks\",\"active_timing_and_delivery_gap_accounting\","
+                    + "\"vertex_policy_validation_and_session_latching\"]}");
         } finally {
             // CodexAstraUlt: Remove only this test's uniquely created tree.
             try (Stream<Path> paths = Files.walk(root)) {

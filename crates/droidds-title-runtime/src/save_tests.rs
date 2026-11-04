@@ -320,6 +320,7 @@ fn open(fixture: &Fixture, data: &std::path::Path, native: bool) -> Session {
         data_directory: data,
         native,
         hardware: false,
+        vertex_shading: VertexShading::Automatic,
     })
     .unwrap()
 }

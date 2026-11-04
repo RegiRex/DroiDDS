@@ -1,51 +1,50 @@
 # Build an Android title candidate
 
-<!-- CodexAstraUlt: Reuse the completed preparation while keeping host and
-Android artifacts, signing identity and qualification evidence distinct. -->
-The current published development candidate is **0.0.8-preview.1/code 11** for
-the original homebrew title. Its local/main/tag gates and independently downloaded
-public assets pass. The owner-tested original **0.0.7-preview.2/code 9** remains
-historical device evidence; the new candidate's device check is pending.
-The player uses a separate application ID, `org.droidds.title.t<program_id>`. Read the
-[manifest/runtime contract](ANDROID_TITLE_CONTRACT.md) for admission and storage
-rules. The owner has now reported Dark Moon's first interactive menu boot on
-Thor, achieving the central 0.0.7 boot objective. This development candidate
-targets audio delivery and timing diagnostics toward 0.0.8's playable segment.
-See the [build record](builds/0.0.8-audio-performance-followup.md) for release
-source `64ff16b`, artifact identities and completed local/main/tag/public-download
-gates. The private update's device result and playable qualification remain open.
+<!-- CodexAstraUlt: Carry the completed code 11 test into a comparison update
+that reuses the compiled title and signer instead of repeating setup. -->
+The next development candidate is **0.0.8-preview.2/code 12**, implementing a
+triangle-allocation correction and explicit CPU/GPU vertex selection. Local unit,
+frontend, actual C ABI and exact original image/PCM checks pass for the required
+routes, including normal and forced-static blend. APK, hosted and publication
+gates remain pending; see the [candidate record](builds/0.0.8-vertex-comparison.md).
+The latest verified public
+original-title release remains **0.0.8-preview.1/code 11**. The player retains
+application ID `org.droidds.title.t<program_id>` and the
+[manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
 
-An existing successful preparation supplies the same generated C and headers to
-both compilers. Reuse it without regenerating title code. The completed Linux
-library and its objects remain intact; Android requires a separate ARM64/Bionic
-compilation directory. A Linux object or library cannot be installed on the Thor.
+The [private code 11 result](device-tests/0.0.8-preview1-dark-moon-thor.md) reports
+a 110-second Native menu run, normal stop and continuing severe slowdown/crackling.
+Its JSON was replaced by a later manual restart. Only that separate restart is
+summarized as spending 57.6% of core time in command processing; raw timing fields
+have not yet reached the cloud. Preserve both sessions' distinct provenance.
+
+An existing preparation supplies the same generated C and headers to both target
+compilers. Its completed Linux and ARM64 libraries remain intact and reusable;
+this update rebuilds the shared player/frontend, not the 521 title objects.
 
 ## Current Dark Moon repackaging and audio test
 
-<!-- CodexAstraUlt: Replace the completed first-build task with an update that
-reuses every validated Android object and preserves the previous device report. -->
-Dark Moon's **521 Android objects, linked library and first private APK are now
-complete**. The [owner's Thor run](device-tests/0.0.7-dark-moon-thor-menu.md)
-reached Native title/file menus and responded to A, then stopped normally with
-no reported runtime faults. The two supplied reports retain **1,361 and 2,889
-underruns**, zero PCM drops and all converted samples written. Core timing
-establishes slow sample production, consistent with the audible crackling/slow
-frame progression. These remain the baseline; the queue correction addresses a
-separate reproduced bug. The earlier setup and device-access blockers
-are superseded; do not repeat setup, title preparation, Linux/Android title
-compilation or permission configuration for this follow-up.
+<!-- CodexAstraUlt: Keep this existing anchor stable while replacing the
+completed single audio run with one controlled CPU/GPU vertex comparison. -->
+Preview.2's explicit **cloud CPU/GPU original image/PCM gates pass**; complete
+the remaining APK and publication checks before the local comparison. The Thor
+batch is the device experiment itself; it does not require a separate public
+diagnostic app installation.
+The current Automatic setting stays the default. For the deliberate comparison,
+keep guest execution **Native** and change only **vertex shaders: CPU / GPU**
+between the two runs. GPU rasterization remains Vulkan in both cases.
 
-First preserve both exported JSON reports and the local build/device summaries. If
-the latest title report exists only in the app, export it **before** starting
-another session: the app keeps one `files/latest-title-report.json` and replaces
-it on subsequent sessions. Existing records supply artifact identity and raw
-counters; no new test is needed merely to recover that old evidence.
+Preserve the surviving code 11 restart report, older reports and build summaries
+before any new session. The app keeps one `files/latest-title-report.json` and
+replaces it on later sessions. **After each comparison run, stop normally and
+export that JSON immediately, before starting or restarting anything else.**
+A later replacement cannot supply the earlier session's counters.
 
-Reuse the successful build's tool environment, private preparation, completed
-Android compilation directory containing `compiled-manifest.json`, and owner
-signing profile. Source the recorded environment in each build shell. Use a
-fresh private package output and an install code **greater than the installed
-code and at least 11**. The only build command needed for the retained title is:
+Reuse the successful tool environment, private preparation, completed ARM64
+compilation directory containing `compiled-manifest.json`, and owner signing
+profile. Source the existing environment in each build shell. Use a fresh private
+package output with a version code **greater than the installed code and at least
+12**. The retained title needs only this packaging command:
 
 ```bash
 python3 tools/build_android_title.py \
@@ -58,43 +57,57 @@ python3 tools/build_android_title.py \
   --signing-profile /absolute/path/to/existing-owner-title-signing.json
 ```
 
-The paths and `DROIDDS_VERSION_CODE` above must be set from the successful local
-build and installed package; the signing path is the existing private profile,
-not a request for another key. Packaging rebuilds the shared player/frontend as
-needed and re-admits the retained title library. It does not recompile its 521
-objects. Use a compatible update of the same package/certificate, preserving
-the existing import and saves; never uninstall or clear data to bypass a mismatch.
+Resolve the paths and version code from the successful local build and installed
+package. Keep the same package and certificate for a compatible update; preserve
+imports and remaining saves. The owner's earlier intentional save deletion is
+historical evidence, not permission to reset saves again. Do not uninstall or
+clear app data to bypass an incompatibility, create a replacement key, repeat
+tool setup, regenerate preparation or recompile either set of title objects.
 
-<!-- CodexAstraUlt: Keep the next local prompt to one actionable update and
-matched bounded run; diagnostics distinguish audio transport from slow guest work. -->
+<!-- CodexAstraUlt: Keep the local prompt limited to a compatible update and
+one bounded comparison; archive each report before another session replaces it. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
-Read the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Preserve the existing title JSON before any new session overwrites it.
-Use the working tools and completed preparation/ARM64 compilation from the
-successful private build. Build only a fresh APK with the same owner signing
-profile and an install code above the installed one, at least 11.
+Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
+Verify the preview.2 cloud route/package gates are recorded as passed.
+Preserve the surviving code 11 restart JSON and all earlier summaries/reports.
+Reuse the working tools, preparation, completed ARM64 compilation and existing
+owner signing profile. Build only a fresh APK, with the same package/certificate
+and an install code above the installed one, at least 12. Install a compatible
+update retaining the import and remaining saves.
 
-Install a compatible update preserving the existing import and saves. Run one
-Native test through the same title/file-selection menu route for at most
-120 wall seconds or until the first failure, then stop normally. Keep route,
-settings and timing comparable to the prior record where known. Record audible
-gaps/crackling, visible progression, controls, active duration, PCM/queue counts,
-timing/pacing metrics, native/fallback work and the first blocker separately.
-Export the new title report to a fresh evidence directory. Use an Interpreter
-comparison only if a new Native failure needs classification.
+Run one bounded comparison batch on the Thor. Keep Native guest execution,
+resolution, menu route and other settings comparable. Run CPU vertex shaders,
+then GPU vertex shaders, at most 120 wall seconds each. Stop the GPU trial on a
+new failure or visual corruption. After EACH run, stop normally and immediately
+export a separately named JSON before any restart. Record requested policy,
+selected/actual path evidence, phase timing, visible progression, controls and
+any failure. Record audible interruptions when observed; otherwise mark audio
+quality unobserved rather than inferring it from counters.
 
-Return one short android-title-build-summary.md with source, library/APK hashes,
-package/version/public signing identity, preservation, device/driver, duration,
-observations and local report/APK paths. Retain all previous evidence and both
-Linux/Android title builds. Do not rerun setup, preparation, title compilation,
-host traces or permission configuration, and do not publish private artifacts.
+Return one android-title-build-summary.md with source/library/APK identities,
+package/version/public signing identity, device/driver, duration and separate
+CPU/GPU findings plus both local JSON paths. Preserve prior outputs and both
+title builds. Do not rerun setup, preparation, title compilation, host traces
+or permission configuration, reset saves, or publish private artifacts.
 ```
 
-The menu comparison evaluates the corrected audio path and new timing evidence.
-It does not establish a playable game segment, reliable saving/loading or
-sustained speed. Those are later 0.0.8/0.0.9 gates. The first-title procedure below
-is retained for future titles that do not yet have a compiled Android library.
+<!-- CodexAstraUlt: Interpret the new timing subset and recorded paths without
+adding overlapping phase totals or calling a selected route proof of all work. -->
+Compare `runtime.gpu.vertex_processing.cpu_wall_nanoseconds` with command-processing
+time as a **subset**, not an additional phase. It includes CPU vertex/geometry
+execution, output packing and worker joins; attribute decoding, clipping and
+Vulkan work are outside that timer. `cpu_batches` and `cpu_vertex_inputs` count
+executed batches and their inputs after indexed-draw deduplication. Recorded
+`gpu_vertex_draws` and `placed_vertex_draws` distinguish GPU vertex processing
+from already transformed input; they count recorded draws, including repeated
+twin draws, not shader invocations. Retain dynamic blend/logic flags so the
+comparison's supported backend path stays visible.
+
+A matching route comparison can locate performance differences and regressions.
+It cannot qualify gameplay, reliable save/load, sustained speed or all GPU shader
+behavior. Retain failed and inconclusive results as such. The first-title
+procedure below remains for titles that do not have a completed Android library.
 
 ## Required build tools
 
@@ -276,7 +289,7 @@ requires Android **4 KiB** pages and rejects unsupported native page sizes.
 fixtures; a program ID or filename cannot make private content publishable. -->
 The included candidate uses revision 2 of the authored interactive homebrew guest.
 It preserves pending DSP initialization when A is held at startup; the original
-0.0.6 and preview.2 fixture remains revision 1 in historical evidence.
+0.0.6 and 0.0.7-preview.2 fixtures remain revision 1 in historical evidence.
 Its program ID is `000400000d5d0006`; the emitted input is 30,720 bytes with SHA-256
 `09cf47cc188f140a8bd0e146efce5d9ef63ff10bbaa035c8c557fac32e4a8003`.
 Generate a fresh original input/preparation with the existing pinned tools:
@@ -301,7 +314,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 11 \
+  --version-code 12 \
   --diagnostic-signing --diagnostic-fixture homebrew
 ```
 

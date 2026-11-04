@@ -27,6 +27,9 @@ use zakuro_common::ConsoleModel;
 use zakuro_cpu::{Cpu, Exit};
 use zakuro_fs::Title;
 use zakuro_gpu::{Gpu, GpuMemory, Renderer, SoftwareRenderer};
+// CodexAstraUlt: Re-export the instance renderer policy through the existing
+// runtime dependency without changing retained title dependency provenance.
+pub use zakuro_gpu::VertexShading;
 
 use kernel::thread::{ThreadId, WaitResult, WaitSyscall, THREAD_EXIT_MAGIC};
 use kernel::Kernel;

@@ -47,7 +47,7 @@ static jbyteArray title_json(JNIEnv *env, char *owned) {
 JNIEXPORT jbyteArray JNICALL
 Java_org_droidds_probe_TitleNative_open(JNIEnv *env, jclass owner,
     jbyteArray manifest, jstring input, jstring libraries, jstring runtime,
-    jboolean native_mode, jlongArray opening_token) {
+    jboolean native_mode, jint vertex_policy, jlongArray opening_token) {
     (void)owner;
     if (opening_token == NULL || (*env)->GetArrayLength(env, opening_token) != 1) {
         title_error(env, "Title open requires a token output");
@@ -56,6 +56,12 @@ Java_org_droidds_probe_TitleNative_open(JNIEnv *env, jclass owner,
     const jlong zero = 0;
     (*env)->SetLongArrayRegion(env, opening_token, 0, 1, &zero);
     if ((*env)->ExceptionCheck(env)) return NULL;
+    /* CodexAstraUlt: Reject a malformed selector before allocation or native
+     * admission, retaining a zero ownership token on every early return. */
+    if (vertex_policy < 0 || vertex_policy > 2) {
+        title_error(env, "Unsupported vertex shader selection");
+        return NULL;
+    }
     if (manifest == NULL || input == NULL || libraries == NULL || runtime == NULL) {
         title_error(env, "Title manifest and runtime paths are required");
         return NULL;
@@ -89,11 +95,12 @@ Java_org_droidds_probe_TitleNative_open(JNIEnv *env, jclass owner,
         free(manifest_copy);
         return NULL;
     }
-    /* CodexAstraUlt: Hardware rendering is an explicit Android requirement;
-     * interpreter selection changes only the CPU route, not Vulkan admission. */
+    /* CodexAstraUlt: Vulkan remains required for every Android selection. The
+     * stable C ABI uses 1=automatic, 2=CPU vertices, 3=GPU vertices; guest CPU
+     * execution is independent and no process-wide renderer state is changed. */
     uint64_t opened_token = 0;
     char *owned = droidds_title_open(manifest_copy, (size_t)length, input_path,
-        library_path, runtime_path, native_mode ? 1U : 0U, 1U, &opened_token);
+        library_path, runtime_path, native_mode ? 1U : 0U, (uint32_t)vertex_policy + 1U, &opened_token);
     (*env)->ReleaseStringUTFChars(env, runtime, runtime_path);
     (*env)->ReleaseStringUTFChars(env, libraries, library_path);
     (*env)->ReleaseStringUTFChars(env, input, input_path);

@@ -33,15 +33,24 @@ retain **1,361 and 2,889 audio underruns**, with zero reported PCM drops and all
 converted samples written. Their core timing establishes slow sample production,
 consistent with the owner's crackling/slow-frame observation.
 
-**0.0.8-preview.1 is the current development candidate**, focused on audio delivery
-and timing diagnostics toward a playable segment. Local implementation, original
-APK repackaging, hosted main/tag gates and independently downloaded public assets
-pass. See the [build record](docs/builds/0.0.8-audio-performance-followup.md) for
-exact results. Device validation of this candidate and the private update remain
-pending; gameplay, reliable audio, save/resume and sustained speed are unqualified.
-The local follow-up [repackages the completed Android
-library](docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test)
-with the existing owner signing identity. No title recompilation is required.
+<!-- CodexAstraUlt: Record the completed private audio follow-up separately
+from its later restart and the next unqualified development candidate. -->
+The [private code 11 follow-up](docs/device-tests/0.0.8-preview1-dark-moon-thor.md)
+reached file selection during a 110-second Native run and stopped normally;
+severe slowdown and crackling remain. A later restart replaced that run's JSON.
+Its separate report is summarized as **57.6% of core time in command processing**;
+the raw timing report has not yet reached the cloud.
+
+**0.0.8-preview.2/code 12 implements a triangle-allocation correction and a
+controlled CPU/GPU vertex-shader comparison**, preserving the current default.
+Local unit, frontend and actual C ABI checks pass, including exact original
+image/audio oracles for Automatic, CPU and GPU under normal and forced-static
+blend. Bounded CPU batch timing and actual rendering-path counters separate
+policy from work. APK, hosted and publication gates remain pending; see the
+[candidate record](docs/builds/0.0.8-vertex-comparison.md). The private update
+reuses the completed Android library and owner signer. No Thor improvement is
+yet measured; gameplay, reliable audio, save/resume and sustained speed remain
+unqualified.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->

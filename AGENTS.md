@@ -17,20 +17,40 @@ interactive menus; advance to audio/playability work without repeating setup. --
   21.255/34.140 guest seconds in 100.010/201.650 seconds. Slow production is
   established; Java queue loss is not evidenced in these runs. Do not request
   another unchanged boot merely to obtain already supplied counters.
-- The next development candidate is 0.0.8-preview.1/code 11 for audio delivery
-  and bounded timing diagnostics. Read docs/builds/0.0.8-audio-performance-followup.md
-  for the passed local checks and retained-library original APK repackaging at
-  0a98428. Main CPU/Android and tag build/publish gates pass; the public
-  0.0.8-preview.1 assets at documentation-only follow-up 64ff16b were independently
-  downloaded and verified. Its original-fixture and private-update device results
-  remain unperformed; the earlier 0.0.7-preview.2 Thor result stays historical.
-  Follow docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test.
-  Preserve the existing latest title report before another session overwrites
-  it. Repackage the completed ARM64 compilation with the same owner key and a
-  version code above the installed one (at least 11). Do not repeat setup,
-  preparation, Linux/Android title compilation or permission configuration.
-  One bounded matched Native menu/audio run is the next device step; use an
-  Interpreter comparison only if a new failure needs classification.
+<!-- CodexAstraUlt: Keep the overwritten bounded run separate from the surviving
+restart summary, and progress from completed code 11 testing into route analysis. -->
+- Read docs/device-tests/0.0.8-preview1-dark-moon-thor.md. The owner reports code 11
+  packaging passed with the existing library and signer preserved, then a
+  110-second Native test reached file selection and stopped normally with severe
+  slowdown/crackling. A later manual restart replaced that run's JSON. Only the
+  separate restart report is summarized as 57.6% command-processing/core time;
+  raw runtime/timing/audio fields have not yet been supplied to the cloud. Do
+  not join that percentage to the 110-second duration or earlier speed bounds.
+  Preserve the surviving report without another unchanged run. The owner's
+  reported intentional save deletion is historical, not permission to repeat it.
+- The next development candidate is 0.0.8-preview.2/code 12. Read
+  docs/builds/0.0.8-vertex-comparison.md for the triangle-allocation correction,
+  explicit Automatic/CPU/GPU vertex comparison and required route gates. The
+  current Automatic behavior stays the default; native guest ARM and PICA vertex
+  execution remain distinct. Local implementation checks pass: 591 Python,
+  107 title JVM plus 76 audio JVM, 24 runtime plus 6 player tests, and 176 unique
+  GPU tests (two intentional speed benchmarks remain ignored). Original exact
+  image/PCM oracles pass Automatic/CPU/GPU under normal and forced-static blend;
+  actual C ABI interpreter/software and native/software/CPU-Vulkan/GPU-Vulkan
+  controls pass with no Vulkan API errors. See the build record for the existing
+  spirv-val PATH correction and successful four-test GLSL rerun. Bounded CPU
+  batch/input/time, recorded GPU/placed draw and dynamic blend/logic flags now
+  distinguish requested policy from actual work. APK, hosted and publication
+  gates remain pending. The latest verified public release is 0.0.8-preview.1 at 64ff16b;
+  its original-fixture device gate remains separate from the private code 11 run.
+  Repackage the retained ARM64 library with the same owner key and an install code
+  above the installed one, at least 12; no setup, preparation, Linux/Android title
+  compilation or permission reconfiguration. Passing explicit cloud CPU/GPU
+  original-oracle gates precede one bounded private comparison batch on Thor;
+  that batch is the device experiment itself. No separate public APK installation
+  is required. Export each report immediately after stopping and before any
+  restart, with route/session evidence separate. Stop a GPU trial on a new failure
+  or visual corruption; do not uninstall, clear data or substitute signing keys.
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->

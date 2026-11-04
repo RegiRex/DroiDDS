@@ -39,11 +39,16 @@ final class TitleController {
     static final class Snapshot {
         final String message;
         final boolean busy, running, importing, paused, canImport, canPlay, canExport, included;
+        // CodexAstraUlt: Publish the immutable admitted choice so recreated
+        // widgets cannot imply a different renderer for the active session.
+        final TitleLaunchOptions options;
         Snapshot(String message, boolean busy, boolean running, boolean importing,
-                boolean paused, boolean canImport, boolean canPlay, boolean canExport, boolean included) {
+                boolean paused, boolean canImport, boolean canPlay, boolean canExport, boolean included,
+                TitleLaunchOptions options) {
             this.message = message; this.busy = busy; this.running = running;
             this.importing = importing; this.paused = paused; this.canImport = canImport; this.canPlay = canPlay;
             this.canExport = canExport; this.included = included;
+            this.options = options;
         }
     }
     private static final long FRAME_NANOS = Math.round(4_481_136.0 / 268_111_856.0 * 1_000_000_000.0);
@@ -67,6 +72,9 @@ final class TitleController {
     // CodexAstraUlt: These UI fields change only on Android's main thread.
     private String message = "Preparing…";
     private boolean busy = true, running, importing, included, configured;
+    // CodexAstraUlt: UI publication retains the choices latched before open;
+    // immutable references pass to the worker without mutable cross-thread state.
+    private TitleLaunchOptions launchOptions = new TitleLaunchOptions(true, TitleLaunchOptions.AUTOMATIC);
     private File imported;
     private byte[] manifest;
     private long expectedBytes;
@@ -79,7 +87,9 @@ final class TitleController {
     // CodexAstraUlt: Only the native worker accesses the following session data.
     private long token, frames, slices, cycles, presented, nextStatus, inputOverflowStart;
     private int pendingPlanes, cachedPlanes;
-    private boolean paused = true, closing, frameInProgress, nativeMode;
+    private boolean paused = true, closing, frameInProgress;
+    // CodexAstraUlt: The worker retains the exact choice captured before open.
+    private TitleLaunchOptions sessionOptions = new TitleLaunchOptions(true, TitleLaunchOptions.AUTOMATIC);
     private TitleAudio audio;
     private FramePacer pacer;
     // CodexAstraUlt: Query this installed frontend once during configuration;
@@ -185,7 +195,8 @@ final class TitleController {
     private void notifyObserver() {
         Observer target = observer.get();
         if (target != null) target.state(new Snapshot(message, busy, running, importing, userPaused,
-                configured && !busy, configured && imported != null && !busy, reportFile.isFile() && !busy, included));
+                configured && !busy, configured && imported != null && !busy, reportFile.isFile() && !busy, included,
+                launchOptions));
     }
 
     // CodexAstraUlt: Both included original fixtures and picker documents use
@@ -247,8 +258,16 @@ final class TitleController {
         }, "droidds-import-cancel").start();
     }
 
-    void start(boolean useNative) {
+    void start(boolean useNative, int vertexPolicy) {
         if (!configured || imported == null || busy) return;
+        // CodexAstraUlt: Reject invalid requests before session state changes;
+        // the immutable choice is used by UI, native open and final diagnostics.
+        final TitleLaunchOptions options;
+        try { options = new TitleLaunchOptions(useNative, vertexPolicy); }
+        catch (IllegalArgumentException failure) {
+            message = "Choose a supported vertex shader setting."; notifyObserver(); return;
+        }
+        launchOptions = options;
         final long id = generation.incrementAndGet();
         final String inputPath = imported.getAbsolutePath();
         busy = true; running = true; userPaused = false; stopRequested = false;
@@ -266,7 +285,7 @@ final class TitleController {
             inputOverflowStart = input.overflows();
             pendingPlanes = 0;
             synchronized (presentationLock) { cachedPlanes = 0; }
-            audio = null; nativeMode = useNative; pacer = new FramePacer(FRAME_NANOS, 4);
+            audio = null; sessionOptions = options; pacer = new FramePacer(FRAME_NANOS, 4);
             currentInput = new TitleInput.Sample(0, 0, 0, false, 0, 0, 0, 0);
             final long[] opening = new long[1];
             try {
@@ -274,7 +293,7 @@ final class TitleController {
                 TitleNative.load();
                 JSONObject opened = json(TitleNative.open(manifest, inputPath,
                         new File(application.getApplicationInfo().nativeLibraryDir).getCanonicalPath(),
-                        runtime.getAbsolutePath(), useNative, opening));
+                        runtime.getAbsolutePath(), options.nativeMode, options.vertexPolicy, opening));
                 token = opening[0];
                 if (!"opened".equals(opened.optString("status")) || token <= 0 || token != opened.getLong("token")) {
                     throw new IOException(opened.optString("error", "Game did not open"));
@@ -464,9 +483,12 @@ final class TitleController {
         main.post(() -> { if (generation.get() == id) { running = false; busy = false; message = state; notifyObserver(); } });
     }
 
+    // CodexAstraUlt: Report the immutable requested policy; actual selected and
+    // fallback rendering paths belong to the runtime's separate diagnostics.
     private void writeReport(String outcome, String error, JSONObject nativeReport) throws IOException, JSONException {
         JSONObject report = new JSONObject().put("schema_version", 1).put("kind", "droidds_android_title_session")
-                .put("status", outcome).put("route", nativeMode ? "native" : "interpreter")
+                .put("status", outcome).put("route", sessionOptions.nativeMode ? "native" : "interpreter")
+                .put("vertex_shading_policy", sessionOptions.vertexPolicyName())
                 .put("app", appIdentity == null ? JSONObject.NULL : appIdentity)
                 .put("input_sha256", expectedHash).put("slices", slices).put("frames", frames).put("cycles", cycles)
                 .put("presentation", "android-canvas-readback").put("image_deliveries", presented)

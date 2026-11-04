@@ -5,6 +5,7 @@ import argparse
 import ctypes as c
 import hashlib
 import json
+import os
 from pathlib import Path
 import threading
 
@@ -28,7 +29,13 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def run(library, manifest, input_path, native_directory, scratch, native=False):
+def run(library, manifest, input_path, native_directory, scratch, native=False, renderer="software"):
+    # CodexAstraUlt: Independently encode the stable public discriminants. These
+    # select a new renderer instance, never a process-wide environment override.
+    renderers = {"software": (0, "automatic"), "vulkan-auto": (1, "automatic"),
+                 "vulkan-cpu": (2, "cpu"), "vulkan-gpu": (3, "gpu")}
+    check(renderer in renderers, "unknown renderer selection")
+    hardware, policy = renderers[renderer]
     check(not scratch.exists() and scratch.parent.is_dir(), "fresh scratch directory required")
     check(c.sizeof(Metrics) == 40 and c.alignment(Metrics) == 8, "public metrics ABI differs")
     source_hash, manifest_hash = digest(input_path), digest(manifest)
@@ -69,9 +76,10 @@ def run(library, manifest, input_path, native_directory, scratch, native=False):
     def report(token):
         return owned(api.droidds_title_report(token))
 
-    def attempt_open():
+    def attempt_open(renderer_value=None):
         opened = c.c_uint64(42)
-        value = owned(api.droidds_title_open(raw, len(raw), *paths, int(native), 0, c.byref(opened)))
+        value = owned(api.droidds_title_open(raw, len(raw), *paths, int(native),
+            hardware if renderer_value is None else renderer_value, c.byref(opened)))
         return opened.value, value
 
     def open_session():
@@ -121,16 +129,47 @@ def run(library, manifest, input_path, native_directory, scratch, native=False):
               and buffers.metrics.cycles > 0 and buffers.metrics.exited == 0,
               "original interactive guest did not deliver a complete frame within 256 slices")
         progress = report(token)
-        check(progress.get("native") is native and progress.get("renderer") == "software",
+        check(progress.get("native") is native
+              and progress.get("renderer") == ("vulkan" if hardware else "software")
+              and progress.get("vertex_shading_policy") == policy,
               "runtime route differs from the requested host route")
+        # CodexAstraUlt: Selected policy is insufficient evidence for real GPU
+        # vertex work; require the requested draw path and retained error gates.
+        if hardware:
+            gpu = progress["gpu"]["hardware"]
+            check(gpu["vertex_shading_policy"] == policy and gpu["recorded_draws"] > 0,
+                  "Vulkan renderer did not record the requested policy")
+            check(all(gpu[name] == 0 for name in
+                      ("draw_errors", "software_raster_fallbacks", "resource_limit_events")),
+                  "Vulkan draw guard failed or software raster fallback occurred")
+            # CodexAstraUlt: Make the Thor-compatible static-state proof explicit
+            # at the actual C boundary as well as in the Rust image/PCM oracle.
+            if "ZAKURO_STATIC_BLEND" in os.environ:
+                check(gpu["dynamic_blend"] is False and gpu["dynamic_logic_op"] is False,
+                      "required static blend/logic path was not selected")
+            if renderer == "vulkan-cpu":
+                check(gpu["vertex_shading_on_gpu"] is False and gpu["gpu_vertex_draws"] == 0
+                      and gpu["placed_vertex_draws"] > 0, "CPU vertex path was not exercised")
+            elif renderer == "vulkan-gpu":
+                check(gpu["vertex_shading_on_gpu"] is True and gpu["gpu_vertex_draws"] > 0,
+                      "GPU vertex path was not exercised")
         check(progress.get("native_instructions", 0) > 0 if native else
               progress.get("interpreted_instructions", 0) > 0, "selected route did no execution")
         controls.append("actual_native_frame" if native else "actual_interpreter_frame")
 
         before = state(token)
+        # CodexAstraUlt: Unknown renderer values must clear only their output
+        # token and reject before changing the already-owned guest session.
+        for invalid_renderer in (4, 2**32 - 1):
+            rejected, value = attempt_open(invalid_renderer)
+            check(rejected == 0 and value.get("status") == "failed"
+                  and value.get("error") == "invalid title manifest length or route options",
+                  "invalid renderer selection acquired ownership or missed option validation")
+            check(state(token) == before, "invalid renderer selection changed owner state")
+        controls.append("invalid_renderer_preserves_owner")
         duplicate, value = attempt_open()
         check(duplicate == 0 and value.get("status") == "failed", "duplicate open acquired ownership")
-        check(owned(api.droidds_title_open(raw, len(raw), *paths, int(native), 0, None))
+        check(owned(api.droidds_title_open(raw, len(raw), *paths, int(native), hardware, None))
               .get("status") == "failed", "missing ownership output was accepted")
         check(api.droidds_title_close(token + 1) == -1
               and api.droidds_title_pause(token + 1) == -1, "unknown token was accepted")
@@ -192,7 +231,8 @@ def run(library, manifest, input_path, native_directory, scratch, native=False):
           and digest(sentinel) == saved, "input, manifest or existing save changed")
     controls.append("teardown_generation_and_original_save_preservation")
     return {"schema_version": 1, "kind": "droidds-title-ffi-proof", "status": "passed",
-            "native": native, "controls": controls, "input_sha256": source_hash,
+            "native": native, "renderer": renderer, "vertex_shading_policy": policy,
+            "controls": controls, "input_sha256": source_hash,
             "frames": measured_progress["frames"], "cycles": measured_progress["cycles"],
             "native_instructions": measured_progress["native_instructions"],
             "interpreted_instructions": measured_progress["interpreted_instructions"]}
@@ -206,6 +246,11 @@ if __name__ == "__main__":
     parser.add_argument("--native-dir", required=True, type=Path)
     parser.add_argument("--scratch-dir", required=True, type=Path)
     parser.add_argument("--native", action="store_true")
+    # CodexAstraUlt: Optional Vulkan controls retain the historical default
+    # software proof; actual GPU selection must execute rather than skip.
+    parser.add_argument("--renderer", choices=("software", "vulkan-auto", "vulkan-cpu", "vulkan-gpu"),
+                        default="software")
     arguments = parser.parse_args()
     print(json.dumps(run(arguments.library, arguments.manifest, arguments.input,
-                         arguments.native_dir, arguments.scratch_dir, arguments.native), indent=2))
+                         arguments.native_dir, arguments.scratch_dir, arguments.native,
+                         arguments.renderer), indent=2))

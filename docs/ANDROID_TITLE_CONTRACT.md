@@ -58,6 +58,7 @@ pub struct OpenOptions<'a> {
     pub data_directory: &'a std::path::Path,
     pub native: bool,
     pub hardware: bool,
+    pub vertex_shading: VertexShading, // Automatic, Cpu or Gpu
 }
 Session::open(OpenOptions) -> Result<Session, String>;
 Session::slice(&mut self, input: InputState) -> Result<Slice, String>;
@@ -74,6 +75,19 @@ Native execution uses immutable base text and interpreted modules. Explicitly
 port the existing page-aligned fence to Android 4 KiB; reject unsupported native
 page sizes. Vulkan must activate explicitly and its fallback/error counts remain
 visible. The interpreter route is an explicit diagnostic choice.
+
+<!-- CodexAstraUlt: Fix vertex policy for each renderer before pipeline startup
+while keeping requested selection distinct from measured execution paths. -->
+`VertexShading::Automatic` preserves the existing renderer heuristic. Explicit
+CPU/GPU choices apply before pipeline initialization and stay fixed for the
+session; they do not alter Native/Interpreter guest execution. Reports retain
+the requested policy, the selected `vertex_shading_on_gpu` flag and actual
+`gpu_vertex_draws`/`placed_vertex_draws`. Placed draws use already transformed
+vertices, including CPU/geometry paths; they are not a count of CPU shader calls.
+The separate `gpu.vertex_processing` aggregates count CPU batches, their unique
+input vertices and elapsed processing time, including geometry work and worker
+joins. That timer excludes decoding, clipping and Vulkan submission and does
+not measure total CPU utilization.
 
 <!-- CodexAstraUlt: Identify the first observed runtime failure without a
 continuous trace, raw instruction bytes or guest-provided diagnostic payloads. -->
@@ -96,6 +110,11 @@ return the existing error before a session exists.
 `droidds-title-player` is a separate cdylib/FFI wrapper. Export thread-owned token
 operations open, slice, pause, resume, report, close and free. C/JNI will share
 `android/title/jni/title_api.h`; JNI arrays and metrics have explicit capacities.
+<!-- CodexAstraUlt: Extend the renderer discriminant without changing the C
+signature or any generated private title library's ABI. -->
+The open function retains renderer values `0=software`, `1=Vulkan automatic`;
+`2=Vulkan CPU vertices` and `3=Vulkan GPU vertices` select the explicit policies.
+Other values reject before admission and clear the output ownership token.
 Use `TitleNative` in Java package `org.droidds.probe` to reuse existing plain Java
 screen/audio helpers without copying them. The installed application ID remains
 `org.droidds.title.t<program_id>`; it does not replace the probe application.

@@ -149,6 +149,7 @@ impl Fixture {
             data_directory: &self.data,
             native,
             hardware: false,
+            vertex_shading: VertexShading::Automatic,
         })
     }
 
@@ -259,10 +260,35 @@ fn native_hash_rejection_and_missing_input_preserve_saves() {
         native_directory: &fixture.native,
         data_directory: &fixture.data,
         native: false,
-        hardware: false
+        hardware: false,
+        vertex_shading: VertexShading::Automatic,
     })
     .is_err());
     fixture.preserved();
+}
+
+// CodexAstraUlt: A forced Vulkan experiment cannot be silently relabeled as a
+// software run, and rejecting it must leave the imported input/save untouched.
+#[test]
+fn explicit_vertex_policies_require_hardware_before_title_admission() {
+    let fixture = Fixture::new(fixture::image(0, 0, false), false);
+    for vertex_shading in [VertexShading::Cpu, VertexShading::Gpu] {
+        let result = Session::open(OpenOptions {
+            manifest_json: &serde_json::to_vec(&fixture.manifest).unwrap(),
+            input: &fixture.input,
+            native_directory: &fixture.native,
+            data_directory: &fixture.data,
+            native: false,
+            hardware: false,
+            vertex_shading,
+        });
+        assert_eq!(result.err().unwrap(), "title_vertex_policy_requires_vulkan");
+        fixture.preserved();
+    }
+    let session = fixture.open(false).unwrap();
+    assert_eq!(session.report()["vertex_shading_policy"], "automatic");
+    assert_eq!(session.report()["renderer"], "software");
+    assert!(session.report()["gpu"]["hardware"].is_null());
 }
 
 #[test]
@@ -289,7 +315,8 @@ fn optional_overlays_and_symlinked_inputs_are_rejected_without_cleanup() {
             native_directory: &fixture.native,
             data_directory: &fixture.data,
             native: false,
-            hardware: false
+            hardware: false,
+            vertex_shading: VertexShading::Automatic,
         })
         .err()
         .unwrap()
@@ -687,6 +714,21 @@ fn generic_session_delivers_original_pixels_audio_and_input_on_both_cpu_routes()
 fn generic_native_vulkan_session_matches_original_image_and_audio_oracles() {
     let _serial = SERIAL.lock().unwrap();
     let fixture = Fixture::new(homebrew::fixture::image(), true);
+    // CodexAstraUlt: Keep the automatic-route regression while explicitly
+    // qualifying both vertex paths with the same independent pixel/PCM oracle.
+    // Selection is per instance, so no process-global environment is changed.
+    for vertex_shading in [
+        VertexShading::Automatic,
+        VertexShading::Cpu,
+        VertexShading::Gpu,
+    ] {
+        native_vulkan_oracle(&fixture, vertex_shading);
+    }
+    fixture.preserved();
+}
+
+#[cfg(feature = "vulkan-tests")]
+fn native_vulkan_oracle(fixture: &Fixture, vertex_shading: VertexShading) {
     let mut session = Session::open(OpenOptions {
         manifest_json: &serde_json::to_vec(&fixture.manifest).unwrap(),
         input: &fixture.input,
@@ -694,6 +736,7 @@ fn generic_native_vulkan_session_matches_original_image_and_audio_oracles() {
         data_directory: &fixture.data,
         native: true,
         hardware: true,
+        vertex_shading,
     })
     .unwrap();
     let input = InputState {
@@ -731,6 +774,62 @@ fn generic_native_vulkan_session_matches_original_image_and_audio_oracles() {
     assert_eq!(report["gpu"]["hardware"]["software_raster_fallbacks"], 0);
     assert_eq!(report["gpu"]["hardware"]["draw_errors"], 0);
     assert_eq!(report["gpu"]["hardware"]["resource_limit_events"], 0);
+    // CodexAstraUlt: A policy flag alone does not prove that its vertex path
+    // recorded a draw. Placed vertices are already transformed, not a count of
+    // individual CPU shader invocations or a software raster fallback.
+    assert_eq!(report["vertex_shading_policy"], vertex_shading.as_str());
+    let gpu = &report["gpu"]["hardware"];
+    assert_eq!(gpu["vertex_shading_policy"], vertex_shading.as_str());
+    // CodexAstraUlt: The required static variant matches Thor's unavailable
+    // dynamic blend/logic state, rather than silently exercising host features.
+    if std::env::var_os("ZAKURO_STATIC_BLEND").is_some() {
+        assert_eq!(gpu["dynamic_blend"], false);
+        assert_eq!(gpu["dynamic_logic_op"], false);
+    }
+    assert_eq!(
+        gpu["recorded_draws"].as_u64().unwrap(),
+        gpu["gpu_vertex_draws"].as_u64().unwrap() + gpu["placed_vertex_draws"].as_u64().unwrap()
+    );
+    match vertex_shading {
+        VertexShading::Cpu => {
+            assert_eq!(gpu["vertex_shading_on_gpu"], false);
+            assert_eq!(gpu["gpu_vertex_draws"], 0);
+            assert!(gpu["placed_vertex_draws"].as_u64().unwrap() > 0);
+            assert!(
+                report["gpu"]["vertex_processing"]["cpu_batches"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+            );
+            assert!(
+                report["gpu"]["vertex_processing"]["cpu_vertex_inputs"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+            );
+            assert!(
+                report["gpu"]["vertex_processing"]["cpu_wall_nanoseconds"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+            );
+        }
+        VertexShading::Gpu => {
+            assert_eq!(gpu["vertex_shading_on_gpu"], true);
+            assert!(gpu["gpu_vertex_draws"].as_u64().unwrap() > 0);
+            // CodexAstraUlt: This authored raw-array fixture has no geometry
+            // shader or unsupported decode; its GPU path must avoid CPU shading.
+            assert_eq!(report["gpu"]["vertex_processing"]["cpu_batches"], 0);
+        }
+        VertexShading::Automatic => {}
+    }
+    println!(
+        "DroiDDS vertex oracle: requested={}, GPU selected={}, GPU draws={}, placed draws={}",
+        vertex_shading.as_str(),
+        gpu["vertex_shading_on_gpu"],
+        gpu["gpu_vertex_draws"],
+        gpu["placed_vertex_draws"]
+    );
     drop(session);
     fixture.preserved();
 }

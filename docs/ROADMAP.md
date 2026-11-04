@@ -2,7 +2,7 @@
 
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
-As of **2026-11-04 UTC**, the public title-player candidate is
+As of **2026-11-04** (America/New_York), the public title-player candidate is
 **[0.0.8-preview.1/code 11](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.1)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. The published candidate implements the generic per-title
@@ -11,7 +11,8 @@ package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
 The [candidate build record](builds/0.0.8-audio-performance-followup.md) records
 release source `64ff16b`, exact public artifact identities and executed gates.
-Device validation of the new candidate and private update remains pending.
+The original candidate's device check remains separate from the
+[reported private code 11 follow-up](device-tests/0.0.8-preview1-dark-moon-thor.md).
 
 <!-- CodexAstraUlt: Record actual private interactive boot as progress into the
 next alpha stage; a menu and an underrun total do not establish playable speed. -->
@@ -24,16 +25,24 @@ and native library and record Native CPU/Vulkan work. Remaining full APK/signing
 identity comes from local build records; no repeated unchanged boot test is
 needed to retrieve it.
 
-The current development candidate is **0.0.8-preview.1/code 11**, targeting audio
-delivery and timing diagnostics on the path to the first playable segment.
-The two prior reports retain **1,361 and 2,889 audio underruns**, zero reported
-PCM drops and all converted samples written. Their core timing establishes slow
-sample production; the queue correction addresses a separate reproduced defect.
-Local implementation gates, original APK repackaging, hosted main/tag CI and
-independent public-download verification pass.
-See the [build record](builds/0.0.8-audio-performance-followup.md) for exact results.
-Gameplay, reliable audio, save/resume and sustained speed remain unqualified;
-the version names development work, not a passed playability milestone.
+<!-- CodexAstraUlt: Advance from the completed code 11 menu test without
+mixing its overwritten JSON with the later restart's timing percentage. -->
+The owner reports a **110-second code 11 Native menu run** that reached file
+selection and stopped normally, with severe slowdown and crackling remaining.
+A later restart replaced its JSON; that separate report is summarized as
+**57.6% command-processing/core time**. Raw restart timing fields have not yet
+been supplied here. Preserve that distinction and the older full-report evidence.
+
+The next development candidate is **0.0.8-preview.2/code 12**. Its triangle
+allocation correction, explicit per-session CPU/GPU choice and bounded path/time
+metrics are implemented; Automatic retains the current behavior. Local unit,
+frontend, actual C ABI and original Automatic/CPU/GPU image/audio checks pass,
+including forced-static blend. APK, hosted and publication gates remain pending;
+see the [candidate record](builds/0.0.8-vertex-comparison.md). No Thor speed gain
+or private GPU rendering result is established by these cloud checks.
+The published preview.1 [build record](builds/0.0.8-audio-performance-followup.md)
+retains its passed local/main/tag/download gates. Gameplay, reliable audio,
+save/resume and sustained speed remain unqualified.
 
 <!-- CodexAstraUlt: Record the newly supplied original-title device execution
 without turning absent manual observations or private boot into passes. -->
@@ -62,8 +71,8 @@ correctness and scheduler optimization. Another Dark Moon checkpoint is not a
 prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
-preserving the owner signing identity and existing reports, and one matched
-bounded Native audio/timing test. Keep private-only evidence separate from
+preserving the owner signing identity and existing reports, followed by one
+consolidated bounded CPU/GPU vertex comparison after its correctness gates. Keep private-only evidence separate from
 the substantial development that can be completed with original inputs here.
 
 <!-- CodexAstraUlt: Replace the research pack's broad serial implementation sequence with evidence-gated work and early Android, memory and correctness risk checks. -->
@@ -354,12 +363,13 @@ gates; public fixture progress must not silently close the private baseline. -->
    Carry historical A evidence explicitly; do not rewrite the new report or
    erase its eleven underruns. Keep scheduler/CRO, first-use pipeline-stall and
    sustained-memory work.
-3. Preserve Dark Moon's completed host/Android builds and the first Thor menu
-   result. The 0.0.8-preview.1 cloud and publication gates pass; now repackage
-   its existing Android library with the same owner key. Preserve the
-   latest report before one matched bounded Native menu run. Use the resulting
-   timing/PCM evidence to select the next performance correction; do not repeat
-   setup, source generation, title compilation or unchanged host reconnaissance.
+3. Preserve Dark Moon's completed host/Android builds and code 11 menu evidence.
+   Keep the overwritten 110-second test separate from the later restart's 57.6%
+   command-processing summary. Preview.2's local triangle and explicit vertex
+   route gates pass; complete APK/hosted/publication gates, then consolidate its
+   compatible repackaging/device comparison.
+   Export each report immediately before another restart. Do not repeat setup,
+   source generation, title compilation or unchanged host reconnaissance.
 
 The integrated guest exposed a conditional-control-flow accounting defect in the
 selected compiler: before correction, the reference executed 598 instructions

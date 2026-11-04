@@ -2,7 +2,7 @@
 //! Tokens are generations, not pointers; all transient buffers stay caller-owned.
 
 use droidds_title_runtime::{
-    InputState, OpenOptions, PadState, Session, AUDIO_SAMPLE_RATE, MAX_PCM_FRAMES,
+    InputState, OpenOptions, PadState, Session, VertexShading, AUDIO_SAMPLE_RATE, MAX_PCM_FRAMES,
 };
 use serde_json::{json, Value};
 use std::{
@@ -117,10 +117,17 @@ pub unsafe extern "C" fn droidds_title_open(
             || manifest_bytes == 0
             || manifest_bytes > MANIFEST_LIMIT
             || native_mode > 1
-            || hardware > 1
+            || hardware > 3
         {
             return failure("invalid title manifest length or route options");
         }
+        // CodexAstraUlt: Preserve the existing ABI and old software/automatic
+        // values; explicit CPU/GPU policies are new validated discriminants.
+        let vertex_shading = match hardware {
+            2 => VertexShading::Cpu,
+            3 => VertexShading::Gpu,
+            _ => VertexShading::Automatic,
+        };
         // SAFETY: Input lengths and nulls were checked; remaining pointer
         // validity belongs to the C caller's explicit borrow contract.
         let options = unsafe { (path(input), path(native_directory), path(data_directory)) };
@@ -156,7 +163,8 @@ pub unsafe extern "C" fn droidds_title_open(
                 native_directory,
                 data_directory,
                 native: native_mode == 1,
-                hardware: hardware == 1,
+                hardware: hardware != 0,
+                vertex_shading,
             }) {
                 Ok(session) => session,
                 Err(error) => return failure(error),

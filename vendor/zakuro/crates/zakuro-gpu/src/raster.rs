@@ -3,6 +3,8 @@
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
+// CodexAstraUlt: Fixed CPU batch aggregates need no per-vertex clock or history.
+use std::time::{Duration, Instant};
 
 use rayon::prelude::*;
 
@@ -901,6 +903,17 @@ pub(crate) enum Pass {
     Twin,
 }
 
+/// CodexAstraUlt: Lifetime CPU shader-batch work, including vertex/geometry
+/// processing, output packing and worker joins. Attribute decoding, clipping
+/// and Vulkan submission are outside this timer; inputs count unique vertices
+/// after indexed-draw deduplication, not repeated triangle references.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct VertexProcessingDiagnostics {
+    pub cpu_batches: u64,
+    pub cpu_vertex_inputs: u64,
+    pub cpu_processing_wall: Duration,
+}
+
 /// what draws keep from one to the next.
 #[derive(Default)]
 pub struct Resources {
@@ -908,6 +921,9 @@ pub struct Resources {
     pub light_tables: Tables,
     pub proctex_tables: crate::proctex::Tables,
     pub fog_table: crate::fog::Table,
+    // CodexAstraUlt: Cumulative counters survive cache invalidation in forget;
+    // a new GPU/session creates a fresh default resource set.
+    pub(crate) vertex_processing: VertexProcessingDiagnostics,
     scratch: Scratch,
     /// the bytes of the last memory fill, the next one's buffer.
     pub(crate) fill: Vec<u8>,
@@ -2309,12 +2325,16 @@ fn triangle_indices<'a>(
 
 /// the vertices of each triangle out of count of them, for a list, a strip
 /// (1) or a fan (2).
-fn assemble(topology: u32, count: usize) -> Vec<(usize, usize, usize)> {
-    match topology {
-        1 => (2..count).map(|i| if i % 2 == 0 { (i - 2, i - 1, i) } else { (i - 1, i - 2, i) }).collect(),
-        2 => (2..count).map(|i| (0, i - 1, i)).collect(),
-        _ => (0..count / 3).map(|t| (t * 3, t * 3 + 1, t * 3 + 2)).collect(),
-    }
+fn assemble(topology: u32, count: usize) -> impl ExactSizeIterator<Item = (usize, usize, usize)> + DoubleEndedIterator {
+    // CodexAstraUlt: Replace the temporary triangle Vec with a single-pass
+    // iterator. Rasterization needs its exact count and each triangle once;
+    // preserve strip winding and incomplete-list handling without allocating.
+    let triangles = if matches!(topology, 1 | 2) { count.saturating_sub(2) } else { count / 3 };
+    (0..triangles).map(move |t| match topology {
+        1 => if t % 2 == 0 { (t, t + 1, t + 2) } else { (t + 1, t, t + 2) },
+        2 => (0, t + 1, t + 2),
+        _ => (t * 3, t * 3 + 1, t * 3 + 2),
+    })
 }
 
 /// assembles shaded vertices into triangles the way the primitive configuration
@@ -2480,7 +2500,16 @@ fn rasterize<M: GpuMemory>(registers: &[u32], memory: &mut M, resources: &mut Re
     let (shaded, order) = match vertices {
         Vertices::Shaded(shaded) => (shaded, None),
         Vertices::Unshaded { vertex_shader, geometry_shader, inputs, order } => {
+            // CodexAstraUlt: Measure the actual CPU batch once, including a
+            // rejected GPU-shading fallback. Recursive raster fallback uses
+            // already-shaded vertices and cannot count this work again.
+            let started = Instant::now();
             processed = process_vertices(registers, vertex_shader, geometry_shader, inputs, order);
+            let elapsed = started.elapsed();
+            let work = &mut resources.vertex_processing;
+            work.cpu_batches = work.cpu_batches.saturating_add(1);
+            work.cpu_vertex_inputs = work.cpu_vertex_inputs.saturating_add(inputs.len() as u64);
+            work.cpu_processing_wall = work.cpu_processing_wall.saturating_add(elapsed);
             (&processed.0[..], processed.1)
         }
         // arrays the GPU did not draw, which the CPU decodes first
@@ -2820,6 +2849,50 @@ mod tests {
     const RED: Vec4 = [1.0, 0.0, 0.0, 1.0];
     const GREEN: Vec4 = [0.0, 1.0, 0.0, 1.0];
     const BLUE: Vec4 = [0.0, 0.0, 1.0, 1.0];
+
+    // CodexAstraUlt: An indexed-order batch counts unique shader inputs, while
+    // already-shaded draws and cache invalidation neither recount nor erase it.
+    #[test]
+    fn cpu_vertex_diagnostics_count_batches_and_preserve_lifetime_totals() {
+        const IDENTITY: u32 = 0x1B << 5 | 0x1B << 14 | 0x1B << 23;
+        let mut unit = ShaderUnit::new();
+        unit.descriptors[0] = 0xF | IDENTITY;
+        let mov = |destination: u32, source: u32| 0x13 << 26 | destination << 21 | source << 12;
+        unit.program[..3].copy_from_slice(&[mov(0, 0), mov(1, 0x20), 0x22 << 26]);
+        unit.float_uniforms[0] = RED;
+        unit.prepare();
+        let mut registers = target_registers();
+        registers[REG_SHADER_OUTPUT_TOTAL] = 2;
+        registers[REG_SHADER_OUTPUT_MAP] = 0x0302_0100;
+        registers[REG_SHADER_OUTPUT_MAP + 1] = 0x0B0A_0908;
+        registers[REG_VS_OUTPUT_MASK] = 0b11;
+        let inputs: Vec<_> = cover(-0.5, RED).iter().map(|vertex| {
+            let mut input = [shader::ZERO; shader::INPUT_REGISTERS];
+            input[0] = vertex.clip;
+            input
+        }).collect();
+        let order = [0, 1, 2, 0, 1, 2];
+        let mut memory = ConsoleMemory::default();
+        let mut resources = Resources::default();
+        let vertices = Vertices::Unshaded { vertex_shader: &unit, geometry_shader: &unit, inputs: &inputs, order: Some(&order) };
+        assert!(rasterize(&registers, &mut memory, &mut resources, vertices).is_some());
+        assert!(pixels(&mut memory).iter().all(|&pixel| pixel == [255, 0, 0, 255]));
+        let first = resources.vertex_processing;
+        assert_eq!(first.cpu_batches, 1);
+        assert_eq!(first.cpu_vertex_inputs, 3);
+
+        resources.forget();
+        rasterize_shaded(&registers, &mut memory, &mut resources, &cover(-0.5, GREEN));
+        assert!(pixels(&mut memory).iter().all(|&pixel| pixel == [0, 255, 0, 255]));
+        assert_eq!(resources.vertex_processing.cpu_batches, first.cpu_batches);
+        assert_eq!(resources.vertex_processing.cpu_vertex_inputs, first.cpu_vertex_inputs);
+        assert_eq!(resources.vertex_processing.cpu_processing_wall, first.cpu_processing_wall);
+
+        assert!(rasterize(&registers, &mut memory, &mut resources, vertices).is_some());
+        assert_eq!(resources.vertex_processing.cpu_batches, 2);
+        assert_eq!(resources.vertex_processing.cpu_vertex_inputs, 6);
+        assert!(resources.vertex_processing.cpu_processing_wall >= first.cpu_processing_wall);
+    }
 
     /// titles map depth with a scale of -1, so near is 1, and keep the
     /// nearer surface with a GREATER test against a buffer cleared to 0.
@@ -5084,13 +5157,81 @@ mod tests {
     #[test]
     fn both_assemblers_make_the_same_triangles() {
         for topology in 0..4 {
-            for count in 0..12 {
+            // CodexAstraUlt: Also compare a bounded large draw against the
+            // unchanged materialized GPU index assembler.
+            for count in (0..12).chain([65_537]) {
                 let mut indices = vec![99];
                 assemble_into(topology, count, |i| 100 + i as u32, &mut indices);
                 let triangles: Vec<u32> =
-                    assemble(topology, count).into_iter().flat_map(|(a, b, c)| [a, b, c].map(|i| 100 + i as u32)).collect();
+                    assemble(topology, count).flat_map(|(a, b, c)| [a, b, c].map(|i| 100 + i as u32)).collect();
                 assert_eq!(indices, triangles, "topology {topology}, {count} vertices");
             }
+        }
+    }
+
+    // CodexAstraUlt: Explicit topology oracles protect winding and incomplete
+    // primitives independently of the separate GPU index assembler.
+    #[test]
+    fn triangle_iterator_preserves_winding_and_incomplete_primitives() {
+        let strip = vec![(0, 1, 2), (2, 1, 3), (2, 3, 4), (4, 3, 5), (4, 5, 6)];
+        let fan = vec![(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 5, 6)];
+        let list = vec![(0, 1, 2), (3, 4, 5)];
+        assert_eq!(assemble(1, 7).collect::<Vec<_>>(), strip);
+        assert_eq!(assemble(2, 7).collect::<Vec<_>>(), fan);
+        for topology in [0, 3, u32::MAX] {
+            assert_eq!(assemble(topology, 7).collect::<Vec<_>>(), list);
+            assert_eq!(assemble(topology, 8).collect::<Vec<_>>(), list);
+        }
+        for topology in 0..4 {
+            for count in 0..3 {
+                let mut triangles = assemble(topology, count);
+                assert_eq!(triangles.len(), 0);
+                assert_eq!(triangles.next(), None);
+                assert_eq!(triangles.next(), None);
+            }
+        }
+        // Repeated indices remain degenerate triangles, rather than being
+        // removed by the allocation-free assembly change.
+        let order = [9, 4, 9, 2, 4];
+        let mapped: Vec<_> = assemble(1, order.len()).map(|(a, b, c)| (order[a], order[b], order[c])).collect();
+        assert_eq!(mapped, [(9, 4, 9), (9, 4, 2), (9, 2, 4)]);
+    }
+
+    // CodexAstraUlt: Length stays exact after consuming triangles, including
+    // a bounded large draw, so rasterization reserves the correct output size.
+    #[test]
+    fn triangle_iterator_retains_exact_remaining_count() {
+        for topology in 0..4 {
+            for count in [0, 1, 2, 3, 4, 11, 65_537] {
+                let mut triangles = assemble(topology, count);
+                let expected = if matches!(topology, 1 | 2) { count.saturating_sub(2) } else { count / 3 };
+                for remaining in (1..=expected).rev() {
+                    assert_eq!(triangles.len(), remaining);
+                    assert_eq!(triangles.size_hint(), (remaining, Some(remaining)));
+                    let (a, b, c) = triangles.next().unwrap();
+                    assert!(a < count && b < count && c < count);
+                }
+                assert_eq!(triangles.len(), 0);
+                assert_eq!(triangles.size_hint(), (0, Some(0)));
+                assert_eq!(triangles.next(), None);
+            }
+        }
+    }
+
+    // CodexAstraUlt: Constructing and reading both ends of an address-space-sized
+    // draw must stay lazy; this would attempt an impossible Vec allocation
+    // with the former assembler. Boundary triples also catch index overflow.
+    #[test]
+    fn triangle_iterator_handles_large_counts_without_materializing_them() {
+        let maximum = usize::MAX;
+        for topology in 0..4 {
+            let mut triangles = assemble(topology, maximum);
+            let count = triangles.len();
+            assert_eq!(triangles.next(), Some((0, 1, 2)));
+            assert_eq!(triangles.len(), count - 1);
+            let last = if topology == 2 { (0, maximum - 2, maximum - 1) } else { (maximum - 3, maximum - 2, maximum - 1) };
+            assert_eq!(triangles.next_back(), Some(last));
+            assert_eq!(triangles.len(), count - 2);
         }
     }
 
@@ -5101,7 +5242,9 @@ mod tests {
     #[test]
     fn the_gpu_takes_the_triangles_the_assembler_makes() {
         for topology in 0..4 {
-            for count in 0..14 {
+            // CodexAstraUlt: Repeated raw and reordered indices retain their
+            // mappings across a large draw as well as short/empty primitives.
+            for count in (0..14).chain([65_537]) {
                 let raw: Vec<u32> = (0..count as u32).map(|i| 1000 + i * 7 % 5).collect();
                 let order: Vec<usize> = (0..count).map(|i| (i * 3) % 4).collect();
                 let mut assembled = vec![99];

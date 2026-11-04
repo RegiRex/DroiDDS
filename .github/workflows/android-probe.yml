@@ -157,6 +157,9 @@ jobs:
           export XDG_RUNTIME_DIR="$RUNNER_TEMP/droidds-vulkan"
           export PATH="$ANDROID_HOME/ndk/27.3.13750724/shader-tools/linux-x86_64:$PATH"
           cargo test --locked -p droidds-title-runtime --features vulkan-tests generic_native_vulkan_session_matches_original_image_and_audio_oracles -- --test-threads=1 --nocapture 2>&1 | tee "$RUNNER_TEMP/title-runtime-vulkan.log"
+          # CodexAstraUlt: Preserve normal coverage and require the same exact
+          # outputs for CPU/GPU vertices with the Thor's static-state path.
+          ZAKURO_STATIC_BLEND=1 cargo test --locked -p droidds-title-runtime --features vulkan-tests generic_native_vulkan_session_matches_original_image_and_audio_oracles -- --test-threads=1 --nocapture 2>&1 | tee -a "$RUNNER_TEMP/title-runtime-vulkan.log"
           python3 - <<'PY'
           import os, sys
           from pathlib import Path
@@ -164,8 +167,13 @@ jobs:
           from build_runtime_probe import validate_diagnostics
           log = (Path(os.environ["RUNNER_TEMP"]) / "title-runtime-vulkan.log").read_text()
           validate_diagnostics(log)
-          if "1 passed; 0 failed" not in log:
-              raise SystemExit("The generic title Vulkan test did not execute")
+          if log.count("test result: ok. 1 passed; 0 failed") != 2:
+              raise SystemExit("Both normal and static title Vulkan gates must execute")
+          # CodexAstraUlt: Require proof of all instance policies as well as
+          # exact original output, independent of the hosted GPU classification.
+          for policy in ("automatic", "cpu", "gpu"):
+              if log.count("DroiDDS vertex oracle: requested=" + policy + ",") != 2:
+                  raise SystemExit("Missing original vertex-path oracle: " + policy)
           PY
       - name: Record build result
         if: always()

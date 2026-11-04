@@ -34,7 +34,7 @@ use crate::registers::*;
 use crate::device::SharedDevice;
 use crate::shader::glsl::{self, SEMANTICS};
 use crate::shader::{Program, ShaderUnit, Vec4, DESCRIPTOR_SIZE, INPUT_REGISTERS, PROGRAM_SIZE};
-use crate::GpuMemory;
+use crate::{GpuMemory, VertexShading};
 use hasher::{QuickMap, QuickSet};
 
 mod hasher;
@@ -1053,6 +1053,11 @@ impl Admission {
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct HardwareDiagnostics {
     pub recorded_draws: u64,
+    // CodexAstraUlt: Actual recorded geometry paths distinguish GPU vertex
+    // processing from already transformed input. Placed input can include CPU
+    // geometry output; these are draw counts, not shader invocations or vertices.
+    pub gpu_vertex_draws: u64,
+    pub placed_vertex_draws: u64,
     pub submissions: u64,
     pub draw_errors: u64,
     pub software_raster_fallbacks: u64,
@@ -1076,7 +1081,21 @@ pub struct HardwareDiagnostics {
     // CodexAstraUlt: GPU rasterization can legitimately use the CPU PICA vertex
     // interpreter on integrated devices; report that distinction explicitly.
     pub vertex_shading_on_gpu: bool,
+    // CodexAstraUlt: Requested policy is distinct from selected shading and
+    // actual draw paths; geometry-shader draws can still arrive already placed.
+    pub vertex_shading_policy: VertexShading,
     pub last_error: Option<String>,
+}
+
+// CodexAstraUlt: Resolve policy without mutating process environment. Automatic
+// retains CPU-override precedence and the integrated-device default; explicit
+// session choices are independent of environment overrides and other renderers.
+fn vertex_shading_on_gpu(policy: VertexShading, integrated: bool, cpu_override: bool, gpu_override: bool) -> bool {
+    match policy {
+        VertexShading::Cpu => false,
+        VertexShading::Gpu => true,
+        VertexShading::Automatic => !cpu_override && (gpu_override || !integrated),
+    }
 }
 
 /// the jobs waiting for the compiler threads, translations first, as they
@@ -1629,11 +1648,30 @@ impl Hardware {
     /// share, and then shows screens straight from the GPU when direct. the
     /// pipelines it compiles are kept in the file given.
     pub fn with_device(shared: Arc<SharedDevice>, direct: bool, kept_pipelines: Option<std::path::PathBuf>) -> Result<Hardware, String> {
+        // CodexAstraUlt: Upstream callers retain automatic selection while the
+        // explicit constructor resolves its policy before compiler startup.
+        Self::with_device_and_vertex_shading(shared, direct, kept_pipelines, VertexShading::Automatic)
+    }
+
+    /// CodexAstraUlt: Each renderer owns its immutable initial vertex choice;
+    /// no environment changes or late mode switch invalidate prepared pipelines.
+    pub fn with_device_and_vertex_shading(
+        shared: Arc<SharedDevice>,
+        direct: bool,
+        kept_pipelines: Option<std::path::PathBuf>,
+        policy: VertexShading,
+    ) -> Result<Hardware, String> {
         let kept_pipelines: Option<Arc<std::path::Path>> = kept_pipelines.map(Into::into);
         let (instance, device, physical, family) = (shared.instance.clone(), shared.device.clone(), shared.physical, shared.family);
         let (logic_ops, statistics, dynamic) = (shared.logic_ops, shared.statistics, shared.dynamic);
         // SAFETY: the physical device came from this instance
         let properties = unsafe { instance.get_physical_device_properties(physical) };
+        let shades = vertex_shading_on_gpu(
+            policy,
+            properties.device_type == vk::PhysicalDeviceType::INTEGRATED_GPU,
+            std::env::var_os("ZAKURO_CPU_SHADERS").is_some(),
+            std::env::var_os("ZAKURO_GPU_SHADERS").is_some(),
+        );
         let name = properties.device_name_as_c_str().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let push = ash::khr::push_descriptor::Device::new(&instance, &device);
 
@@ -1746,16 +1784,10 @@ impl Hardware {
                 fragment_shader,
                 depth_fragment_shader,
                 shade_shader,
-                // shading on the CPU instead, to tell the two apart. an
-                // integrated GPU does worse at it than the CPU, its draws
-                // read each vertex's inputs and uniforms out of storage
-                // buffers, a load after another. ZAKURO_GPU_SHADERS=1 has
-                // it shade all the same
-                shades: match (std::env::var_os("ZAKURO_CPU_SHADERS"), std::env::var_os("ZAKURO_GPU_SHADERS")) {
-                    (Some(_), _) => false,
-                    (None, Some(_)) => true,
-                    (None, None) => properties.device_type != vk::PhysicalDeviceType::INTEGRATED_GPU,
-                },
+                // CodexAstraUlt: Replace the construction-time device-only
+                // heuristic with the already resolved instance choice. Automatic
+                // preserves that heuristic; explicit choices need device tests.
+                shades,
                 // interpreting them all instead, to tell the two apart
                 translates: std::env::var_os("ZAKURO_INTERPRET_SHADERS").is_none(),
                 scratch: Vec::new(),
@@ -1764,7 +1796,7 @@ impl Hardware {
                 modules: HashMap::new(),
                 shader_bytes: 0,
                 limits: Limits::default(),
-                diagnostics: HardwareDiagnostics::default(),
+                diagnostics: HardwareDiagnostics { vertex_shading_policy: policy, ..HardwareDiagnostics::default() },
                 // to draw through the pipeline made for each draw from the
                 // first on, as the tests do
                 waits: cfg!(test) || std::env::var_os("ZAKURO_WAIT_FOR_SHADERS").is_some(),
@@ -4061,10 +4093,14 @@ impl Hardware {
             self.diagnostics.recorded_draws = self.diagnostics.recorded_draws.saturating_add(1);
             match vertex_infos {
                 Some(infos) => {
+                    // CodexAstraUlt: Count the path actually recorded, including
+                    // repeated twin draws, rather than infer it from policy.
+                    self.diagnostics.gpu_vertex_draws = self.diagnostics.gpu_vertex_draws.saturating_add(1);
                     device.cmd_bind_index_buffer(commands, self.ring.buffer, infos[3][0].offset, vk::IndexType::UINT32);
                     device.cmd_draw_indexed(commands, r.count, 1, 0, 0, 0);
                 }
                 None => {
+                    self.diagnostics.placed_vertex_draws = self.diagnostics.placed_vertex_draws.saturating_add(1);
                     device.cmd_bind_vertex_buffers(commands, 0, &[self.ring.buffer], &[r.placed.0]);
                     device.cmd_bind_index_buffer(commands, self.ring.buffer, r.placed.1, vk::IndexType::UINT32);
                     device.cmd_draw_indexed(commands, r.count, 1, 0, 0, 0);
@@ -5734,6 +5770,28 @@ fn pick(instance: &ash::Instance) -> Result<(vk::PhysicalDevice, u32), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: Exhaust the environment/device combinations without
+    // process-global test mutation, including contradictory override variables.
+    #[test]
+    fn vertex_policy_is_instance_scoped_and_preserves_automatic_precedence() {
+        for integrated in [false, true] {
+            for cpu in [false, true] {
+                for gpu in [false, true] {
+                    assert!(!vertex_shading_on_gpu(VertexShading::Cpu, integrated, cpu, gpu));
+                    assert!(vertex_shading_on_gpu(VertexShading::Gpu, integrated, cpu, gpu));
+                }
+            }
+        }
+        assert!(!vertex_shading_on_gpu(VertexShading::Automatic, true, false, false));
+        assert!(vertex_shading_on_gpu(VertexShading::Automatic, false, false, false));
+        assert!(vertex_shading_on_gpu(VertexShading::Automatic, true, false, true));
+        assert!(vertex_shading_on_gpu(VertexShading::Automatic, false, false, true));
+        for integrated in [false, true] {
+            assert!(!vertex_shading_on_gpu(VertexShading::Automatic, integrated, true, false));
+            assert!(!vertex_shading_on_gpu(VertexShading::Automatic, integrated, true, true));
+        }
+    }
 
     // CodexAstraUlt: A controlled worker proves running and completed-but-not-
     // collected jobs retain their admission slots, errors release slots, and

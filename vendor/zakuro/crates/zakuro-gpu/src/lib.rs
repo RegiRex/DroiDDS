@@ -30,6 +30,32 @@ pub use device::SharedDevice;
 // reject silent fallback without exposing private guest buffers or shaders.
 #[cfg(feature = "vulkan")]
 pub use raster::hardware::HardwareDiagnostics;
+// CodexAstraUlt: Fixed CPU vertex-processing aggregates are available with
+// either raster backend and do not expose per-draw inputs or growing history.
+pub use raster::VertexProcessingDiagnostics;
+
+/// CodexAstraUlt: Select vertex processing per renderer before pipelines start;
+/// Automatic preserves the existing environment/device heuristic. This does not
+/// change Vulkan rasterization or remove the CPU path for unsupported geometry.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VertexShading {
+    #[default]
+    Automatic,
+    Cpu,
+    Gpu,
+}
+
+impl VertexShading {
+    /// CodexAstraUlt: Stable report labels identify the requested instance policy.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Automatic => "automatic",
+            Self::Cpu => "cpu",
+            Self::Gpu => "gpu",
+        }
+    }
+}
 
 /// how the GPU reaches guest memory.
 pub trait GpuMemory {
@@ -612,10 +638,29 @@ impl Gpu {
         device: Option<std::sync::Arc<SharedDevice>>,
         title: Option<u64>,
     ) -> Result<String, String> {
+        // CodexAstraUlt: Keep existing callers on their unchanged automatic
+        // choice while title sessions can request an explicit instance policy.
+        self.enable_hardware_renderer_with_vertex_shading(scale, device, title, VertexShading::Automatic)
+    }
+
+    /// CodexAstraUlt: Apply vertex policy during construction, before either
+    /// eager or asynchronous generic-pipeline preparation can use the old mode.
+    #[cfg(feature = "vulkan")]
+    pub fn enable_hardware_renderer_with_vertex_shading(
+        &mut self,
+        scale: u32,
+        device: Option<std::sync::Arc<SharedDevice>>,
+        title: Option<u64>,
+        policy: VertexShading,
+    ) -> Result<String, String> {
         let kept = title.and_then(raster::hardware::pipeline_cache);
-        let mut hardware = match device {
-            Some(device) => raster::hardware::Hardware::with_device(device, true, kept)?,
-            None => raster::hardware::Hardware::with_device(std::sync::Arc::new(raster::hardware::own_device()?), false, kept)?,
+        let (device, direct) = match device {
+            Some(device) => (device, true),
+            None => (std::sync::Arc::new(raster::hardware::own_device()?), false),
+        };
+        let mut hardware = match policy {
+            VertexShading::Automatic => raster::hardware::Hardware::with_device(device, direct, kept)?,
+            _ => raster::hardware::Hardware::with_device_and_vertex_shading(device, direct, kept, policy)?,
         };
         let scale = hardware.set_scale(scale);
         let shaded = if hardware.shades() { "" } else { ", vertices shaded on the CPU," };
@@ -629,6 +674,12 @@ impl Gpu {
     #[cfg(feature = "vulkan")]
     pub fn hardware_diagnostics(&self) -> Option<HardwareDiagnostics> {
         self.resources.hardware.as_ref().map(raster::hardware::Hardware::diagnostics)
+    }
+
+    /// CodexAstraUlt: Snapshot actual CPU processing batches and their unique
+    /// input count separately from GPU draw references and selected policy.
+    pub fn vertex_processing_diagnostics(&self) -> VertexProcessingDiagnostics {
+        self.resources.vertex_processing
     }
 
     /// draws the texture pack's pictures in place of the textures they
@@ -1397,6 +1448,21 @@ fn external_index(gsp_offset: u32) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: The default remains automatic across software-only builds,
+    // and serialized/report labels must agree without relying on enum ordinals.
+    #[test]
+    fn vertex_policy_default_and_report_labels_are_stable() {
+        assert_eq!(VertexShading::default(), VertexShading::Automatic);
+        for (policy, expected) in [
+            (VertexShading::Automatic, "automatic"),
+            (VertexShading::Cpu, "cpu"),
+            (VertexShading::Gpu, "gpu"),
+        ] {
+            assert_eq!(policy.as_str(), expected);
+            assert_eq!(serde_json::to_value(policy).unwrap(), expected);
+        }
+    }
 
     /// guest memory as one flat block starting at address zero.
     #[derive(Clone)]
