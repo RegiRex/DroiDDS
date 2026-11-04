@@ -18,8 +18,10 @@ application ID `org.droidds.title.t<program_id>` and the
 The [private code 11 result](device-tests/0.0.8-preview1-dark-moon-thor.md) reports
 a 110-second Native menu run, normal stop and continuing severe slowdown/crackling.
 Its JSON was replaced by a later manual restart. Only that separate restart is
-summarized as spending 57.6% of core time in command processing; raw timing fields
-have not yet reached the cloud. Preserve both sessions' distinct provenance.
+measured by the now-supplied JSON: 43.117 seconds of worker time, 40.408 seconds
+of core time, 23.290 seconds of command processing (57.64% of core time), and
+0.411 seconds of scanout. It records 568 underruns and zero PCM loss. Preserve
+both sessions' distinct provenance; these counters do not describe the 110-second run.
 
 An existing preparation supplies the same generated C and headers to both target
 compilers. Its completed Linux and ARM64 libraries remain intact and reusable;
@@ -42,6 +44,14 @@ before any new session. The app keeps one `files/latest-title-report.json` and
 replaces it on later sessions. **After each comparison run, stop normally and
 export that JSON immediately, before starting or restarting anything else.**
 A later replacement cannot supply the earlier session's counters.
+
+<!-- CodexAstraUlt: Complete the owner's requested diagnostic transfer instead
+of leaving useful reports only on the laptop after extraction or renaming. -->
+After the batch, follow [report transfer](DEVICE_REPORT_HANDOFF.md): review and
+upload both diagnostic JSON copies, the short summary and any needed bounded
+failure log to `RegiRex/DroiDDS`, then verify the remote files and return their
+commit links. Preserve raw originals locally. Downloading or renaming a file
+does not upload it, and a missing transfer never requires another device run.
 
 Reuse the successful tool environment, private preparation, completed ARM64
 compilation directory containing `compiled-manifest.json`, and owner signing
@@ -90,9 +100,12 @@ quality unobserved rather than inferring it from counters.
 
 Return one android-title-build-summary.md with source/library/APK identities,
 package/version/public signing identity, device/driver, duration and separate
-CPU/GPU findings plus both local JSON paths. Preserve prior outputs and both
-title builds. Do not rerun setup, preparation, title compilation, host traces
-or permission configuration, reset saves, or publish private artifacts.
+CPU/GPU findings. Follow docs/DEVICE_REPORT_HANDOFF.md to upload reviewed copies
+of both JSON reports, the summary and needed failure logs to RegiRex/DroiDDS.
+Verify the remote files and return commit/file links, not only local paths.
+Preserve raw originals, prior outputs and both title builds. Do not rerun setup,
+preparation, title compilation, host traces or permission configuration, reset
+saves, or publish private game/build/signing files.
 ```
 
 <!-- CodexAstraUlt: Interpret the new timing subset and recorded paths without
@@ -397,7 +410,8 @@ through the app without overwriting the original or another app's files.
 
 Run one Native opening test for at most 120 wall seconds or until its first
 failure, then stop normally. Keep bounded device logs, observations and the
-exported title report local. If Native fails and the same import remains valid,
+original exported title report local; publish reviewed diagnostic copies using
+docs/DEVICE_REPORT_HANDOFF.md. If Native fails and the same import remains valid,
 one equally bounded Interpreter comparison may classify the difference. Record
 screens, controls, audio, native/fallback work, rendering activity and the first
 blocker separately. An opening scene or frame counter is not playable-beta or
@@ -410,6 +424,8 @@ final library and APK hashes, package/version/public certificate identity,
 passed or failed gates, device result or unperformed step, and local APK/report
 paths. Preserve prior outputs. Omit raw game content and personal paths from any
 shareable summary; never publish the private input, generated code or APK.
+Upload the reviewed diagnostic reports, summary and needed failure logs using
+docs/DEVICE_REPORT_HANDOFF.md; verify them remotely and return commit/file links.
 ```
 
 The four batch ceilings cover at most two hours of compiler/linker wall budgets;

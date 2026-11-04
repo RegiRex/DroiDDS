@@ -38,8 +38,11 @@ from its later restart and the next unqualified development candidate. -->
 The [private code 11 follow-up](docs/device-tests/0.0.8-preview1-dark-moon-thor.md)
 reached file selection during a 110-second Native run and stopped normally;
 severe slowdown and crackling remain. A later restart replaced that run's JSON.
-Its separate report is summarized as **57.6% of core time in command processing**;
-the raw timing report has not yet reached the cloud.
+Its now-supplied restart JSON covers **43.117 seconds** of worker execution and
+confirms **57.64% of core time in command processing**, **568 audio underruns**
+and zero reported PCM loss. It remains separate from the 110-second test.
+Local testing now [uploads reviewed diagnostic reports](docs/DEVICE_REPORT_HANDOFF.md)
+with verified GitHub links for cloud retrieval.
 
 **0.0.8-preview.2/code 12 implements a triangle-allocation correction and a
 controlled CPU/GPU vertex-shader comparison**, preserving the current default.

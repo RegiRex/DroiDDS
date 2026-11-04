@@ -24,13 +24,14 @@ The owner has completed the preparation, **521 Linux objects/library** and
 library and signer. The [reported 110-second Native test](device-tests/0.0.8-preview1-dark-moon-thor.md)
 reached file selection and stopped normally; severe slowdown and crackling remain.
 
-A later manual restart replaced that run's latest JSON. Its **separate** report
-is summarized as **57.6% of core time in command processing**. Raw restart
-`runtime`, `timing` and `audio` data have not yet been supplied here. Preserve
-that surviving report without running the same test again merely to recover
-its fields. Do not attach its percentage to the 110-second test or older speed
-estimates. The owner's intentional save deletion is historical, not permission
-for another reset; preserve all remaining saves and imports.
+A later manual restart replaced that run's latest JSON. Its **separate** raw
+report has now reached the cloud: 43.117 seconds of worker time, 40.408 seconds of
+core time, 23.290 seconds of command processing (**57.64% of core time**), and
+0.411 seconds of scanout. It records 568 underruns and zero PCM loss. Preserve
+that report without repeating its test. Do not attach its counters to the
+110-second test or older speed estimates. The owner's intentional save deletion
+is historical, not permission for another reset; preserve all remaining saves
+and imports.
 
 ## Current update
 
@@ -56,6 +57,14 @@ not prove which work ran where. Keep actual hearing observations separate from
 underrun counts; if nobody listened, report
 that limitation instead of claiming steady or broken audio from counters alone.
 
+<!-- CodexAstraUlt: Make report delivery part of the local task, with reviewed
+diagnostic copies in GitHub and preserved private originals on the laptop. -->
+Follow [report transfer](DEVICE_REPORT_HANDOFF.md) after the batch: upload both
+reviewed diagnostic JSON copies, the summary and needed bounded failure logs to
+`RegiRex/DroiDDS`, verify the remote files, and return commit/file links. Local
+download or renaming is not transfer to the cloud. Existing completed reports
+can be transferred without another test.
+
 ## Suggested task for local Codex
 
 <!-- CodexAstraUlt: Keep this prompt confined to the authorized update and
@@ -75,6 +84,9 @@ new failure or visual corruption. Export each run's JSON immediately after
 stopping and before any restart. Record separate requested/selected/path,
 timing, audible/visible and failure observations; mark unobserved audio honestly.
 Return a short android-title-build-summary.md and both separately named reports.
+Follow docs/DEVICE_REPORT_HANDOFF.md to upload reviewed diagnostic copies and
+needed failure logs to RegiRex/DroiDDS; verify the remote files and return
+commit/file links. Keep raw originals locally.
 Do not repeat setup, preparation, title compilation, host traces or permission
 configuration, reset saves, or publish private game/build/signing files.
 ```

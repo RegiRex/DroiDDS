@@ -30,9 +30,11 @@ needed to retrieve it.
 mixing its overwritten JSON with the later restart's timing percentage. -->
 The owner reports a **110-second code 11 Native menu run** that reached file
 selection and stopped normally, with severe slowdown and crackling remaining.
-A later restart replaced its JSON; that separate report is summarized as
-**57.6% command-processing/core time**. Raw restart timing fields have not yet
-been supplied here. Preserve that distinction and the older full-report evidence.
+A later restart replaced its JSON. The now-supplied separate report covers
+**43.117 seconds** of worker time, confirming **57.64% command-processing/core
+time**, **568 audio underruns** and zero reported PCM loss. Its matched
+cycle/worker-time ratio is **23.35% emulated speed**. Preserve that distinction
+and the older full-report evidence; unlike runs do not establish a speed gain.
 
 The current published development candidate is **0.0.8-preview.2/code 12**. Its
 triangle allocation correction, explicit per-session CPU/GPU choice and bounded path/time
@@ -368,12 +370,14 @@ gates; public fixture progress must not silently close the private baseline. -->
    erase its eleven underruns. Keep scheduler/CRO, first-use pipeline-stall and
    sustained-memory work.
 3. Preserve Dark Moon's completed host/Android builds and code 11 menu evidence.
-   Keep the overwritten 110-second test separate from the later restart's 57.6%
-   command-processing summary. Preview.2's local triangle and explicit vertex
-   route, original APK/package, hosted/publication and downloaded-asset gates
+   Keep the overwritten 110-second test separate from the supplied 43.117-second
+   restart and its 57.64% command-processing share. Preview.2's local triangle
+   and explicit vertex route, original APK/package, hosted/publication and downloaded-asset gates
    pass. Consolidate its compatible private repackaging/device comparison.
-   Export each report immediately before another restart. Do not repeat setup,
-   source generation, title compilation or unchanged host reconnaissance.
+   Export each report immediately before another restart, then
+   [upload reviewed diagnostics](DEVICE_REPORT_HANDOFF.md) with verified links.
+   Do not repeat setup, source generation, title compilation or unchanged host
+   reconnaissance.
 
 The integrated guest exposed a conditional-control-flow accounting defect in the
 selected compiler: before correction, the reference executed 598 instructions

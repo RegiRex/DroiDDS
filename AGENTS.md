@@ -23,11 +23,26 @@ restart summary, and progress from completed code 11 testing into route analysis
   packaging passed with the existing library and signer preserved, then a
   110-second Native test reached file selection and stopped normally with severe
   slowdown/crackling. A later manual restart replaced that run's JSON. Only the
-  separate restart report is summarized as 57.6% command-processing/core time;
-  raw runtime/timing/audio fields have not yet been supplied to the cloud. Do
-  not join that percentage to the 110-second duration or earlier speed bounds.
-  Preserve the surviving report without another unchanged run. The owner's
-  reported intentional save deletion is historical, not permission to repeat it.
+  separate restart JSON is now supplied: 43.117 seconds of worker execution,
+  40.408 seconds of core work, 23.290 seconds of command processing (57.64% of
+  core), 0.411 seconds scanout, 568 audio underruns and zero reported PCM loss.
+  Its matching cycle/worker duration gives 23.35% emulated speed. Do not join
+  these results to the 110-second run or claim improvement against unlike tests.
+  Reviewed JSON copies are linked from the evidence record. The starting-only
+  pre-update JSON is not a completed test; launcher XML is not game evidence.
+  No unchanged run is needed. The owner's reported intentional save deletion is
+  historical, not permission to repeat it.
+<!-- CodexAstraUlt: The owner requests direct diagnostic delivery so local
+exports become retrievable evidence instead of another attachment-only handoff. -->
+- Follow docs/DEVICE_REPORT_HANDOFF.md after local testing. Preserve raw originals
+  outside Git; upload reviewed diagnostic JSON, a short summary and needed failure
+  excerpts to docs/device-tests/reports/<date>-<build>-<batch>/ in RegiRex/DroiDDS.
+  Keep complete runtime/timing/audio fields and run identities; exclude private
+  game/build/signing data, personal paths, serials and unrelated device captures.
+  Use targeted staging and existing GitHub access, verify remote bytes, and return
+  commit/file links. A local download or rename is not an upload. If transfer is
+  actually blocked, identify the reason and exact reviewed attachment paths;
+  preserve results without repeating tests or claiming the cloud received them.
 - The current published development candidate is 0.0.8-preview.2/code 12. Read
   docs/builds/0.0.8-vertex-comparison.md for the triangle-allocation correction,
   explicit Automatic/CPU/GPU vertex comparison and required route gates. The
