@@ -5,8 +5,8 @@ library update that measures CPU output work and isolates the first GPU failure.
 Current task, **2026-11-04** (America/New_York): after preview.3's required cloud
 and publication gates pass, repackage the completed private ARM64 library with
 **0.0.8-preview.3/code 13**. Run one CPU-vertex control and a short GPU diagnostic.
-Implementation and local correctness/runtime gates pass; packaging and hosted
-publication remain pending in the
+Implementation, local correctness/runtime and retained-library APK/bundle gates
+pass; hosted publication remains pending in the
 [build record](builds/0.0.8-pipeline-followup.md); the latest verified public
 release is preview.2. Read [AGENTS.md](../AGENTS.md), the
 [code 12 device evidence](device-tests/0.0.8-preview2-dark-moon-thor.md) and the

@@ -48,8 +48,8 @@ Interpreter observations have no corresponding JSON and remain separate.
 The next candidate is **0.0.8-preview.3/code 13**, in development. Its
 [build record](builds/0.0.8-pipeline-followup.md) tracks direct CPU vertex-output
 mapping and bounded identification of the actual failed pipeline. Implementation
-and local correctness/runtime checks pass; packaging and hosted publication
-remain pending. Automatic
+and local correctness/runtime plus retained-library APK/bundle checks pass;
+hosted publication remains pending. Automatic
 and error handling remain unchanged; no driver fix or Thor speed gain is claimed.
 The earlier [preview.2 build record](builds/0.0.8-vertex-comparison.md) retains
 its passed cloud and publication gates. Gameplay, reliable audio, save/resume

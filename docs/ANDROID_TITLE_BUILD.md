@@ -4,8 +4,8 @@
 update measures CPU output work and identifies the first failing GPU pipeline. -->
 The next candidate is **0.0.8-preview.3/code 13**, in development. It targets the
 intermediate CPU vertex-output array and adds bounded pipeline failure metadata.
-Implementation and local correctness/runtime gates pass; packaging and
-hosted publication remain pending in the
+Implementation, local correctness/runtime and retained-library APK/bundle gates
+pass; hosted publication remains pending in the
 [build record](builds/0.0.8-pipeline-followup.md). The latest verified public
 release remains **0.0.8-preview.2/code 12**; its prior cloud gates do not validate
 changed code. The player retains application ID

@@ -59,8 +59,9 @@ pipeline failure and measured CPU subset instead of requesting a longer run. -->
   array and bounded identification of the actual failed Vulkan pipeline. These
   changes do not establish a driver fix or Thor speed gain. Keep Automatic and
   error handling unchanged; no shader dumps, growing logs or optional JIT.
-  Implementation and local correctness/runtime gates pass; APK and hosted/
-  publication gates remain pending in the build record. The latest verified public release remains
+  Implementation, local correctness/runtime gates and retained-library APK/
+  bundle verification pass at dffd8e4; hosted/publication gates remain pending
+  in the build record. The latest verified public release remains
   0.0.8-preview.2 at cf31580; its passed cloud gates are historical, not a pass
   for changed code. No separate public diagnostic APK installation is needed.
   After the new cloud gates pass, repackage the retained ARM64 library with the

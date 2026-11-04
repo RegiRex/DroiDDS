@@ -57,7 +57,8 @@ separate. Unmatched code 11/12 scene coverage and duration do not establish a re
 **0.0.8-preview.3/code 13 is in development.** It targets an unnecessary CPU
 vertex-output array and adds bounded identification of the failed pipeline.
 Its [build record](docs/builds/0.0.8-pipeline-followup.md) records passing local
-correctness/runtime checks, with APK/publication pending. The next local task follows
+correctness/runtime and retained-library APK/bundle checks, with hosted
+publication pending. The next local task follows
 those gates: retained-library repackaging, one CPU control and a short GPU
 failure diagnostic. Automatic stays the default; no driver fix or device speed
 gain is yet established. Gameplay, reliable audio, save/resume and sustained
