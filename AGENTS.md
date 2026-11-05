@@ -64,17 +64,21 @@ Native/CPU priority and require fresh cloud gates before the next private run. -
   GPU failed before useful output; metadata identifies the attempted public
   interpreted-vertex/generic-fragment pipeline, not the faulty shader stage.
   Further Thor GPU tests and audio-perfection work are deferred.
-- The next CPU candidate is 0.0.8-preview.4/code 14, with cloud gates pending.
+- The next CPU candidate is 0.0.8-preview.4/code 14. Local correctness/runtime,
+  retained-library APK and independent bundle checks pass at implementation
+  a77a85e895461f6f62b9fa868c5bab5a82a64b44. Hosted main/tag/publication and public
+  download verification remain pending.
   Read docs/builds/0.0.8-cpu-work-followup.md. It reduces repeated vertex-output
   work and full-TEXT verification after unrelated GPU guards, preserving actual
   mapping/backing/protection checks. Fixed decode/placement timers and geometry-
   mode/parallel-vertex batch counts distinguish remaining command work without
-  per-vertex logging. Implementation review is not an executed release gate.
-  Complete correctness/runtime/package/publication checks before another local
+  per-vertex logging. Complete the remaining hosted/publication checks before another local
   handoff. Do not repeat the unchanged code 13 run. Then reuse the retained ARM64
   library and owner signer for a compatible update with an install code above
   the installed one, at least 14. Keep Native execution, CPU vertex shaders and
-  Vulkan 1× for one comparable menu run at most 120 wall seconds. Export the full
+  Vulkan 1× for one comparable menu run: A around 91 seconds after Play if the
+  title prompt is ready, normal Stop around 110 seconds, at most 120 wall seconds.
+  Record actual timing/progression and stop early on failure/corruption. Export the full
   JSON before any restart, upload reviewed reports/log excerpts and return
   verified links. Preserve imports, saves, both 521-object builds and previous
   reports. No setup, preparation, title compilation or permission reconfiguration

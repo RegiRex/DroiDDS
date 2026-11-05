@@ -4,7 +4,9 @@
 Native/CPU priority; the next private test waits for fresh cloud gates. -->
 Current task, **2026-11-04** (America/New_York): cloud development of
 **0.0.8-preview.4/code 14**, prioritizing Native execution with CPU vertex
-shaders. Cloud gates are pending; no unchanged device run is needed now.
+shaders. Local correctness/runtime, retained-library APK and independent bundle
+checks pass at `a77a85e`; hosted main/tag/publication and public-download checks
+remain pending. No unchanged device run is needed now.
 Further Thor GPU tests and audio-perfection work are deferred. Read
 [the candidate build record](builds/0.0.8-cpu-work-followup.md),
 [AGENTS.md](../AGENTS.md), the
@@ -41,7 +43,7 @@ Its fixed decode/placement timers and geometry-mode/parallel-vertex batch counts
 help separate remaining CPU costs. Host component timings do not establish
 handheld improvement.
 
-After preview.4's cloud correctness/runtime/package/publication gates pass,
+After preview.4's remaining hosted/publication checks pass,
 reuse successful tools, preparation, ARM64 directory with
 `compiled-manifest.json`, and existing owner signing profile.
 Package a compatible update with the same package/certificate and a version
@@ -50,9 +52,11 @@ objects needs recompilation; no separate public original APK installation is
 required.
 
 Keep **Native guest execution, CPU vertex shaders, Vulkan 1×** and comparable
-menu progression/settings. Run once for at most **120 wall seconds**, then stop
-normally. Stop early on failure or visual corruption. Preserve actual worker
-time separately. Further GPU tests are deferred.
+menu progression/settings. Match code 13 with A around **91 seconds after Play**
+if the title prompt is ready, and normal Stop around **110 seconds**. Keep the
+absolute **120-wall-second** bound and stop early on failure or visual corruption.
+Do not extend for a late prompt; record actual input/progression and worker time
+separately. Further GPU tests are deferred.
 
 Export each full JSON immediately after stop/failure and **before any restart**.
 Keep actual audio/visual observations separate from counters.
@@ -74,8 +78,10 @@ profile. Repackage only with the same package/certificate and an install code
 above the installed one, at least 14. Preserve imports and saves.
 
 Keep Native execution, CPU vertex shaders, Vulkan 1x and comparable menu
-progression/settings. Run once for at most 120 wall seconds, then stop normally;
-stop early on failure or visual corruption. Further GPU testing is deferred.
+progression/settings. Run once: press A around 91 seconds after Play if the title
+prompt is ready, then Stop around 110 seconds; never exceed 120 wall seconds.
+Stop early on failure/corruption and do not extend for a late prompt. Record the
+actual input timing and progression. Further GPU testing is deferred.
 Export the complete JSON after stop/failure and before any restart. Record
 actual worker time, CPU processing, input/scene progression, rendering paths
 and actual audio/visual observations separately.

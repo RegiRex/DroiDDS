@@ -67,10 +67,13 @@ gates and verified public downloads.
 The next candidate, **0.0.8-preview.4/code 14**, reduces repeated vertex-output
 work and native code-fence scans after unrelated GPU guards. Fixed CPU decoding
 and placement timings help identify remaining costs; see the
-[build record](docs/builds/0.0.8-cpu-work-followup.md). Its cloud gates are pending.
-After they pass, reuse the completed private library
-and signer for one comparable Native/CPU, Vulkan 1× menu test of at most 120 wall
-seconds, then upload the report. No unchanged test is needed now. Automatic
+[build record](docs/builds/0.0.8-cpu-work-followup.md). Local correctness/runtime,
+retained-library APK and independent bundle checks pass at `a77a85e`; hosted
+main/tag/publication and public-download checks remain pending. After they pass,
+reuse the completed private library and signer for one comparable Native/CPU,
+Vulkan 1× menu test: A around 91 seconds if the title prompt is ready, Stop around
+110 seconds, with a 120-wall-second maximum. Upload the full report. No unchanged
+test is needed now. Automatic
 stays the default. Gameplay, reliable audio, save/resume and sustained speed
 remain unqualified.
 

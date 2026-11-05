@@ -8,8 +8,10 @@ adds pipeline failure metadata. Local correctness/runtime, retained-library
 APK/bundle and hosted main/tag build/publication gates pass. Public assets at
 release source `4dae752` were independently downloaded and verified; see the
 [build record](builds/0.0.8-pipeline-followup.md). The private code 13 test is
-complete. The next candidate is **0.0.8-preview.4/code 14**, with cloud gates
-pending and Native/CPU performance prioritized.
+complete. The next candidate is **0.0.8-preview.4/code 14**, prioritizing
+Native/CPU performance. Local correctness/runtime, retained-library APK and
+independent bundle checks pass at `a77a85e`; hosted main/tag/publication and
+public-download checks remain pending.
 Its [build record](builds/0.0.8-cpu-work-followup.md) covers reduced vertex-output
 work, avoiding full-TEXT verification after unrelated GPU guards while retaining
 mapping/backing/code protection, and fixed CPU decoding/placement timings.
@@ -32,14 +34,17 @@ this update rebuilds the shared player/frontend, not the 521 title objects.
 
 <!-- CodexAstraUlt: Keep the existing anchor stable while replacing the finished
 GPU diagnostic with one CPU performance test after the next cloud gates pass. -->
-Preview.4's cloud/runtime/graphics/package and publication/download gates are
-pending. Complete them before this retained-library update and bounded Thor run;
+Preview.4's local correctness/runtime/graphics/package and independent bundle
+checks pass. Complete its remaining hosted/publication/download gates before
+this retained-library update and bounded Thor run;
 no separate public original APK installation is required. Keep **Native guest
 execution, CPU vertex shaders, Vulkan 1×** and comparable menu
 progression/settings. Automatic stays the normal default.
 
-Use one CPU-vertex menu run for at most **120 wall seconds**, recording input
-timing and progression, then stop normally. Stop early on failure or visual
+Use one CPU-vertex menu run matching code 13: press A around **91 seconds after
+Play** if the title prompt is ready, then request normal Stop around **110
+seconds**. Never exceed **120 wall seconds**. Record actual input timing and
+progression; do not extend for a late prompt. Stop early on failure or visual
 corruption. Further GPU testing is deferred. Record actual worker-running time
 separately. Do not extend the run or replay a failure. If the app has
 already failed/stopped, end observation and preserve the error instead of
@@ -94,8 +99,10 @@ above the installed one, at least 14. Install a compatible update preserving
 imports and saves.
 
 Keep Native execution, CPU vertex shaders, Vulkan 1x and comparable menu
-progression/settings. Run once for at most 120 wall seconds, then stop normally;
-stop early on failure or visual corruption. Further GPU testing is deferred.
+progression/settings. Run once: press A around 91 seconds after Play if the title
+prompt is ready, then Stop around 110 seconds; never exceed 120 wall seconds.
+Stop early on failure/corruption and do not extend for a late prompt. Record the
+actual input timing and progression. Further GPU testing is deferred.
 Export the complete JSON immediately after stop/failure and before any restart.
 Record actual worker time, CPU processing, input/scene progression, rendering
 paths and observed audio/images separately. Preserve a relevant bounded

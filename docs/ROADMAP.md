@@ -14,8 +14,10 @@ source `4dae752`, exact public artifact identities and executed gates. The
 [code 13 private Thor test](device-tests/0.0.8-preview3-dark-moon-thor.md) is
 complete: Native/CPU reaches file selection at 18.12% speed without a demonstrated
 gain; GPU fails during pipeline creation. Native/CPU optimization is now the
-priority. The next candidate is **0.0.8-preview.4/code 14**, with cloud gates
-pending; further Thor GPU tests and audio-perfection work are deferred.
+priority. The next candidate is **0.0.8-preview.4/code 14**. Local correctness/
+runtime, retained-library APK and independent bundle checks pass at `a77a85e`;
+hosted main/tag/publication and public-download checks remain pending.
+Further Thor GPU tests and audio-perfection work are deferred.
 Its [build record](builds/0.0.8-cpu-work-followup.md) covers repeated vertex-output
 work, native verification-cache invalidation limited to relevant guard changes,
 and fixed CPU decode/placement timings. Actual mapping/backing/code protection
@@ -97,8 +99,9 @@ prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
 preserving the owner signing identity and existing reports. Complete preview.4's
-new cloud correctness/runtime/package/publication gates before one comparable
-Native/CPU, Vulkan 1× menu test of at most 120 wall seconds. No unchanged code 13
+remaining hosted/publication checks before one comparable Native/CPU, Vulkan 1×
+menu test: A around 91 seconds after Play if ready, normal Stop around 110 seconds,
+with a 120-wall-second maximum. No unchanged code 13
 run is needed. Keep private hardware evidence separate from original-input
 cloud checks.
 
@@ -392,10 +395,11 @@ gates; public fixture progress must not silently close the private baseline. -->
    sustained-memory work.
 3. Preserve both completed Dark Moon target builds and separate code 11/12/13
    reports. Code 13 does not establish a CPU speed gain; further Thor GPU tests
-   are deferred. Complete preview.4's cloud correctness/runtime/package and
-   publication/download gates, then repackage the retained library with the
-   existing signer for one comparable Native/CPU, Vulkan 1× menu run at most
-   120 wall seconds. Export its full report before another restart, then
+   are deferred. Preview.4's local correctness/runtime/APK/bundle checks pass;
+   complete remaining hosted/publication/download gates, then repackage the
+   retained library with the existing signer for one comparable Native/CPU,
+   Vulkan 1× menu run. Match A around 91 seconds if ready and Stop around 110,
+   never exceeding 120 wall seconds. Export its full report before another restart, then
    [upload reviewed diagnostics](DEVICE_REPORT_HANDOFF.md) with verified links.
    Do not repeat setup, source generation, title compilation, historical traces
    or the unchanged failed GPU attempt.
