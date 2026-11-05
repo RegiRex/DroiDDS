@@ -351,6 +351,20 @@ impl Memory {
         }
     }
 
+    // CodexAstraUlt: GPU guards edit only the named virtual page-table entries.
+    // Unrelated framebuffer guards cannot change the admitted text entries, so
+    // avoid rescanning every text page for them. The fence is page aligned;
+    // byte-range overlap therefore also detects every affected text page. Match
+    // add_guard's empty/saturated bounds. Mapping changes remain conservative,
+    // and physical aliases still share the unchanged read-only host backing.
+    fn fence_guard_changed(&mut self, vaddr: VAddr, len: u32) {
+        let Some(fence) = &self.base_code_fence else { return };
+        let end = vaddr.saturating_add(len);
+        if vaddr < end && vaddr < fence.text_start + fence.mapped_bytes && fence.text_start < end {
+            self.fence_mapping_changed();
+        }
+    }
+
     /// starts noting what the CPU's writes write over, forgetting what was
     /// noted before.
     pub(crate) fn log_writes(&mut self) {
@@ -743,7 +757,7 @@ impl Memory {
     /// to draw its lens flare. the rest of a page the range shares is read
     /// the slow way while it is guarded, without asking.
     pub fn guard_cpu_reads(&mut self, vaddr: VAddr, len: u32) {
-        self.fence_mapping_changed();
+        self.fence_guard_changed(vaddr, len);
         add_guard(&mut self.guards, &mut self.cpu_read_table, vaddr, len);
     }
 
@@ -753,7 +767,7 @@ impl Memory {
     /// something else where a buffer it is done with was, Tomodachi Life its
     /// objects, which the drawing written back later would have broken.
     pub fn guard_cpu_writes(&mut self, vaddr: VAddr, len: u32) {
-        self.fence_mapping_changed();
+        self.fence_guard_changed(vaddr, len);
         add_guard(&mut self.write_guards, &mut self.cpu_write_table, vaddr, len);
     }
 
@@ -798,8 +812,11 @@ impl Memory {
     /// they stay guarded.
     fn unguard(&mut self, addr: VAddr, len: u32) {
         let Some(sync) = self.gpu_sync else { return };
-        self.fence_mapping_changed();
         for (from, to) in take_guards(&mut self.guards, addr, len) {
+            // CodexAstraUlt: A read can release a larger merged guard than its
+            // own range. Invalidate for the full restored range before callbacks
+            // can inspect the fence or change mappings/guards themselves.
+            self.fence_guard_changed(from, to - from);
             // SAFETY: the system set it while it runs the CPU, which is the
             // only thing reading through this
             unsafe { (sync.sync)(sync.gpu, sync.linear_base, self, from, to - from) };
@@ -833,8 +850,10 @@ impl Memory {
     /// as unguard does for reads, before the write lands over it.
     fn unguard_writes(&mut self, addr: VAddr, len: u32) {
         let Some(sync) = self.gpu_sync else { return };
-        self.fence_mapping_changed();
         for (from, to) in take_guards(&mut self.write_guards, addr, len) {
+            // CodexAstraUlt: Use the removed guard's whole range, as for reads;
+            // an unrelated request may release pages inside admitted text.
+            self.fence_guard_changed(from, to - from);
             // SAFETY: as in unguard
             unsafe { (sync.sync_write)(sync.gpu, sync.linear_base, self, from, to - from) };
             for index in (from >> PAGE_BITS) as usize..=((to - 1) >> PAGE_BITS) as usize {

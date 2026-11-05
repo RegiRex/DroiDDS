@@ -1209,6 +1209,144 @@ mod tests {
         a.len() == b.len() && a.iter().flatten().flatten().zip(b.iter().flatten().flatten()).all(|(&x, &y)| same(x, y))
     }
 
+    // CodexAstraUlt: An authored nested branch partitions one SIMD batch into
+    // three paths with different partial writes, followed by a shared write.
+    // This exercises retained fork results and the final in-place result.
+    fn mapped_divergent_unit() -> ShaderUnit {
+        let mov = |destination: u32, source: u32, descriptor: u32| {
+            (0x13 << 26) | (destination << 21) | (source << 12) | descriptor
+        };
+        let cmp = |input: u32| (0x2E << 26) | (2 << 24) | (0x20 << 12) | (input << 7);
+        let ifc = |otherwise: u32| (0x28 << 26) | (1 << 25) | (2 << 22) | (otherwise << 10) | 1;
+        unit_with(&[
+            cmp(0), ifc(7), mov(0, 0x21, 1), cmp(1), ifc(6),
+            mov(1, 0x22, 2), mov(1, 0x23, 1), mov(0, 0x24, 2),
+            mov(2, 2, 0), 0x22 << 26,
+        ], &[IDENTITY, (IDENTITY & !0xF) | 0b1010, (IDENTITY & !0xF) | 0b0101])
+    }
+
+    // CodexAstraUlt: Compare every output bit with independent scalar execution
+    // across nested divergent lanes, tails, repeated batches and untouched
+    // registers. Mapping still runs once per real input in input order.
+    #[test]
+    fn mapped_divergent_batches_preserve_partial_outputs() {
+        let mut unit = mapped_divergent_unit();
+        unit.float_uniforms[1] = [f32::from_bits(0x7FC0_1234), 11.0, -0.0, 13.0];
+        unit.float_uniforms[2] = [20.0, f32::INFINITY, 22.0, -0.0];
+        unit.float_uniforms[3] = [-0.0, 31.0, f32::NEG_INFINITY, 33.0];
+        unit.float_uniforms[4] = [40.0, f32::from_bits(0x7FC0_5678), 42.0, -0.0];
+        let inputs: Vec<_> = (0..64).map(|i| {
+            let mut input = [ZERO; INPUT_REGISTERS];
+            input[0][0] = if i % 2 == 0 { 1.0 } else { -1.0 };
+            input[1][0] = if i % 4 < 2 { 1.0 } else { -1.0 };
+            input[2] = [i as f32, -0.0, i as f32 + 0.5, 1.0];
+            input
+        }).collect();
+        let bits = |outputs: [Vec4; OUTPUT_REGISTERS]| outputs.map(|row| row.map(f32::to_bits));
+        for prepared in [false, true] {
+            if prepared {
+                unit.prepare();
+            }
+            for count in [0, 1, 7, 8, 9, 16, 19, 64] {
+                let inputs = &inputs[..count];
+                let expected: Vec<_> = one_by_one(&unit, inputs).into_iter().map(bits).collect();
+                let actual: Vec<_> = run_vertices(&unit, inputs).into_iter().map(bits).collect();
+                assert_eq!(actual, expected, "prepared={prepared}, inputs={count}");
+                let mut calls = 0;
+                let packed = run_vertices_with(&unit, inputs, |outputs| {
+                    let output = bits(outputs);
+                    assert_eq!(output, expected[calls]);
+                    let result = (calls, [output[0], output[1], output[2]]);
+                    calls += 1;
+                    result
+                });
+                assert_eq!(calls, count);
+                assert_eq!(packed, expected.iter().enumerate().map(|(i, output)| {
+                    (i, [output[0], output[1], output[2]])
+                }).collect::<Vec<_>>());
+            }
+        }
+    }
+
+    // CodexAstraUlt: A bounded, opt-in authored workload measures the actual
+    // small-output route for short, arithmetic-heavy and divergent shaders.
+    // Timings are descriptive host data, never a Thor speed qualification.
+    #[test]
+    #[ignore]
+    fn mapped_vertex_batch_speed() {
+        let mov = |destination: u32, source: u32| (0x13 << 26) | (destination << 21) | (source << 12);
+        let short = unit_with(&[mov(0, 0), mov(1, 1), mov(2, 0x20), 0x22 << 26], &[IDENTITY]);
+        let mut arithmetic = Vec::new();
+        for _ in 0..8 {
+            for i in 0..4 {
+                arithmetic.push((0x02 << 26) | (0x10 << 21) | ((0x20 + i) << 12));
+                arithmetic.push((0x02 << 26) | ((0x24 + i) << 12) | (0x10 << 7));
+            }
+            arithmetic.push((0x08 << 26) | (1 << 21) | (0x28 << 12) | (1 << 7));
+            arithmetic.push(mov(2, 2));
+        }
+        arithmetic.push(0x22 << 26);
+        let complex = unit_with(&arithmetic, &[IDENTITY]);
+        let inputs: Vec<_> = (0..4096).map(|i| {
+            std::array::from_fn(|register| std::array::from_fn(|component| {
+                ((i * 17 + register * 11 + component * 7) % 101) as f32 / 50.0 - 1.0
+            }))
+        }).collect();
+        let project = |output: [Vec4; OUTPUT_REGISTERS]| [output[0], output[1], output[2]];
+        // CodexAstraUlt: Both measured routes use identical allocation, batch
+        // scratch, projection and caller dispatch; only final fork retention
+        // differs. Verify both outside the timed region against scalar output.
+        let shade = |unit: &ShaderUnit, inputs: &[[Vec4; INPUT_REGISTERS]], copying_final: bool| {
+            let program = unit.decoded.as_ref().expect("prepared fixture");
+            let uniforms = batch::Uniforms::new(unit);
+            let (mut blocks, mut forks) = (Vec::with_capacity(16), Vec::new());
+            let mut mapped = Vec::with_capacity(inputs.len());
+            for inputs in inputs.chunks(batch::LANES) {
+                let mut outputs = [[ZERO; OUTPUT_REGISTERS]; batch::LANES];
+                let outputs = &mut outputs[..inputs.len()];
+                if copying_final {
+                    batch::run_copying_final(unit, &uniforms, program, inputs, outputs, &mut blocks, &mut forks);
+                } else {
+                    batch::run(unit, &uniforms, program, inputs, outputs, &mut blocks, &mut forks);
+                }
+                mapped.extend(outputs.iter().copied().map(project));
+            }
+            mapped
+        };
+        for (name, mut unit) in [("short", short), ("arithmetic", complex), ("divergent", mapped_divergent_unit())] {
+            for (i, uniform) in unit.float_uniforms.iter_mut().enumerate() {
+                *uniform = std::array::from_fn(|component| (i + component + 1) as f32 / 100.0);
+            }
+            // Keep the nested branch split by each input's sign.
+            unit.float_uniforms[0] = ZERO;
+            unit.prepare();
+            for count in [8, 64, 320, 512, 4096] {
+                let inputs = &inputs[..count];
+                let expected: Vec<_> = one_by_one(&unit, inputs).into_iter().map(project).collect();
+                assert_eq!(run_vertices_with(&unit, inputs, project), expected);
+                assert_eq!(shade(&unit, inputs, true), expected);
+                assert_eq!(shade(&unit, inputs, false), expected);
+                let repeats = 65_536_usize.div_ceil(count);
+                let mut copied = [0.0; 5];
+                let mut borrowed = [0.0; 5];
+                for sample in 0..5 {
+                    for copying_final in if sample % 2 == 0 { [true, false] } else { [false, true] } {
+                        let start = std::time::Instant::now();
+                        for _ in 0..repeats {
+                            std::hint::black_box(shade(&unit, std::hint::black_box(inputs), copying_final));
+                        }
+                        let samples = if copying_final { &mut copied } else { &mut borrowed };
+                        samples[sample] = start.elapsed().as_secs_f64() * 1e9 / (count * repeats) as f64;
+                    }
+                }
+                copied.sort_by(f64::total_cmp);
+                borrowed.sort_by(f64::total_cmp);
+                println!("mapped {name} inputs={count} copied_median_ns={:.3} borrowed_median_ns={:.3} ratio={:.4} copied={copied:?} borrowed={borrowed:?}",
+                    copied[2], borrowed[2], borrowed[2] / copied[2]);
+            }
+        }
+    }
+
     // CodexAstraUlt: Check direct packing against the independent scalar
     // interpreter, with masked/swizzled outputs, a constant, untouched registers,
     // zero inputs and partial SIMD batches. The callback must run exactly once

@@ -506,7 +506,16 @@ impl Session {
         report["gpu"]["vertex_processing"] = json!({
             "cpu_batches":vertices.cpu_batches,
             "cpu_vertex_inputs":vertices.cpu_vertex_inputs,
-            "cpu_wall_nanoseconds":vertices.cpu_processing_wall.as_nanos().min(u64::MAX as u128) as u64});
+            "cpu_wall_nanoseconds":vertices.cpu_processing_wall.as_nanos().min(u64::MAX as u128) as u64,
+            // CodexAstraUlt: These fixed counters distinguish geometry and
+            // threshold-selected parallel batches; the timers are separate,
+            // disjoint command subsets, not additional GPU execution time.
+            "cpu_geometry_batches":vertices.cpu_geometry_batches,
+            "cpu_parallel_vertex_batches":vertices.cpu_parallel_vertex_batches,
+            "input_decode_batches":vertices.input_decode_batches,
+            "input_decode_wall_nanoseconds":vertices.input_decode_wall.as_nanos().min(u64::MAX as u128) as u64,
+            "placement_batches":vertices.placement_batches,
+            "placement_wall_nanoseconds":vertices.placement_wall.as_nanos().min(u64::MAX as u128) as u64});
         // CodexAstraUlt: The requested per-session policy is separate from the
         // selected hardware flag and actual path counters; fallbacks remain visible.
         report["vertex_shading_policy"] = json!(self.vertex_shading.as_str());

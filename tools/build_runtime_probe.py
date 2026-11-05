@@ -33,8 +33,17 @@ GPU_REQUIRED_TESTS = {
     "raster::hardware::tests::pipeline_budget_preserves_existing_handles",
     "raster::tests::deferred_translation_retries_without_losing_draws",
     "raster::tests::pipeline_budget_failure_keeps_software_draw_and_reports_fallback",
+    # CodexAstraUlt: Both ordinary and divergent CPU outputs must execute their
+    # exact equivalence controls when qualifying the reduced-copy renderer.
+    "raster::tests::vertex_output_plan_matches_all_masks_and_semantic_defaults",
+    "raster::tests::mapped_vertex_packing_preserves_serial_and_parallel_order",
+    "shader::tests::mapped_divergent_batches_preserve_partial_outputs",
 }
-GPU_IGNORED_BENCHMARKS = {"shader::tests::batch_speed", "shader::tests::compiled_speed"}
+# CodexAstraUlt: Performance comparisons run separately in release mode; their
+# exact output controls remain mandatory ordinary tests, never ignored gates.
+GPU_IGNORED_BENCHMARKS = {"shader::tests::batch_speed", "shader::tests::compiled_speed",
+                          "shader::tests::mapped_vertex_batch_speed",
+                          "raster::tests::benchmark_vertex_output_plan_against_packing"}
 LOADER_REQUIRED_TESTS = {
     "droidds_real_loader_reports_geometry_and_executes_every_supported_mode",
     "droidds_real_kernel_resource_limit_heap_linear_and_hid_base_allocation",

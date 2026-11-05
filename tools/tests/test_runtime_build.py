@@ -17,10 +17,12 @@ class RequiredSuiteTests(unittest.TestCase):
 
     def setUp(self):
         self.proof = "\n".join("test " + name + " ... ok" for name in sorted(build.GPU_REQUIRED_TESTS))
-        self.proof += "\ntest shader::tests::batch_speed ... ignored\n"
-        self.proof += "test shader::tests::compiled_speed ... ignored\n"
+        # CodexAstraUlt: Account for the documented benchmark inventory while
+        # retaining independent rejection of skipped correctness tests below.
+        self.proof += "\n" + "\n".join("test " + name + " ... ignored"
+                                       for name in sorted(build.GPU_IGNORED_BENCHMARKS)) + "\n"
         self.proof += (f"test result: ok. {len(build.GPU_REQUIRED_TESTS)} passed; 0 failed; "
-                       "2 ignored; 0 measured; 0 filtered out\n")
+                       f"{len(build.GPU_IGNORED_BENCHMARKS)} ignored; 0 measured; 0 filtered out\n")
 
     def test_full_comparisons_and_documented_benchmarks_pass(self):
         result = build.validate_suite(self.proof, build.GPU_REQUIRED_TESTS, build.GPU_IGNORED_BENCHMARKS)
@@ -46,7 +48,8 @@ class RequiredSuiteTests(unittest.TestCase):
 
     def test_hidden_ignored_summary_count_fails(self):
         with self.assertRaisesRegex(ValueError, "unqualified ignored"):
-            build.validate_suite(self.proof.replace("2 ignored", "3 ignored"),
+            count = len(build.GPU_IGNORED_BENCHMARKS)
+            build.validate_suite(self.proof.replace(f"{count} ignored", f"{count + 1} ignored"),
                                  build.GPU_REQUIRED_TESTS, build.GPU_IGNORED_BENCHMARKS)
 
 

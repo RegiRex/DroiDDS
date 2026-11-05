@@ -106,6 +106,168 @@ fn unrelated_mapping_changes_keep_native_fence_valid() {
     assert!(memory.verify_base_code_fence().is_ok());
 }
 
+// CodexAstraUlt: GPU guards can change only their virtual pages. Physical code
+// aliases remain protected by the existing host mapping; unrelated guard work
+// must preserve the verified epoch while actual map/unmap still invalidates it.
+#[test]
+fn unrelated_guards_and_aliases_keep_the_verified_fence_epoch() {
+    let (mut memory, _, data) = fixture();
+    memory.install_base_code_fence(TEXT, TEXT_BYTES).unwrap();
+    let epoch = memory.fence_mapping_epoch;
+    for address in [DATA, ALIAS] {
+        memory.guard_cpu_reads(address, 4);
+        memory.guard_cpu_writes(address, 4);
+        assert_eq!(memory.fence_mapping_epoch, epoch);
+        assert!(memory.verify_base_code_fence().is_ok());
+        assert_eq!(memory.base_code_fence.as_ref().unwrap().verified_epoch.get(), epoch);
+    }
+    // SAFETY: The callback never dereferences its opaque pointer; it performs
+    // no writes, allowing this fixture to exercise restoration without a GPU.
+    unsafe { memory.set_gpu_sync(noop_sync()) };
+    for address in [DATA, ALIAS] {
+        memory.unguard(address, 4);
+        memory.unguard_writes(address, 4);
+    }
+    memory.unguard(TEXT, 4); // No matching guard is an actual no-op.
+    memory.unguard_writes(TEXT, 4);
+    assert_eq!(memory.fence_mapping_epoch, epoch);
+    assert!(memory.verify_base_code_fence().is_ok());
+    assert_eq!(memory.read8(ALIAS), 0x44);
+    memory.map(DATA + PAGE_SIZE, data, PAGE_SIZE, Permission::RW, MemoryState::Alias);
+    assert!(memory.fence_mapping_epoch > epoch);
+    let mapped_epoch = memory.fence_mapping_epoch;
+    memory.unmap(DATA + PAGE_SIZE, PAGE_SIZE);
+    assert!(memory.fence_mapping_epoch > mapped_epoch);
+}
+
+// CodexAstraUlt: Match add_guard's zero-length and saturating endpoints at both
+// text boundaries, including a one-byte overlap and an unrelated far-end range.
+#[test]
+fn guard_epoch_overlap_matches_page_aligned_text_boundaries() {
+    let (mut memory, _, _) = fixture();
+    memory.install_base_code_fence(TEXT, TEXT_BYTES).unwrap();
+    let end = TEXT + TEXT_BYTES;
+    for (address, len, changes) in [
+        (TEXT, 0, false), (TEXT - 1, 0, false),
+        (TEXT - PAGE_SIZE, PAGE_SIZE, false), (TEXT - 1, 1, false),
+        (TEXT - 1, 2, true), (TEXT, 1, true),
+        (end - 1, 1, true), (end - 1, 2, true),
+        (end, 1, false), (0, TEXT, false), (0, TEXT + 1, true),
+        (u32::MAX, 1, false), (u32::MAX - 8, 16, false),
+        (TEXT - 1, u32::MAX, true),
+    ] {
+        let epoch = memory.fence_mapping_epoch;
+        memory.fence_guard_changed(address, len);
+        assert_eq!(memory.fence_mapping_epoch, epoch + u64::from(changes),
+            "guard at {address:08X} + {len:08X}");
+    }
+    // Real read guards at the interior boundary must still reject native work.
+    memory.guard_cpu_reads(TEXT - 1, 2);
+    assert_eq!(memory.verify_base_code_fence().unwrap_err(), "native_base_code_fence_mapping_changed");
+}
+
+// CodexAstraUlt: Callbacks are deliberately harmless unless a fixture requests
+// a remap. Their observations check invalidation occurs before reentrant work.
+unsafe fn noop_guard_sync(_: *mut (), _: u32, _: &mut Memory, _: VAddr, _: u32) {}
+
+fn noop_sync() -> GpuSync {
+    GpuSync { gpu: std::ptr::null_mut(), linear_base: 0, sync: noop_guard_sync, sync_write: noop_guard_sync }
+}
+
+struct GuardObservation {
+    previous_epoch: u64,
+    require_invalidated: bool,
+    remap_to: Option<u32>,
+    seen: Vec<(u32, u32)>,
+}
+
+unsafe fn observe_guard_sync(gpu: *mut (), _: u32, memory: &mut Memory, address: VAddr, len: u32) {
+    // SAFETY: The fixture owns this exact live observation until it clears sync.
+    let observation = unsafe { &mut *gpu.cast::<GuardObservation>() };
+    if observation.require_invalidated {
+        assert!(memory.fence_mapping_epoch > observation.previous_epoch);
+    }
+    observation.seen.push((address, len));
+    if let Some(physical) = observation.remap_to {
+        memory.map(TEXT, physical, PAGE_SIZE, Permission::RX, MemoryState::Code);
+    }
+}
+
+#[test]
+fn releasing_merged_guards_invalidates_the_whole_restored_range() {
+    for writes in [false, true] {
+        let (mut memory, _, _) = fixture();
+        memory.install_base_code_fence(TEXT, TEXT_BYTES).unwrap();
+        let guard = if writes { Memory::guard_cpu_writes } else { Memory::guard_cpu_reads };
+        guard(&mut memory, TEXT - 16, 32);
+        guard(&mut memory, TEXT + 8, TEXT_BYTES + 16);
+        let mut observation = GuardObservation { previous_epoch: memory.fence_mapping_epoch,
+            require_invalidated: true, remap_to: None, seen: Vec::new() };
+        // SAFETY: The observation stays live and exclusively accessed by this
+        // synchronous callback until the stored pointer is explicitly cleared.
+        unsafe { memory.set_gpu_sync(GpuSync { gpu: (&mut observation as *mut GuardObservation).cast(),
+            linear_base: 0, sync: observe_guard_sync, sync_write: observe_guard_sync }) };
+        // This request lies entirely outside admitted text, but releases the
+        // merged guard spanning both text pages, including their table entries.
+        if writes { memory.unguard_writes(TEXT - 8, 1) } else { memory.unguard(TEXT - 8, 1) }
+        memory.clear_gpu_sync();
+        assert_eq!(observation.seen, [(TEXT - 16, TEXT_BYTES + 40)]);
+        assert!(memory.verify_base_code_fence().is_ok());
+        assert_eq!(memory.read8(TEXT), 0x44);
+    }
+}
+
+#[test]
+fn unrelated_guard_callbacks_remapping_text_still_reject_native_work() {
+    for writes in [false, true] {
+        let (mut memory, _, data) = fixture();
+        memory.install_base_code_fence(TEXT, TEXT_BYTES).unwrap();
+        let guard = if writes { Memory::guard_cpu_writes } else { Memory::guard_cpu_reads };
+        guard(&mut memory, DATA, 4);
+        let mut observation = GuardObservation { previous_epoch: memory.fence_mapping_epoch,
+            require_invalidated: false, remap_to: Some(data), seen: Vec::new() };
+        // SAFETY: As above, this callback only uses the live fixture observation.
+        unsafe { memory.set_gpu_sync(GpuSync { gpu: (&mut observation as *mut GuardObservation).cast(),
+            linear_base: 0, sync: observe_guard_sync, sync_write: observe_guard_sync }) };
+        if writes { memory.unguard_writes(DATA, 4) } else { memory.unguard(DATA, 4) }
+        memory.clear_gpu_sync();
+        assert_eq!(observation.seen, [(DATA, 4)]);
+        assert!(memory.fence_mapping_epoch > observation.previous_epoch);
+        assert_eq!(memory.verify_base_code_fence().unwrap_err(), "native_base_code_fence_mapping_changed");
+    }
+}
+
+// CodexAstraUlt: This authored 16 MiB text control checks the cached path by
+// epoch, then contrasts it with forced global invalidation in the same process.
+// At most 96 guard/verify pairs run. Timings are printed, never used as a pass
+// threshold or extrapolated into private-title/Thor performance claims.
+#[test]
+fn unrelated_guards_avoid_full_text_revalidation_control() {
+    let mut memory = Memory::new(false, 64 * 1024 * 1024);
+    let bytes = 16 * 1024 * 1024;
+    let block = memory.phys.allocate(MemoryRegion::Application, bytes + PAGE_SIZE).unwrap();
+    let data = 0x0200_0000;
+    memory.map(TEXT, block.addr, bytes, Permission::RX, MemoryState::Code);
+    memory.map(data, block.addr + bytes, PAGE_SIZE, Permission::RW, MemoryState::Private);
+    memory.install_base_code_fence(TEXT, bytes).unwrap();
+    let mut samples = Vec::new();
+    for round in 0..3 {
+        for forced in if round % 2 == 0 { [false, true] } else { [true, false] } {
+            let epoch = memory.fence_mapping_epoch;
+            let started = std::time::Instant::now();
+            for _ in 0..16 {
+                memory.guard_cpu_writes(data, 4);
+                if forced { memory.fence_mapping_changed(); }
+                assert!(memory.verify_base_code_fence().is_ok());
+            }
+            samples.push((forced, started.elapsed()));
+            assert_eq!(memory.fence_mapping_epoch, epoch + if forced { 16 } else { 0 });
+            assert_eq!(memory.base_code_fence.as_ref().unwrap().verified_epoch.get(), memory.fence_mapping_epoch);
+        }
+    }
+    eprintln!("16 MiB fence, 16 unrelated guard/verify pairs per sample, forced global epoch vs cached: {samples:?}");
+}
+
 #[test]
 fn state_restore_and_map_restore_reject_while_fenced() {
     let (mut memory, _, _) = fixture();

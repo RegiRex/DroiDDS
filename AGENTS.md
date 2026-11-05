@@ -54,26 +54,33 @@ pipeline failure and measured CPU subset instead of requesting a longer run. -->
   Interpreter observations have no supplied JSON and remain separate. Do not
   infer a regression from unlike code 11/12 runs, or treat guest allocation as
   process/driver memory. Do not repeat the failed code 12 GPU launch.
-- The current published candidate is 0.0.8-preview.3/code 13. Read
-  docs/builds/0.0.8-pipeline-followup.md. It targets the intermediate CPU output
-  array and bounded identification of the actual failed Vulkan pipeline. These
-  changes do not establish a driver fix or Thor speed gain. Keep Automatic and
-  error handling unchanged; no shader dumps, growing logs or optional JIT.
-  Implementation, local correctness/runtime gates and retained-library APK/
-  bundle verification pass at dffd8e4. Hosted main and tag build/publication
-  gates pass; public assets at documentation-only tag source
-  4dae752beffc534f4c4b9ff4859f0b7c8de47b29 were independently downloaded and verified.
-  The new Thor checks for the original fixture and private title remain unperformed, and the
-  GPU pipeline failure remains unresolved. No separate public diagnostic APK
-  installation is needed. Repackage the retained ARM64 library with the same
-  owner key and an install code above the installed one, at least 13.
-  Keep Native/Vulkan 1×: one CPU-vertex menu control at most 120 wall seconds,
-  then GPU until its first failure/corruption or 30 wall seconds after Play,
-  startup included. Record worker time separately and stop observing a failed
-  app as if it were still running. Export each full JSON immediately before any
-  restart, upload reviewed reports/log excerpts and return verified links.
-  Preserve imports, saves, both 521-object builds and previous reports. No setup,
-  preparation, title compilation or permission reconfiguration is required.
+<!-- CodexAstraUlt: Replace the completed code 13 test request with the owner's
+Native/CPU priority and require fresh cloud gates before the next private run. -->
+- Read docs/device-tests/0.0.8-preview3-dark-moon-thor.md and the reports uploaded
+  in 67038f9. Published 0.0.8-preview.3/code 13 reached file selection with
+  Native/CPU vertices at 18.12% speed; no clear gain is established. CPU vertex
+  work used 34.80% of core time and other command work another 28.45%. Retain
+  1,471 underruns, 235 flushed frames and the owner's short-burst/gap observation.
+  GPU failed before useful output; metadata identifies the attempted public
+  interpreted-vertex/generic-fragment pipeline, not the faulty shader stage.
+  Further Thor GPU tests and audio-perfection work are deferred.
+- The next CPU candidate is 0.0.8-preview.4/code 14, with cloud gates pending.
+  Read docs/builds/0.0.8-cpu-work-followup.md. It reduces repeated vertex-output
+  work and full-TEXT verification after unrelated GPU guards, preserving actual
+  mapping/backing/protection checks. Fixed decode/placement timers and geometry-
+  mode/parallel-vertex batch counts distinguish remaining command work without
+  per-vertex logging. Implementation review is not an executed release gate.
+  Complete correctness/runtime/package/publication checks before another local
+  handoff. Do not repeat the unchanged code 13 run. Then reuse the retained ARM64
+  library and owner signer for a compatible update with an install code above
+  the installed one, at least 14. Keep Native execution, CPU vertex shaders and
+  Vulkan 1× for one comparable menu run at most 120 wall seconds. Export the full
+  JSON before any restart, upload reviewed reports/log excerpts and return
+  verified links. Preserve imports, saves, both 521-object builds and previous
+  reports. No setup, preparation, title compilation or permission reconfiguration
+  is required. Automatic and error handling remain unchanged; do not add shader
+  dumps, growing logs or optional JIT. No separate public diagnostic APK install
+  is required.
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->

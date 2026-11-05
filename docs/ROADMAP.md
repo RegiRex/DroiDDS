@@ -10,10 +10,16 @@ Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
 The [candidate build record](builds/0.0.8-pipeline-followup.md) records release
-source `4dae752`, exact public artifact identities and executed gates. The new
-Thor checks for the original fixture and private title remain unperformed. The earlier
-[code 12 comparison](device-tests/0.0.8-preview2-dark-moon-thor.md) remains separate:
-CPU reaches the menu slowly, while GPU fails during pipeline creation.
+source `4dae752`, exact public artifact identities and executed gates. The
+[code 13 private Thor test](device-tests/0.0.8-preview3-dark-moon-thor.md) is
+complete: Native/CPU reaches file selection at 18.12% speed without a demonstrated
+gain; GPU fails during pipeline creation. Native/CPU optimization is now the
+priority. The next candidate is **0.0.8-preview.4/code 14**, with cloud gates
+pending; further Thor GPU tests and audio-perfection work are deferred.
+Its [build record](builds/0.0.8-cpu-work-followup.md) covers repeated vertex-output
+work, native verification-cache invalidation limited to relevant guard changes,
+and fixed CPU decode/placement timings. Actual mapping/backing/code protection
+checks remain; no handheld gain is established by source changes or host timings.
 
 <!-- CodexAstraUlt: Record actual private interactive boot as progress into the
 next alpha stage; a menu and an underrun total do not establish playable speed. -->
@@ -51,7 +57,14 @@ change and bounded identification of the actual failed pipeline. Local
 correctness/runtime, retained-library APK/bundle and hosted main/tag
 build/publication checks pass; public downloads at source `4dae752` were
 independently verified. Automatic and error handling remain unchanged.
-The GPU pipeline failure remains unresolved, and no Thor speed gain is claimed.
+<!-- CodexAstraUlt: Preserve the completed code 13 private measurement and
+updated priority instead of repeating the finished GPU comparison. -->
+Code 13's private run reaches file selection at **18.12% speed**, with **1,471
+underruns**, 235 flushed audio frames and the owner's short-burst/gap observation.
+CPU vertex work consumes **34.80% of core time**, with other command work another
+**28.45%**. No clear speed gain is established. Its GPU metadata identifies the
+attempted public interpreted-vertex/generic-fragment pipeline; the failure's
+cause remains unresolved. Preserve the uploaded full reports for cloud analysis.
 The earlier [preview.2 build record](builds/0.0.8-vertex-comparison.md) retains
 its passed cloud and publication gates. Gameplay, reliable audio, save/resume
 and sustained speed remain unqualified.
@@ -83,9 +96,11 @@ correctness and scheduler optimization. Another Dark Moon checkpoint is not a
 prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
-preserving the owner signing identity and existing reports. The new cloud gates
-pass; proceed to one CPU control and a short GPU failure diagnostic. Keep private
-hardware evidence separate from work completed with original inputs here.
+preserving the owner signing identity and existing reports. Complete preview.4's
+new cloud correctness/runtime/package/publication gates before one comparable
+Native/CPU, Vulkan 1× menu test of at most 120 wall seconds. No unchanged code 13
+run is needed. Keep private hardware evidence separate from original-input
+cloud checks.
 
 <!-- CodexAstraUlt: Replace the research pack's broad serial implementation sequence with evidence-gated work and early Android, memory and correctness risk checks. -->
 
@@ -375,13 +390,12 @@ gates; public fixture progress must not silently close the private baseline. -->
    Carry historical A evidence explicitly; do not rewrite the new report or
    erase its eleven underruns. Keep scheduler/CRO, first-use pipeline-stall and
    sustained-memory work.
-3. Preserve both completed Dark Moon target builds and separate code 11/12
-   reports. Code 12 measures substantial CPU vertex cost and fails on GPU pipeline
-   creation before submission. Preview.3's CPU-output and bounded pipeline-failure
-   work passes local/cloud/package/publication and public-download gates. Repackage
-   the retained library for one CPU control (at most 120 wall seconds) and GPU
-   diagnostic (first failure/corruption or 30 wall seconds after Play).
-   Export each full report before another restart, then
+3. Preserve both completed Dark Moon target builds and separate code 11/12/13
+   reports. Code 13 does not establish a CPU speed gain; further Thor GPU tests
+   are deferred. Complete preview.4's cloud correctness/runtime/package and
+   publication/download gates, then repackage the retained library with the
+   existing signer for one comparable Native/CPU, Vulkan 1× menu run at most
+   120 wall seconds. Export its full report before another restart, then
    [upload reviewed diagnostics](DEVICE_REPORT_HANDOFF.md) with verified links.
    Do not repeat setup, source generation, title compilation, historical traces
    or the unchanged failed GPU attempt.

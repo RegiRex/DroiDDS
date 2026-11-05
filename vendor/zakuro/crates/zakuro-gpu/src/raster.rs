@@ -515,6 +515,64 @@ fn to_vertex(map: &OutputMap, attributes: &[Vec4; 16]) -> Vertex {
     }
 }
 
+// CodexAstraUlt: Compose the fixed output mask and semantic map once per draw.
+// The old CPU path rebuilt and cleared a full packed register array for every
+// vertex just to read its varyings. Keep geometry's full packed outputs intact;
+// ordinary vertices read only their components, with explicit zero/one defaults.
+struct VertexOutputPlan {
+    position: [u8; 4],
+    color: [u8; 4],
+    texcoords: [[u8; 2]; 3],
+    quaternion: [u8; 4],
+    view: [u8; 3],
+}
+
+impl VertexOutputPlan {
+    const ZERO: u8 = (shader::OUTPUT_REGISTERS * 4) as u8;
+    const ONE: u8 = Self::ZERO + 1;
+
+    fn new(map: &OutputMap, mask: u32) -> Self {
+        let mut registers = [shader::OUTPUT_REGISTERS; 16];
+        for (slot, register) in (0..shader::OUTPUT_REGISTERS)
+            .filter(|register| mask & 0xFFFF == 0 || mask & (1 << register) != 0)
+            .enumerate()
+        {
+            registers[slot] = register;
+        }
+        let source = |slot: Option<(usize, usize)>, default: u8| {
+            slot.map_or(default, |(attribute, component)| {
+                let register = registers[attribute];
+                if register == shader::OUTPUT_REGISTERS {
+                    Self::ZERO
+                } else {
+                    (register * 4 + component) as u8
+                }
+            })
+        };
+        Self {
+            position: map.position.map(|slot| source(Some(slot), Self::ZERO)),
+            color: map.color.map(|slot| source(slot, Self::ONE)),
+            texcoords: map.texcoords.map(|set| set.map(|slot| source(slot, Self::ZERO))),
+            quaternion: map.quaternion.map(|slot| source(slot, Self::ZERO)),
+            view: map.view.map(|slot| source(slot, Self::ZERO)),
+        }
+    }
+
+    fn vertex(&self, outputs: &[Vec4; shader::OUTPUT_REGISTERS]) -> Vertex {
+        let get = |component: u8| {
+            outputs.as_flattened().get(component as usize).copied()
+                .unwrap_or(if component == Self::ONE { 1.0 } else { 0.0 })
+        };
+        Vertex {
+            clip: self.position.map(get),
+            color: self.color.map(get),
+            texcoords: self.texcoords.map(|set| set.map(get)),
+            quaternion: self.quaternion.map(get),
+            view: self.view.map(get),
+        }
+    }
+}
+
 /// takes shader inputs through the vertex shader, over threads when there
 /// are enough of them, and the geometry shader when one is enabled,
 /// producing the vertices the rasterizer assembles. order says which input
@@ -551,9 +609,10 @@ fn process_vertices<'a>(
         };
         return (geometry_stage(registers, geometry_shader, &map, outputs), None);
     }
-    // each vertex made once, by the threads that shade it
-    let mask = registers[REG_VS_OUTPUT_MASK];
-    let vertices = shade_with(vertex_shader, inputs, |outputs| to_vertex(&map, &pack_outputs(&outputs, mask)));
+    // CodexAstraUlt: The shared plan is immutable across worker chunks. Mapping
+    // directly from shader outputs changes no shader execution or vertex order.
+    let plan = VertexOutputPlan::new(&map, registers[REG_VS_OUTPUT_MASK]);
+    let vertices = shade_with(vertex_shader, inputs, |outputs| plan.vertex(&outputs));
     (vertices, order)
 }
 
@@ -915,6 +974,19 @@ pub struct VertexProcessingDiagnostics {
     pub cpu_batches: u64,
     pub cpu_vertex_inputs: u64,
     pub cpu_processing_wall: Duration,
+    // CodexAstraUlt: Fixed totals identify use of the changed packed path and
+    // vertex parallel dispatch threshold; these select paths, not actual
+    // geometry invocations, geometry parallelism or active workers.
+    pub cpu_geometry_batches: u64,
+    pub cpu_parallel_vertex_batches: u64,
+    // CodexAstraUlt: Disjoint decode and placement timers split the previously
+    // unexplained command cost. No per-vertex clocks or event records are kept.
+    // Decode excludes the initial index-buffer read and cached plan lookup.
+    pub input_decode_batches: u64,
+    pub input_decode_wall: Duration,
+    // Placement includes clipping/culling/index assembly, before Vulkan draw.
+    pub placement_batches: u64,
+    pub placement_wall: Duration,
 }
 
 /// what draws keep from one to the next.
@@ -2185,6 +2257,9 @@ pub fn draw<M: GpuMemory>(
             }
         }
     }
+    // CodexAstraUlt: Time only CPU index expansion/deduplication and attribute
+    // decoding after any raw GPU attempt; keep shader and placement time apart.
+    let decode_started = Instant::now();
     if indexed {
         scratch.indices.clear();
         if index_short {
@@ -2200,6 +2275,8 @@ pub fn draw<M: GpuMemory>(
     let plan = scratch.plans.current();
     scratch.inputs.clear();
     scratch.inputs.extend(scratch.unique.iter().map(|&vertex_index| plan.fetch(memory, attribute_base, vertex_index)));
+    resources.vertex_processing.input_decode_wall = resources.vertex_processing.input_decode_wall.saturating_add(decode_started.elapsed());
+    resources.vertex_processing.input_decode_batches = resources.vertex_processing.input_decode_batches.saturating_add(1);
     let order = indexed.then_some(&scratch.order[..]);
     let vertices = Vertices::Unshaded { vertex_shader, geometry_shader, inputs: &scratch.inputs, order };
     rasterize(registers, memory, resources, vertices);
@@ -2220,10 +2297,15 @@ pub fn draw_immediate<M: GpuMemory>(
     // immediate mode sizes its vertices by GPUREG_VSH_NUM_ATTR.
     let count = ((registers[REG_VS_ATTRIBUTE_COUNT] & 0xF) + 1) as usize;
     log::trace!("immediate draw: {} vertices of {count} attributes", vertices.len());
+    // CodexAstraUlt: Immediate attributes also need CPU input mapping even if
+    // the later shader executes on the GPU; this counter describes decoding.
+    let decode_started = Instant::now();
     let inputs: Vec<_> = vertices
         .iter()
         .map(|attributes| map_inputs(registers, REG_VS_BLOCK, &attributes[..count]))
         .collect();
+    resources.vertex_processing.input_decode_wall = resources.vertex_processing.input_decode_wall.saturating_add(decode_started.elapsed());
+    resources.vertex_processing.input_decode_batches = resources.vertex_processing.input_decode_batches.saturating_add(1);
     let vertices = Vertices::Unshaded { vertex_shader, geometry_shader, inputs: &inputs, order: None };
     rasterize(registers, memory, resources, vertices).unwrap_or(0)
 }
@@ -2513,12 +2595,19 @@ fn rasterize<M: GpuMemory>(registers: &[u32], memory: &mut M, resources: &mut Re
             work.cpu_batches = work.cpu_batches.saturating_add(1);
             work.cpu_vertex_inputs = work.cpu_vertex_inputs.saturating_add(inputs.len() as u64);
             work.cpu_processing_wall = work.cpu_processing_wall.saturating_add(elapsed);
+            // CodexAstraUlt: Count path selection once per actual CPU shading
+            // batch; already-shaded fallback never repeats these counters.
+            work.cpu_geometry_batches = work.cpu_geometry_batches.saturating_add(u64::from(registers[REG_GEOSTAGE_CONFIG] & 0x3 == 2));
+            work.cpu_parallel_vertex_batches = work.cpu_parallel_vertex_batches.saturating_add(u64::from(inputs.len() >= PARALLEL_VERTICES));
             (&processed.0[..], processed.1)
         }
         // arrays the GPU did not draw, which the CPU decodes first
         #[cfg(feature = "vulkan")]
         Vertices::Raw { .. } => return None,
     };
+    // CodexAstraUlt: Time CPU placement separately from shader work and Vulkan
+    // submission. This also counts already-shaded/software fallback attempts.
+    let placement_started = Instant::now();
     // which of the vertices made each vertex of the draw is
     let at = |i: usize| order.map_or(i, |order| order[i]);
     let triangle_indices = assemble(topology, order.map_or(shaded.len(), <[usize]>::len));
@@ -2575,6 +2664,9 @@ fn rasterize<M: GpuMemory>(registers: &[u32], memory: &mut M, resources: &mut Re
             indices.extend([first, first + i, first + i + 1]);
         }
     }
+
+    resources.vertex_processing.placement_wall = resources.vertex_processing.placement_wall.saturating_add(placement_started.elapsed());
+    resources.vertex_processing.placement_batches = resources.vertex_processing.placement_batches.saturating_add(1);
 
     #[cfg(feature = "vulkan")]
     if let Some(hardware) = resources.hardware.as_mut() {
@@ -2853,6 +2945,103 @@ mod tests {
     const GREEN: Vec4 = [0.0, 1.0, 0.0, 1.0];
     const BLUE: Vec4 = [0.0, 0.0, 1.0, 1.0];
 
+    // CodexAstraUlt: Compare actual semantic outputs bit-for-bit against the
+    // retained geometry packing path, including every low mask and values whose
+    // NaN payloads or signed zero would be lost by arithmetic/default rewriting.
+    fn vertex_bits(vertex: Vertex) -> Vec<u32> {
+        vertex.clip.into_iter().chain(vertex.color)
+            .chain(vertex.texcoords.into_iter().flatten())
+            .chain(vertex.quaternion).chain(vertex.view).map(f32::to_bits).collect()
+    }
+
+    #[test]
+    fn vertex_output_plan_matches_all_masks_and_semantic_defaults() {
+        let words = [0, 0x8000_0000, 0x7F80_0000, 0xFF80_0000,
+            0x7FC1_2345, 0xFFC5_4321, 1, 0xBF80_0000];
+        let outputs = std::array::from_fn(|register| std::array::from_fn(|component| {
+            f32::from_bits(words[(register * 4 + component) % words.len()])
+        }));
+        let mut registers = target_registers();
+        let mut maps = vec![read_output_map(&registers)];
+        registers[REG_SHADER_OUTPUT_TOTAL] = 7;
+        registers[REG_SHADER_OUTPUT_MAP..REG_SHADER_OUTPUT_MAP + 7].copy_from_slice(&[
+            0x0302_0100, 0x0706_0504, 0x0B0A_0908, 0x0F0E_0D0C,
+            0x1F14_1312, 0x1F1F_1716, 0x1F1F_1F1F,
+        ]);
+        maps.push(read_output_map(&registers));
+        // Later duplicate semantics override earlier ones; unnamed color stays
+        // white, whereas a named attribute outside the packed mask reads zero.
+        registers[REG_SHADER_OUTPUT_MAP..REG_SHADER_OUTPUT_MAP + 7].copy_from_slice(&[
+            0x1F1F_1F00, 0x1F1F_1F08, 0x1F1F_1F1F, 0x1F1F_1F1F,
+            0x1F1F_1F0D, 0x1F1F_1F14, 0x0302_0100,
+        ]);
+        maps.push(read_output_map(&registers));
+        // A nonzero map with no position falls back to the existing defaults.
+        registers[REG_SHADER_OUTPUT_MAP..REG_SHADER_OUTPUT_MAP + 7].fill(0x0B0A_0908);
+        maps.push(read_output_map(&registers));
+
+        // CodexAstraUlt: Distinct finite components also detect register-index
+        // mistakes that could alias in the repeating special-value pattern.
+        let distinct = std::array::from_fn(|r| std::array::from_fn(|c| (r * 4 + c + 1) as f32));
+        for values in [&outputs, &distinct] {
+            for (index, map) in maps.iter().enumerate() {
+                for mask in 0..=u16::MAX as u32 {
+                    let expected = vertex_bits(to_vertex(map, &pack_outputs(values, mask)));
+                    let found = vertex_bits(VertexOutputPlan::new(map, mask).vertex(values));
+                    assert_eq!(found, expected, "map {index}, mask {mask:04X}");
+                }
+                for mask in [0xFFFF_0000, 0xFFFF_0001, 0xFFFF_8000, u32::MAX] {
+                    assert_eq!(vertex_bits(VertexOutputPlan::new(map, mask).vertex(values)),
+                        vertex_bits(to_vertex(map, &pack_outputs(values, mask))));
+                }
+            }
+        }
+        let defaults = VertexOutputPlan::new(&maps[2], 1).vertex(&outputs);
+        assert_eq!(defaults.color.map(f32::to_bits), [0, 1.0f32.to_bits(), 1.0f32.to_bits(), 1.0f32.to_bits()]);
+        assert_eq!(defaults.clip.map(f32::to_bits), [0; 4]);
+    }
+
+    // CodexAstraUlt: This opt-in microbenchmark compares the retained baseline
+    // with the new mapper in one binary, includes a plan per 320-input draw and
+    // alternates order. It measures mapping only, never handheld/title speed.
+    #[test]
+    #[ignore = "bounded output-mapping microbenchmark; not a correctness gate"]
+    fn benchmark_vertex_output_plan_against_packing() {
+        use std::hint::black_box;
+        let mut registers = target_registers();
+        registers[REG_SHADER_OUTPUT_TOTAL] = 6;
+        registers[REG_SHADER_OUTPUT_MAP..REG_SHADER_OUTPUT_MAP + 6].copy_from_slice(&[
+            0x0302_0100, 0x0706_0504, 0x0B0A_0908,
+            0x0F0E_0D0C, 0x1F14_1312, 0x1F1F_1716,
+        ]);
+        let map = read_output_map(&registers);
+        let outputs = std::array::from_fn(|r| std::array::from_fn(|c| (r * 4 + c) as f32));
+        let run = |planned: bool| {
+            let started = Instant::now();
+            for draw in 0..2048 {
+                let mask = black_box([0x0055, 0x00FF, 0xF0F0, 0][draw % 4]);
+                let map = black_box(&map);
+                if planned {
+                    let plan = VertexOutputPlan::new(map, mask);
+                    for _ in 0..320 {
+                        black_box(plan.vertex(black_box(&outputs)));
+                    }
+                } else {
+                    for _ in 0..320 {
+                        black_box(to_vertex(map, &pack_outputs(black_box(&outputs), mask)));
+                    }
+                }
+            }
+            started.elapsed()
+        };
+        for round in 0..4 {
+            let order = if round % 2 == 0 { [false, true] } else { [true, false] };
+            for planned in order {
+                eprintln!("output mapping round {round}, planned {planned}, vertices 655360, elapsed {:?}", run(planned));
+            }
+        }
+    }
+
     // CodexAstraUlt: Direct output packing must preserve every input's position
     // and constant color on both sides of the unchanged parallel threshold,
     // including the last partial chunk and SIMD batch.
@@ -2871,15 +3060,16 @@ mod tests {
         registers[REG_SHADER_OUTPUT_MAP + 1] = 0x0B0A_0908;
         registers[REG_VS_OUTPUT_MASK] = 0b101;
         let map = read_output_map(&registers);
+        // CodexAstraUlt: Exercise the direct semantic plan through the real
+        // serial/parallel shader batch path, not just the standalone mapper.
+        let plan = VertexOutputPlan::new(&map, registers[REG_VS_OUTPUT_MASK]);
         let all_inputs: Vec<_> = (0..PARALLEL_VERTICES * 2 + 17).map(|i| {
             let mut input = [shader::ZERO; shader::INPUT_REGISTERS];
             input[0] = [i as f32, -(i as f32), -0.5, 1.0];
             input
         }).collect();
         for count in [0, 7, 9, PARALLEL_VERTICES - 1, PARALLEL_VERTICES, PARALLEL_VERTICES + 1, all_inputs.len()] {
-            let packed = shade_with(&unit, &all_inputs[..count], |outputs| {
-                to_vertex(&map, &pack_outputs(&outputs, registers[REG_VS_OUTPUT_MASK]))
-            });
+            let packed = shade_with(&unit, &all_inputs[..count], |outputs| plan.vertex(&outputs));
             assert_eq!(packed.len(), count);
             for (i, vertex) in packed.iter().enumerate() {
                 assert_eq!(vertex.clip.map(f32::to_bits), all_inputs[i][0].map(f32::to_bits));
@@ -2919,6 +3109,13 @@ mod tests {
         let first = resources.vertex_processing;
         assert_eq!(first.cpu_batches, 1);
         assert_eq!(first.cpu_vertex_inputs, 3);
+        // CodexAstraUlt: Already-decoded indexed inputs run one serial,
+        // non-geometry batch and placement, without claiming decoding work.
+        assert_eq!(first.cpu_geometry_batches, 0);
+        assert_eq!(first.cpu_parallel_vertex_batches, 0);
+        assert_eq!(first.input_decode_batches, 0);
+        assert_eq!(first.input_decode_wall, Duration::ZERO);
+        assert_eq!(first.placement_batches, 1);
 
         resources.forget();
         rasterize_shaded(&registers, &mut memory, &mut resources, &cover(-0.5, GREEN));
@@ -2926,10 +3123,13 @@ mod tests {
         assert_eq!(resources.vertex_processing.cpu_batches, first.cpu_batches);
         assert_eq!(resources.vertex_processing.cpu_vertex_inputs, first.cpu_vertex_inputs);
         assert_eq!(resources.vertex_processing.cpu_processing_wall, first.cpu_processing_wall);
+        assert_eq!(resources.vertex_processing.placement_batches, 2);
+        assert!(resources.vertex_processing.placement_wall >= first.placement_wall);
 
         assert!(rasterize(&registers, &mut memory, &mut resources, vertices).is_some());
         assert_eq!(resources.vertex_processing.cpu_batches, 2);
         assert_eq!(resources.vertex_processing.cpu_vertex_inputs, 6);
+        assert_eq!(resources.vertex_processing.placement_batches, 3);
         assert!(resources.vertex_processing.cpu_processing_wall >= first.cpu_processing_wall);
     }
 

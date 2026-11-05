@@ -100,9 +100,47 @@ pub(super) fn run(
     blocks.clear();
     forks.clear();
     let finished = execute(unit, uniforms, program, &mut batch, blocks, forks, unit.entry_point, 0, ALL, None);
-    forks.push((finished, batch.output));
+    // CodexAstraUlt: Read the final batch in place instead of copying its 2 KiB
+    // of output registers into the fork vector. Only genuinely divergent lanes
+    // need retained copies; visit those first and the final lanes last, exactly
+    // as before, including partial batches and unwritten output components.
+    let completed = forks.iter().map(|(lanes, registers)| (*lanes, registers))
+        .chain(std::iter::once((finished, &batch.output)));
     // each lane's outputs from the copy it finished in. the registers
     // nothing writes stay zero, as they come
+    for (lanes, registers) in completed {
+        for register in (0..OUTPUT_REGISTERS).filter(|register| program.outputs & (1 << register) != 0) {
+            for component in 0..4 {
+                let values = registers[register][component].to_array();
+                for (lane, output) in outputs.iter_mut().enumerate() {
+                    if lanes & (1 << lane) != 0 {
+                        output[register][component] = values[lane];
+                    }
+                }
+            }
+        }
+    }
+}
+
+// CodexAstraUlt: Test-only baseline preserves code 13's final-output copy so
+// the opt-in benchmark can compare the same shader/input/packing work in one
+// process. This is never included in the application or chosen at runtime.
+#[cfg(test)]
+pub(super) fn run_copying_final(
+    unit: &ShaderUnit,
+    uniforms: &Uniforms,
+    program: &Program,
+    inputs: &[[Vec4; INPUT_REGISTERS]],
+    outputs: &mut [[Vec4; OUTPUT_REGISTERS]],
+    blocks: &mut Vec<Block>,
+    forks: &mut Vec<Fork>,
+) {
+    debug_assert!(!inputs.is_empty() && inputs.len() <= LANES);
+    let mut batch = start(program, inputs);
+    blocks.clear();
+    forks.clear();
+    let finished = execute(unit, uniforms, program, &mut batch, blocks, forks, unit.entry_point, 0, ALL, None);
+    forks.push((finished, batch.output));
     for (lanes, registers) in forks.iter() {
         for register in (0..OUTPUT_REGISTERS).filter(|register| program.outputs & (1 << register) != 0) {
             for component in 0..4 {

@@ -30,10 +30,10 @@ from build_foundation import ROOT, interrupted, snapshot, terminate_group, valid
 from validate_runtime_shaders import validate_runtime_shaders
 import collect_android_notices as NOTICES
 
-# CodexAstraUlt: Reuse completed title libraries while removing intermediate CPU
-# vertex output and identifying actual failing pipelines. Device gains and the
-# reported Adreno shader failure still require their own qualification.
-VERSION = "0.0.8-preview.3"
+# CodexAstraUlt: Reuse completed title libraries for the CPU output-mapping and
+# batch-copy follow-up. This package identity does not establish handheld gains
+# or resolve the separately deferred GPU pipeline failure.
+VERSION = "0.0.8-preview.4"
 DIAGNOSTIC_FIXTURES = {
     "runtime": "droidds-original-runtime-v1",
     "homebrew": "droidds-original-homebrew-v2",

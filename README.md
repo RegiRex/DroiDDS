@@ -54,16 +54,25 @@ creation before any GPU-vertex draw or Vulkan submission; there is no usable
 GPU performance comparison. The owner’s later Interpreter observations remain
 separate. Unmatched code 11/12 scene coverage and duration do not establish a regression.
 
-**0.0.8-preview.3/code 13 is published.** It replaces the packed CPU path's
-intermediate full-register vector with bounded scratch and adds identification
-of the failed pipeline. Its [build record](docs/builds/0.0.8-pipeline-followup.md)
-records passed local correctness/runtime, retained-library APK/bundle and hosted
-main/tag build/publication gates. Public downloads at source `4dae752` were
-independently verified. The new Thor checks for the original fixture and private
-title remain unperformed. Next: retained-library repackaging, one CPU control and a short GPU
-failure diagnostic. Automatic stays the default; the GPU failure remains
-unresolved and no device speed gain is established. Gameplay, reliable audio,
-save/resume and sustained speed remain unqualified.
+<!-- CodexAstraUlt: Advance from the completed code 13 device run without
+claiming a speed gain or scheduling more GPU trials. -->
+The [code 13 Thor test](docs/device-tests/0.0.8-preview3-dark-moon-thor.md) is
+complete: Native/CPU vertices reached file selection at **18.12% speed**, with
+**1,471 underruns** and short audio bursts/gaps. No clear performance gain is
+established. GPU pipeline creation still fails; further Thor GPU tests and
+audio-perfection work are deferred. The published code 13
+[build record](docs/builds/0.0.8-pipeline-followup.md) retains its passed cloud
+gates and verified public downloads.
+
+The next candidate, **0.0.8-preview.4/code 14**, reduces repeated vertex-output
+work and native code-fence scans after unrelated GPU guards. Fixed CPU decoding
+and placement timings help identify remaining costs; see the
+[build record](docs/builds/0.0.8-cpu-work-followup.md). Its cloud gates are pending.
+After they pass, reuse the completed private library
+and signer for one comparable Native/CPU, Vulkan 1× menu test of at most 120 wall
+seconds, then upload the report. No unchanged test is needed now. Automatic
+stays the default. Gameplay, reliable audio, save/resume and sustained speed
+remain unqualified.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->

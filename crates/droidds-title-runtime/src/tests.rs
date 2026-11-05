@@ -802,6 +802,22 @@ fn native_vulkan_oracle(fixture: &Fixture, vertex_shading: VertexShading) {
             assert_eq!(gpu["vertex_shading_on_gpu"], false);
             assert_eq!(gpu["gpu_vertex_draws"], 0);
             assert!(gpu["placed_vertex_draws"].as_u64().unwrap() > 0);
+            // CodexAstraUlt: The original guest's small immediate draw must
+            // actually decode and place on CPU, with no geometry/parallel work.
+            let work = &report["gpu"]["vertex_processing"];
+            assert_eq!(work["cpu_geometry_batches"], 0);
+            assert_eq!(work["cpu_parallel_vertex_batches"], 0);
+            for counter in [
+                "input_decode_batches",
+                "input_decode_wall_nanoseconds",
+                "placement_batches",
+                "placement_wall_nanoseconds",
+            ] {
+                assert!(
+                    work[counter].as_u64().unwrap() > 0,
+                    "missing CPU stage: {counter}"
+                );
+            }
             assert!(
                 report["gpu"]["vertex_processing"]["cpu_batches"]
                     .as_u64()
@@ -824,9 +840,22 @@ fn native_vulkan_oracle(fixture: &Fixture, vertex_shading: VertexShading) {
         VertexShading::Gpu => {
             assert_eq!(gpu["vertex_shading_on_gpu"], true);
             assert!(gpu["gpu_vertex_draws"].as_u64().unwrap() > 0);
-            // CodexAstraUlt: This authored raw-array fixture has no geometry
-            // shader or unsupported decode; its GPU path must avoid CPU shading.
+            // CodexAstraUlt: The authored guest sends immediate attributes;
+            // CPU input mapping still precedes successful GPU vertex shading.
             assert_eq!(report["gpu"]["vertex_processing"]["cpu_batches"], 0);
+            // CodexAstraUlt: Each immediate draw maps inputs exactly once, but
+            // its successful GPU route must avoid CPU shading and placement.
+            let work = &report["gpu"]["vertex_processing"];
+            assert_eq!(work["input_decode_batches"], gpu["gpu_vertex_draws"]);
+            assert!(work["input_decode_wall_nanoseconds"].as_u64().unwrap() > 0);
+            for counter in [
+                "cpu_geometry_batches",
+                "cpu_parallel_vertex_batches",
+                "placement_batches",
+                "placement_wall_nanoseconds",
+            ] {
+                assert_eq!(work[counter], 0, "unexpected CPU stage: {counter}");
+            }
         }
         VertexShading::Automatic => {}
     }
