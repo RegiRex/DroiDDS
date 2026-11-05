@@ -3,20 +3,21 @@
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
 As of **2026-11-04** (America/New_York), the public title-player candidate is
-**[0.0.8-preview.3/code 13](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.3)**;
+**[0.0.8-preview.4/code 14](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.4)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. The published candidate implements the generic per-title
 Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
-The [candidate build record](builds/0.0.8-pipeline-followup.md) records release
-source `4dae752`, exact public artifact identities and executed gates. The
+The [candidate build record](builds/0.0.8-cpu-work-followup.md) records release
+source `62eb45e`, exact public artifact identities and executed gates. The
 [code 13 private Thor test](device-tests/0.0.8-preview3-dark-moon-thor.md) is
 complete: Native/CPU reaches file selection at 18.12% speed without a demonstrated
 gain; GPU fails during pipeline creation. Native/CPU optimization is now the
-priority. The next candidate is **0.0.8-preview.4/code 14**. Local correctness/
+priority. The published candidate is **0.0.8-preview.4/code 14**. Local correctness/
 runtime, retained-library APK and independent bundle checks pass at `a77a85e`;
-hosted main/tag/publication and public-download checks remain pending.
+hosted main checks pass there, and tag build/publication plus independent public
+download verification pass at `62eb45e`. New Thor checks remain unperformed.
 Further Thor GPU tests and audio-perfection work are deferred.
 Its [build record](builds/0.0.8-cpu-work-followup.md) covers repeated vertex-output
 work, native verification-cache invalidation limited to relevant guard changes,
@@ -53,7 +54,7 @@ Native/GPU failed during pipeline creation before any GPU-vertex draw or Vulkan
 submission; its early stop supplies no GPU performance comparison. Later
 Interpreter observations have no corresponding JSON and remain separate.
 
-The current candidate is **0.0.8-preview.3/code 13**, published. Its
+The previous candidate is **0.0.8-preview.3/code 13**, published. Its
 [build record](builds/0.0.8-pipeline-followup.md) records the packed CPU output
 change and bounded identification of the actual failed pipeline. Local
 correctness/runtime, retained-library APK/bundle and hosted main/tag
@@ -77,7 +78,7 @@ The [0.0.7-preview.2 Thor report](device-tests/0.0.7-preview2-thor-title.md) bin
 that historical preview's artifacts and records native CPU execution, Vulkan
 draws, PCM and pause/resume without reported runtime failure. The owner confirmed
 both images, D-pad/A, touch, pause/resume and steady sound for that build. This
-closes its historical original-title device check, not the new 0.0.8-preview.3
+closes its historical original-title device check, not the new 0.0.8-preview.4
 check; later private boot and code 11/12 observations remain separate above.
 
 <!-- CodexAstraUlt: Record independently testable gameplay prerequisites while
@@ -98,9 +99,9 @@ correctness and scheduler optimization. Another Dark Moon checkpoint is not a
 prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
-preserving the owner signing identity and existing reports. Complete preview.4's
-remaining hosted/publication checks before one comparable Native/CPU, Vulkan 1×
-menu test: A around 91 seconds after Play if ready, normal Stop around 110 seconds,
+preserving the owner signing identity and existing reports. Preview.4's hosted
+publication and independent download checks pass. Proceed with one comparable
+Native/CPU, Vulkan 1× menu test: A around 91 seconds after Play if ready, normal Stop around 110 seconds,
 with a 120-wall-second maximum. No unchanged code 13
 run is needed. Keep private hardware evidence separate from original-input
 cloud checks.
@@ -395,8 +396,8 @@ gates; public fixture progress must not silently close the private baseline. -->
    sustained-memory work.
 3. Preserve both completed Dark Moon target builds and separate code 11/12/13
    reports. Code 13 does not establish a CPU speed gain; further Thor GPU tests
-   are deferred. Preview.4's local correctness/runtime/APK/bundle checks pass;
-   complete remaining hosted/publication/download gates, then repackage the
+   are deferred. Preview.4's local correctness/runtime/APK/bundle and hosted
+   publication/independent download checks pass. Repackage the
    retained library with the existing signer for one comparable Native/CPU,
    Vulkan 1× menu run. Match A around 91 seconds if ready and Stop around 110,
    never exceeding 120 wall seconds. Export its full report before another restart, then

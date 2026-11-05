@@ -1,12 +1,13 @@
 # Local Dark Moon Native/CPU performance handoff
 
 <!-- CodexAstraUlt: Replace the completed code 13 comparison with the owner's
-Native/CPU priority; the next private test waits for fresh cloud gates. -->
-Current task, **2026-11-04** (America/New_York): cloud development of
-**0.0.8-preview.4/code 14**, prioritizing Native execution with CPU vertex
+Native/CPU priority and the newly verified retained-library update. -->
+Current task, **2026-11-04** (America/New_York): repackage the retained private
+ARM64 library with published **0.0.8-preview.4/code 14**, using Native execution with CPU vertex
 shaders. Local correctness/runtime, retained-library APK and independent bundle
-checks pass at `a77a85e`; hosted main/tag/publication and public-download checks
-remain pending. No unchanged device run is needed now.
+checks pass at `a77a85e`; hosted main checks pass there. Tag build/publication and
+independent public-download verification pass at documentation-only release
+source `62eb45e`. New Thor checks remain unperformed; no speed gain is established.
 Further Thor GPU tests and audio-perfection work are deferred. Read
 [the candidate build record](builds/0.0.8-cpu-work-followup.md),
 [AGENTS.md](../AGENTS.md), the
@@ -43,8 +44,8 @@ Its fixed decode/placement timers and geometry-mode/parallel-vertex batch counts
 help separate remaining CPU costs. Host component timings do not establish
 handheld improvement.
 
-After preview.4's remaining hosted/publication checks pass,
-reuse successful tools, preparation, ARM64 directory with
+Preview.4's required cloud/publication checks pass. Reuse successful tools,
+preparation, ARM64 directory with
 `compiled-manifest.json`, and existing owner signing profile.
 Package a compatible update with the same package/certificate and a version
 code above the installed one, **at least 14**. No title C or either set of 521

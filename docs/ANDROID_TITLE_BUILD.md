@@ -1,17 +1,12 @@
 # Build an Android title candidate
 
-<!-- CodexAstraUlt: Keep published code 13 separate from the next CPU candidate
-and replace its completed test request with the owner's performance priority. -->
-The current published candidate is **0.0.8-preview.3/code 13**. It replaces the
-packed CPU path's intermediate full-register vector with bounded scratch and
-adds pipeline failure metadata. Local correctness/runtime, retained-library
-APK/bundle and hosted main/tag build/publication gates pass. Public assets at
-release source `4dae752` were independently downloaded and verified; see the
-[build record](builds/0.0.8-pipeline-followup.md). The private code 13 test is
-complete. The next candidate is **0.0.8-preview.4/code 14**, prioritizing
-Native/CPU performance. Local correctness/runtime, retained-library APK and
-independent bundle checks pass at `a77a85e`; hosted main/tag/publication and
-public-download checks remain pending.
+<!-- CodexAstraUlt: Record published code 14 separately from the completed code
+13 device evidence and the next unperformed Native/CPU performance check. -->
+The current published candidate is **0.0.8-preview.4/code 14**, prioritizing
+Native/CPU performance. Local correctness/runtime, retained-library APK/bundle
+and hosted main checks pass at implementation source `a77a85e`. Tag build/
+publication and independent public-download verification pass at documentation-
+only release source `62eb45e`. The new Thor checks remain unperformed.
 Its [build record](builds/0.0.8-cpu-work-followup.md) covers reduced vertex-output
 work, avoiding full-TEXT verification after unrelated GPU guards while retaining
 mapping/backing/code protection, and fixed CPU decoding/placement timings.
@@ -33,10 +28,10 @@ this update rebuilds the shared player/frontend, not the 521 title objects.
 ## Current Dark Moon repackaging and audio test
 
 <!-- CodexAstraUlt: Keep the existing anchor stable while replacing the finished
-GPU diagnostic with one CPU performance test after the next cloud gates pass. -->
-Preview.4's local correctness/runtime/graphics/package and independent bundle
-checks pass. Complete its remaining hosted/publication/download gates before
-this retained-library update and bounded Thor run;
+GPU diagnostic with one CPU performance test after verified publication. -->
+Preview.4's local correctness/runtime/graphics/package, hosted publication and
+independent public-download checks pass. Proceed with this retained-library
+update and bounded Thor run;
 no separate public original APK installation is required. Keep **Native guest
 execution, CPU vertex shaders, Vulkan 1×** and comparable menu
 progression/settings. Automatic stays the normal default.

@@ -10,18 +10,18 @@ a shared runtime will retain 3DS services, graphics, audio and interpreter fallb
 
 <!-- CodexAstraUlt: Lead with the current product work instead of making readers
 infer progress from the historical probe and private tracing records below. -->
-**[0.0.8-preview.3/code 13 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.3), the current generic Android title player candidate.**
+**[0.0.8-preview.4/code 14 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.4), the current generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest.
 Host, main and release CI pass for that published candidate; the four public
 downloads are independently verified.
-[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.3/DroiDDS-0.0.8-preview.3-original-android-arm64.apk).
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.4/DroiDDS-0.0.8-preview.4-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
-The [candidate build record](docs/builds/0.0.8-pipeline-followup.md) records
-release source `4dae752`, exact public artifact identities and executed gates.
+The [candidate build record](docs/builds/0.0.8-cpu-work-followup.md) records
+release source `62eb45e`, exact public artifact identities and executed gates.
 
 <!-- CodexAstraUlt: Credit private menu boot separately from the new public
 original-fixture release; neither establishes a qualified playable segment. -->
@@ -64,17 +64,18 @@ audio-perfection work are deferred. The published code 13
 [build record](docs/builds/0.0.8-pipeline-followup.md) retains its passed cloud
 gates and verified public downloads.
 
-The next candidate, **0.0.8-preview.4/code 14**, reduces repeated vertex-output
+The published candidate, **0.0.8-preview.4/code 14**, reduces repeated vertex-output
 work and native code-fence scans after unrelated GPU guards. Fixed CPU decoding
 and placement timings help identify remaining costs; see the
 [build record](docs/builds/0.0.8-cpu-work-followup.md). Local correctness/runtime,
-retained-library APK and independent bundle checks pass at `a77a85e`; hosted
-main/tag/publication and public-download checks remain pending. After they pass,
-reuse the completed private library and signer for one comparable Native/CPU,
+retained-library APK and independent bundle checks pass at `a77a85e`; hosted main
+checks pass there, and tag build/publication plus independent public-download
+verification pass at `62eb45e`. New Thor checks remain unperformed. Reuse the
+completed private library and signer for one comparable Native/CPU,
 Vulkan 1× menu test: A around 91 seconds if the title prompt is ready, Stop around
-110 seconds, with a 120-wall-second maximum. Upload the full report. No unchanged
-test is needed now. Automatic
-stays the default. Gameplay, reliable audio, save/resume and sustained speed
+110 seconds, with a 120-wall-second maximum. Upload the full report. No new
+handheld speed gain is established. Automatic stays the default.
+Gameplay, reliable audio, save/resume and sustained speed
 remain unqualified.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
