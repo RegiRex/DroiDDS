@@ -2,13 +2,13 @@
 
 <!-- CodexAstraUlt: Replace the completed code 12 comparison with one retained-
 library update that measures CPU output work and isolates the first GPU failure. -->
-Current task, **2026-11-04** (America/New_York): after preview.3's required cloud
-and publication gates pass, repackage the completed private ARM64 library with
-**0.0.8-preview.3/code 13**. Run one CPU-vertex control and a short GPU diagnostic.
-Implementation, local correctness/runtime and retained-library APK/bundle gates
-pass; hosted publication remains pending in the
-[build record](builds/0.0.8-pipeline-followup.md); the latest verified public
-release is preview.2. Read [AGENTS.md](../AGENTS.md), the
+Current task, **2026-11-04** (America/New_York): repackage the completed private
+ARM64 library with published **0.0.8-preview.3/code 13**. Run one CPU-vertex
+control and a short GPU diagnostic. Local correctness/runtime, retained-library
+APK/bundle and hosted main/tag build/publication gates pass; public assets at
+release source `4dae752` were independently downloaded and verified. The new Thor
+checks for the original fixture and private title remain unperformed. Read the
+[build record](builds/0.0.8-pipeline-followup.md), [AGENTS.md](../AGENTS.md), the
 [code 12 device evidence](device-tests/0.0.8-preview2-dark-moon-thor.md) and the
 [current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
 
@@ -37,9 +37,10 @@ reports. Preserve the owner's remaining saves and all prior output.
 <!-- CodexAstraUlt: Require new cloud correctness/package gates while retaining
 the already compiled title, compatible signer and short observable test bounds. -->
 Preview.3 targets the intermediate CPU vertex-output array and bounded metadata
-identifying the actual failed pipeline. It does not claim a GPU fix or handheld
-speed gain. After the new cloud gates pass, reuse successful tools, preparation,
-ARM64 directory with `compiled-manifest.json`, and existing owner signing profile.
+identifying the actual failed pipeline. The GPU failure remains unresolved;
+no handheld speed gain is claimed. Cloud gates pass. Reuse successful tools,
+preparation, ARM64 directory with `compiled-manifest.json`, and existing owner
+signing profile.
 Package a compatible update with the same package/certificate and a version
 code above the installed one, **at least 13**. No title C or either set of 521
 objects needs recompilation; no separate public original APK installation is

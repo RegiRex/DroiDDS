@@ -10,18 +10,18 @@ a shared runtime will retain 3DS services, graphics, audio and interpreter fallb
 
 <!-- CodexAstraUlt: Lead with the current product work instead of making readers
 infer progress from the historical probe and private tracing records below. -->
-**[0.0.8-preview.2/code 12 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.2), the current generic Android title player candidate.**
+**[0.0.8-preview.3/code 13 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.3), the current generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest.
 Host, main and release CI pass for that published candidate; the four public
 downloads are independently verified.
-[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.2/DroiDDS-0.0.8-preview.2-original-android-arm64.apk).
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.3/DroiDDS-0.0.8-preview.3-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
-The [candidate build record](docs/builds/0.0.8-vertex-comparison.md) records
-release source `cf31580`, exact public artifact identities and executed gates.
+The [candidate build record](docs/builds/0.0.8-pipeline-followup.md) records
+release source `4dae752`, exact public artifact identities and executed gates.
 
 <!-- CodexAstraUlt: Credit private menu boot separately from the new public
 original-fixture release; neither establishes a qualified playable segment. -->
@@ -54,15 +54,16 @@ creation before any GPU-vertex draw or Vulkan submission; there is no usable
 GPU performance comparison. The owner’s later Interpreter observations remain
 separate. Unmatched code 11/12 scene coverage and duration do not establish a regression.
 
-**0.0.8-preview.3/code 13 is in development.** It targets an unnecessary CPU
-vertex-output array and adds bounded identification of the failed pipeline.
-Its [build record](docs/builds/0.0.8-pipeline-followup.md) records passing local
-correctness/runtime and retained-library APK/bundle checks, with hosted
-publication pending. The next local task follows
-those gates: retained-library repackaging, one CPU control and a short GPU
-failure diagnostic. Automatic stays the default; no driver fix or device speed
-gain is yet established. Gameplay, reliable audio, save/resume and sustained
-speed remain unqualified.
+**0.0.8-preview.3/code 13 is published.** It replaces the packed CPU path's
+intermediate full-register vector with bounded scratch and adds identification
+of the failed pipeline. Its [build record](docs/builds/0.0.8-pipeline-followup.md)
+records passed local correctness/runtime, retained-library APK/bundle and hosted
+main/tag build/publication gates. Public downloads at source `4dae752` were
+independently verified. The new Thor checks for the original fixture and private
+title remain unperformed. Next: retained-library repackaging, one CPU control and a short GPU
+failure diagnostic. Automatic stays the default; the GPU failure remains
+unresolved and no device speed gain is established. Gameplay, reliable audio,
+save/resume and sustained speed remain unqualified.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->

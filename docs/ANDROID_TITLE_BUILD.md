@@ -2,13 +2,14 @@
 
 <!-- CodexAstraUlt: The code 12 comparison is complete; the next retained-library
 update measures CPU output work and identifies the first failing GPU pipeline. -->
-The next candidate is **0.0.8-preview.3/code 13**, in development. It targets the
-intermediate CPU vertex-output array and adds bounded pipeline failure metadata.
-Implementation, local correctness/runtime and retained-library APK/bundle gates
-pass; hosted publication remains pending in the
-[build record](builds/0.0.8-pipeline-followup.md). The latest verified public
-release remains **0.0.8-preview.2/code 12**; its prior cloud gates do not validate
-changed code. The player retains application ID
+The current published candidate is **0.0.8-preview.3/code 13**. It replaces the
+packed CPU path's intermediate full-register vector with bounded scratch and
+adds pipeline failure metadata. Local correctness/runtime, retained-library
+APK/bundle and hosted main/tag build/publication gates pass. Public assets at
+release source `4dae752` were independently downloaded and verified; see the
+[build record](builds/0.0.8-pipeline-followup.md). The new Thor checks for the
+original fixture and private title remain unperformed; the GPU failure is unresolved.
+The player retains application ID
 `org.droidds.title.t<program_id>` and the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
 
@@ -27,10 +28,11 @@ this update rebuilds the shared player/frontend, not the 521 title objects.
 
 <!-- CodexAstraUlt: Keep the existing anchor stable and require the new cloud
 gates before a CPU control and short first-failure GPU diagnostic. -->
-Complete and record preview.3's required cloud/runtime/graphics/package and
-publication/download gates before this local batch. No separate public original
-APK installation is required. Keep **Native guest execution, Vulkan 1×** and
-comparable menu progression/settings. Automatic stays the normal default.
+Preview.3's required cloud/runtime/graphics/package and publication/download
+gates pass. The next step is this retained-library update and bounded Thor batch;
+no separate public original APK installation is required. Keep **Native guest
+execution, Vulkan 1×** and comparable menu progression/settings. Automatic stays
+the normal default.
 
 Use one CPU-vertex menu control for at most **120 wall seconds**, recording the
 input timing and progression needed to interpret the changed output path. Then

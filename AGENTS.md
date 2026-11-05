@@ -54,18 +54,19 @@ pipeline failure and measured CPU subset instead of requesting a longer run. -->
   Interpreter observations have no supplied JSON and remain separate. Do not
   infer a regression from unlike code 11/12 runs, or treat guest allocation as
   process/driver memory. Do not repeat the failed code 12 GPU launch.
-- The next candidate is 0.0.8-preview.3/code 13. Read
+- The current published candidate is 0.0.8-preview.3/code 13. Read
   docs/builds/0.0.8-pipeline-followup.md. It targets the intermediate CPU output
   array and bounded identification of the actual failed Vulkan pipeline. These
   changes do not establish a driver fix or Thor speed gain. Keep Automatic and
   error handling unchanged; no shader dumps, growing logs or optional JIT.
   Implementation, local correctness/runtime gates and retained-library APK/
-  bundle verification pass at dffd8e4; hosted/publication gates remain pending
-  in the build record. The latest verified public release remains
-  0.0.8-preview.2 at cf31580; its passed cloud gates are historical, not a pass
-  for changed code. No separate public diagnostic APK installation is needed.
-  After the new cloud gates pass, repackage the retained ARM64 library with the
-  same owner key and an install code above the installed one, at least 13.
+  bundle verification pass at dffd8e4. Hosted main and tag build/publication
+  gates pass; public assets at documentation-only tag source
+  4dae752beffc534f4c4b9ff4859f0b7c8de47b29 were independently downloaded and verified.
+  The new Thor checks for the original fixture and private title remain unperformed, and the
+  GPU pipeline failure remains unresolved. No separate public diagnostic APK
+  installation is needed. Repackage the retained ARM64 library with the same
+  owner key and an install code above the installed one, at least 13.
   Keep Native/Vulkan 1×: one CPU-vertex menu control at most 120 wall seconds,
   then GPU until its first failure/corruption or 30 wall seconds after Play,
   startup included. Record worker time separately and stop observing a failed

@@ -3,17 +3,17 @@
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
 As of **2026-11-04** (America/New_York), the public title-player candidate is
-**[0.0.8-preview.2/code 12](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.2)**;
+**[0.0.8-preview.3/code 13](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.3)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. The published candidate implements the generic per-title
 Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
-The [candidate build record](builds/0.0.8-vertex-comparison.md) records release
-source `cf31580`, exact public artifact identities and executed gates. Its
-[private code 12 comparison](device-tests/0.0.8-preview2-dark-moon-thor.md) is now
-complete: CPU reaches the menu slowly, while GPU fails during pipeline creation.
-The public original-fixture device check remains separate.
+The [candidate build record](builds/0.0.8-pipeline-followup.md) records release
+source `4dae752`, exact public artifact identities and executed gates. The new
+Thor checks for the original fixture and private title remain unperformed. The earlier
+[code 12 comparison](device-tests/0.0.8-preview2-dark-moon-thor.md) remains separate:
+CPU reaches the menu slowly, while GPU fails during pipeline creation.
 
 <!-- CodexAstraUlt: Record actual private interactive boot as progress into the
 next alpha stage; a menu and an underrun total do not establish playable speed. -->
@@ -45,12 +45,13 @@ Native/GPU failed during pipeline creation before any GPU-vertex draw or Vulkan
 submission; its early stop supplies no GPU performance comparison. Later
 Interpreter observations have no corresponding JSON and remain separate.
 
-The next candidate is **0.0.8-preview.3/code 13**, in development. Its
-[build record](builds/0.0.8-pipeline-followup.md) tracks direct CPU vertex-output
-mapping and bounded identification of the actual failed pipeline. Implementation
-and local correctness/runtime plus retained-library APK/bundle checks pass;
-hosted publication remains pending. Automatic
-and error handling remain unchanged; no driver fix or Thor speed gain is claimed.
+The current candidate is **0.0.8-preview.3/code 13**, published. Its
+[build record](builds/0.0.8-pipeline-followup.md) records the packed CPU output
+change and bounded identification of the actual failed pipeline. Local
+correctness/runtime, retained-library APK/bundle and hosted main/tag
+build/publication checks pass; public downloads at source `4dae752` were
+independently verified. Automatic and error handling remain unchanged.
+The GPU pipeline failure remains unresolved, and no Thor speed gain is claimed.
 The earlier [preview.2 build record](builds/0.0.8-vertex-comparison.md) retains
 its passed cloud and publication gates. Gameplay, reliable audio, save/resume
 and sustained speed remain unqualified.
@@ -61,8 +62,8 @@ The [0.0.7-preview.2 Thor report](device-tests/0.0.7-preview2-thor-title.md) bin
 that historical preview's artifacts and records native CPU execution, Vulkan
 draws, PCM and pause/resume without reported runtime failure. The owner confirmed
 both images, D-pad/A, touch, pause/resume and steady sound for that build. This
-closes its historical original-title device check, not the new 0.0.8-preview.2
-check; later private boot and code 11 observations are recorded separately above.
+closes its historical original-title device check, not the new 0.0.8-preview.3
+check; later private boot and code 11/12 observations remain separate above.
 
 <!-- CodexAstraUlt: Record independently testable gameplay prerequisites while
 the owner's private build proceeds; fixtures do not promote title milestones. -->
@@ -82,8 +83,8 @@ correctness and scheduler optimization. Another Dark Moon checkpoint is not a
 prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
-preserving the owner signing identity and existing reports. After the new cloud
-gates pass, use one CPU control and a short GPU failure diagnostic. Keep private
+preserving the owner signing identity and existing reports. The new cloud gates
+pass; proceed to one CPU control and a short GPU failure diagnostic. Keep private
 hardware evidence separate from work completed with original inputs here.
 
 <!-- CodexAstraUlt: Replace the research pack's broad serial implementation sequence with evidence-gated work and early Android, memory and correctness risk checks. -->
@@ -376,8 +377,8 @@ gates; public fixture progress must not silently close the private baseline. -->
    sustained-memory work.
 3. Preserve both completed Dark Moon target builds and separate code 11/12
    reports. Code 12 measures substantial CPU vertex cost and fails on GPU pipeline
-   creation before submission. Complete preview.3's CPU-output and bounded
-   pipeline-failure work and its cloud/package/publication gates, then repackage
+   creation before submission. Preview.3's CPU-output and bounded pipeline-failure
+   work passes local/cloud/package/publication and public-download gates. Repackage
    the retained library for one CPU control (at most 120 wall seconds) and GPU
    diagnostic (first failure/corruption or 30 wall seconds after Play).
    Export each full report before another restart, then
