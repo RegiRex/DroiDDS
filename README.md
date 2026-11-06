@@ -10,18 +10,18 @@ a shared runtime will retain 3DS services, graphics, audio and interpreter fallb
 
 <!-- CodexAstraUlt: Lead with the current product work instead of making readers
 infer progress from the historical probe and private tracing records below. -->
-**[0.0.8-preview.4/code 14 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.4), the current generic Android title player candidate.**
+**[0.0.8-preview.5/code 15 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5), the current generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest.
 Host, main and release CI pass for that published candidate; the four public
 downloads are independently verified.
-[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.4/DroiDDS-0.0.8-preview.4-original-android-arm64.apk).
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.5/DroiDDS-0.0.8-preview.5-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
-The [candidate build record](docs/builds/0.0.8-cpu-work-followup.md) records
-release source `62eb45e`, exact public artifact identities and executed gates.
+The [candidate build record](docs/builds/0.0.8-cpu-decode-followup.md) records
+release source `365c1a0`, exact public artifact identities and executed gates.
 
 <!-- CodexAstraUlt: Credit private menu boot separately from the new public
 original-fixture release; neither establishes a qualified playable segment. -->
@@ -64,8 +64,8 @@ audio-perfection work are deferred. The published code 13
 [build record](docs/builds/0.0.8-pipeline-followup.md) retains its passed cloud
 gates and verified public downloads.
 
-<!-- CodexAstraUlt: Replace the completed code 14 test request with its separate
-menu/intro results and the next cloud candidate's unqualified development state. -->
+<!-- CodexAstraUlt: Preserve code 14's separate menu/intro results while
+advancing the published CPU candidate without claiming a new Thor result. -->
 The [code 14 Thor reports](docs/device-tests/0.0.8-preview4-dark-moon-thor.md) are
 now available. The bounded menu run reaches file selection at **17.31% emulated
 speed** with choppy audio. A separate owner intro session runs at **16.66%**;
@@ -74,14 +74,21 @@ runtime/rendering errors. These different scenes and durations do not establish
 a performance improvement. The menu and intro retain 1,382 and 2,793 audio
 underruns respectively; no new intro audio observation was supplied.
 
-Published **0.0.8-preview.4/code 14** remains the current download, with passed
-cloud/publication gates recorded in its [build record](docs/builds/0.0.8-cpu-work-followup.md).
-**Preview.5/code 15 is under development**, targeting repeated attribute-decoding
-work and full GPU diagnostic copies in the CPU execution loop. Validation and
-publication remain pending; finish cloud checks before another local run.
-The retained private title library and signer remain reusable. Native execution,
-CPU vertex shaders and Vulkan 1× remain the test priority; further Thor GPU tests
-are deferred. Gameplay, reliable audio, save/resume and sustained speed remain
+**0.0.8-preview.5/code 15 is published.** It specializes attribute decoding,
+checks GPU health without copying the full report after every dispatch, and
+records fixed SVC/frame/audio timings with their nested command subsets.
+Local correctness/runtime, retained-library APK and independent bundle checks
+pass at implementation `f687911`; hosted main checks pass there, with tag
+build/publication and independent public-download verification at `365c1a0`.
+See the [build record](docs/builds/0.0.8-cpu-decode-followup.md). The previous
+[code 14 build record](docs/builds/0.0.8-cpu-work-followup.md) preserves its own
+source and artifact identities.
+
+New code 15 Thor checks remain unperformed; host component results do not
+establish a handheld speed gain. Reuse the retained private title library and
+signer for one compatible update and the [bounded menu test](docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
+Keep Native execution, CPU vertex shaders and Vulkan 1×; further Thor GPU tests
+remain deferred. Gameplay, reliable audio, save/resume and sustained speed remain
 unqualified.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original

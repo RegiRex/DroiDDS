@@ -1,9 +1,8 @@
 # DroidDS implementation queue
 
-<!-- CodexAstraUlt: Replace the obsolete pre-boot task with completed code 14
-device evidence and the next CPU candidate's pending cloud qualification. -->
-Current work is **0.0.8-preview.5/code 15 development**; the published candidate
-remains **0.0.8-preview.4/code 14**. DDS-012/013's generic title session, matching
+<!-- CodexAstraUlt: Advance from verified code 15 publication to its separate
+retained-library hardware test while preserving code 14's observed results. -->
+The current published candidate is **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**. DDS-012/013's generic title session, matching
 import, durable runtime storage, controls/audio/lifecycle and per-title ARM64
 packaging are implemented. Dark Moon has reached interactive menus on Thor,
 and compatible updates preserve its retained import, saves and signing identity.
@@ -16,13 +15,20 @@ separate intro run at **16.66%**. The owner observed no intro graphical glitches
 the report records no runtime/rendering errors. These observations do not
 establish a speed gain, a qualified playable segment or reliable audio/save-load.
 
-The next cloud work targets attribute decoding and repeated full GPU diagnostic
-copies in the CPU execution loop. Implementation, authored correctness/performance
-checks, retained-library APK packaging and publication remain pending. Complete
-those gates before a new local handoff. Keep Native execution, CPU vertex shaders
-and Vulkan 1×; further Thor GPU tests remain deferred. Reuse both completed
-521-object target builds/libraries and preserve preparation, imports, saves,
-owner signer and previous reports. No unchanged host/device trace, title
+Preview.5 specializes attribute decoding, replaces full diagnostic copies in
+the CPU guard with a compact health query, and adds fixed SVC/frame/audio timing
+with explicit nested command subsets. Local correctness/runtime, retained-library
+APK and independent bundle checks pass at `f687911`; hosted main checks pass
+there, with tag build/publication and independent public-download verification
+at `365c1a0`. See the [build record](builds/0.0.8-cpu-decode-followup.md).
+New code 15 Thor checks remain unperformed; no handheld speed gain is established.
+
+Proceed with the [current retained-library handoff](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test):
+Native execution, CPU vertex shaders and Vulkan 1×, one bounded menu run and
+reviewed report delivery. Use a compatible install code greater than the
+installed one and at least 15. Further Thor GPU tests remain deferred. Reuse both
+completed 521-object target builds/libraries and preserve preparation, imports,
+saves, owner signer and previous reports. No unchanged host/device trace, title
 regeneration or setup repeat is needed.
 
 <!-- CodexAstraUlt: Reduce the supplied 119-ticket catalog to bounded work packages with explicit tests and links back to the source requirements. -->

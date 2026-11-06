@@ -1,10 +1,13 @@
 # Local Dark Moon Native/CPU performance handoff
 
-<!-- CodexAstraUlt: Replace the completed code 14 test with one changed update;
-cloud validation and publication remain prerequisites for the next private run. -->
-Current candidate: **0.0.8-preview.5/code 15**. Local correctness/runtime,
-retained-library APK and independent bundle checks pass at `f687911`.
-Hosted publication and independent public-download verification remain pending. Read
+<!-- CodexAstraUlt: Proceed after verified publication with one changed
+compatible update; new handheld checks and speed improvement remain unqualified. -->
+Published candidate: **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**.
+Local correctness/runtime, retained-library APK and independent bundle checks
+pass at `f687911`; hosted main checks pass there. Tag build/publication and
+independent public-download verification pass at release source `365c1a0`.
+Proceed with the retained-library update and bounded Native/CPU menu test below.
+New Thor checks remain unperformed; no handheld speed gain is established. Read
 [the build record](builds/0.0.8-cpu-decode-followup.md), [AGENTS.md](../AGENTS.md)
 and [the current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
 Do not repeat the unchanged code 14 test.
@@ -28,7 +31,7 @@ alone cannot establish a Thor gain.
 ## Suggested task for local Codex
 
 <!-- CodexAstraUlt: Confine the handoff to compatible repackaging, one bounded
-menu test and delivery of reviewed evidence after all cloud gates pass. -->
+menu test and reviewed evidence delivery after the now-passed cloud gates. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.

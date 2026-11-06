@@ -74,28 +74,37 @@ and intro evidence, then finish cloud changes before requesting another run. -->
   independently. Do not treat the intro as a controlled menu comparison, infer
   a speed gain, or qualify gameplay from the observed intro. Audio underruns
   remain 1,382 and 2,793 respectively; no new intro audio observation was supplied.
-- The published CPU candidate remains 0.0.8-preview.4/code 14. Local correctness/runtime,
-  retained-library APK and independent bundle checks pass at implementation
-  a77a85e895461f6f62b9fa868c5bab5a82a64b44. Hosted main checks pass at that source;
-  tag build/publication and independent public-download verification pass at
+- Previous CPU candidate 0.0.8-preview.4/code 14 passed local correctness/runtime,
+  retained-library APK and independent bundle checks at implementation
+  a77a85e895461f6f62b9fa868c5bab5a82a64b44. Hosted main checks passed there;
+  tag build/publication and independent public-download verification passed at
   documentation-only release source 62eb45e0c9958d588a06b279f19fcbbd6f9196d6.
-  Its two new Thor reports are now available; no handheld speed gain is established.
-  Read docs/builds/0.0.8-cpu-work-followup.md. It reduces repeated vertex-output
-  work and full-TEXT verification after unrelated GPU guards, preserving actual
-  mapping/backing/protection checks. Fixed decode/placement timers and geometry-
-  mode/parallel-vertex batch counts distinguish remaining command work without
-  per-vertex logging. Preview.5/code 15 is under development: input-decoder
-  specialization and a compact GPU health query target repeated CPU work.
-  Implementation, correctness/performance checks, APK packaging and publication
-  are not yet qualified. Finish those cloud gates before a new local handoff;
-  do not repeat the unchanged code 14 run. Keep Native execution, CPU vertex
-  shaders and Vulkan 1×; further Thor GPU tests remain deferred. The next
-  validated candidate must reuse the retained ARM64 library and owner signer
-  for a compatible update. Preserve imports, saves, both 521-object builds and previous
-  reports. No setup, preparation, title compilation or permission reconfiguration
-  is required. Automatic and error handling remain unchanged; do not add shader
-  dumps, growing logs or optional JIT. No separate public diagnostic APK install
-  is required.
+  Its two Thor reports are now available; no handheld speed gain is established.
+  Preserve docs/builds/0.0.8-cpu-work-followup.md and those artifact identities.
+<!-- CodexAstraUlt: The verified code 15 publication authorizes one compatible
+retained-library test; cloud timings are not new handheld performance evidence. -->
+- The published CPU candidate is 0.0.8-preview.5/code 15. Local correctness/runtime,
+  retained-library APK and independent bundle checks pass at implementation
+  f6879110dace4d47edd3796ab4b85acc69effcb0. Hosted main checks pass there;
+  tag build/publication and independent public-download verification pass at
+  release source 365c1a0ffa3fce8d7001f625a0c42e399ea5b1aa. New Thor checks remain
+  unperformed; no handheld speed gain is established. Read
+  docs/builds/0.0.8-cpu-decode-followup.md. Input-decoder specialization and a
+  compact GPU health query target repeated CPU work. Fixed SVC/frame/audio
+  timings retain nested command subsets; subtract those subsets before combining
+  these scopes with command time. Do not repeat the unchanged code 14 run.
+  Follow the current retained-library handoff using Native execution, CPU vertex
+  shaders and Vulkan 1×. Reuse the retained ARM64 library and owner signer for a
+  compatible update with an install code greater than the installed one and at
+  least 15. Run once: A around 91 seconds after Play if the title prompt is ready,
+  normal Stop around 110 seconds, at most 120 wall seconds. Stop early on failure
+  or corruption and record actual input timing/progression. Export the full JSON
+  before any restart, upload reviewed evidence and return verified links.
+  Preserve imports, saves, both 521-object builds and previous reports. No setup,
+  preparation, title compilation or permission reconfiguration is required.
+  Further Thor GPU tests remain deferred. Automatic and error handling remain
+  unchanged; do not add shader dumps, growing logs or optional JIT. No separate
+  public diagnostic APK install is required.
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->

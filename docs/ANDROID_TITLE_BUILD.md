@@ -1,11 +1,14 @@
 # Build an Android title candidate
 
-<!-- CodexAstraUlt: Replace the completed code 14 task with the new candidate;
-publication must pass before another private device run. -->
-The published candidate is **0.0.8-preview.4/code 14**. The next candidate,
-**0.0.8-preview.5/code 15**, passes local correctness/runtime, retained-library
-APK and independent bundle checks at `f687911`. Hosted publication and
-independent public-download verification remain pending. Read its [build record](builds/0.0.8-cpu-decode-followup.md).
+<!-- CodexAstraUlt: Record verified code 15 publication while retaining the
+separate new-device gate and the same title library, signer and app identity. -->
+The published candidate is **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**.
+Local correctness/runtime, retained-library APK and independent bundle checks
+pass at `f687911`; hosted main checks pass there. Tag build/publication and
+independent public-download verification pass at release source `365c1a0`.
+New Thor checks remain unperformed; no handheld speed gain is established.
+Read the [build record](builds/0.0.8-cpu-decode-followup.md) and proceed with the
+retained-library update below.
 The player retains application ID `org.droidds.title.t<program_id>` and the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
 
@@ -21,13 +24,16 @@ this update rebuilds the shared player/frontend, not the 521 title objects.
 
 ## Current Dark Moon repackaging and audio test
 
-<!-- CodexAstraUlt: Keep the existing anchor stable while replacing the finished
-GPU diagnostic with one CPU performance test after verified publication. -->
-Preview.5's local correctness/runtime/graphics/package checks pass at `f687911`.
-Hosted publication and independent public-download checks remain pending. Wait
-for those gates before this
-retained-library update and bounded Thor run;
-no separate public original APK installation is required. Keep **Native guest
+<!-- CodexAstraUlt: Keep the existing anchor stable and proceed with the CPU
+test after verified publication, without treating cloud checks as a Thor result. -->
+Published **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**
+passes local correctness/runtime/graphics/package and independent bundle checks
+at `f687911`; hosted main checks pass there. Tag build/publication and independent
+public-download verification pass at release source `365c1a0`; see the
+[build record](builds/0.0.8-cpu-decode-followup.md). New Thor checks remain
+unperformed, and no handheld speed gain is established. Proceed with this
+retained-library update and bounded Thor run; no separate public original APK
+installation is required. Keep **Native guest
 execution, CPU vertex shaders, Vulkan 1×** and comparable menu
 progression/settings. Automatic stays the normal default.
 
