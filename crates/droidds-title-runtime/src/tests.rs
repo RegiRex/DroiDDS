@@ -289,6 +289,15 @@ fn explicit_vertex_policies_require_hardware_before_title_admission() {
     assert_eq!(session.report()["vertex_shading_policy"], "automatic");
     assert_eq!(session.report()["renderer"], "software");
     assert!(session.report()["gpu"]["hardware"].is_null());
+    // CodexAstraUlt: No CPU dispatch occurred, so new scope evidence must be
+    // present and zero rather than missing or inherited from another session.
+    for name in ["svc", "frame", "audio"] {
+        assert_eq!(
+            session.report()["core_work"][name],
+            json!({
+            "calls":0,"wall_nanoseconds":0,"nested_command_wall_nanoseconds":0})
+        );
+    }
 }
 
 #[test]
@@ -543,6 +552,40 @@ fn first_blocker_uses_guard_priority_and_omits_guest_fatal_text() {
     }
 }
 
+// CodexAstraUlt: A live route mismatch still stops before guest execution, and
+// an existing machine blocker retains priority over it after the guard change.
+#[test]
+fn compact_draw_guard_preserves_route_fail_stop_and_machine_priority() {
+    let fixture = Fixture::new(fixture::image(0, 0, false), false);
+    for with_machine_blocker in [false, true] {
+        let mut session = fixture.open(false).unwrap();
+        session.hardware = true;
+        if with_machine_blocker {
+            session.system.unimplemented_svcs.insert(0x7f);
+        }
+        assert_eq!(
+            session.slice(InputState::default()).err().unwrap(),
+            if with_machine_blocker {
+                "title_runtime_blocker"
+            } else {
+                "title_renderer_route_changed"
+            }
+        );
+        let report = session.report();
+        assert_eq!(
+            report["first_blocker"]["category"],
+            if with_machine_blocker {
+                "unsupported_svc"
+            } else {
+                "renderer_route_changed"
+            }
+        );
+        assert_eq!(report["interpreted_instructions"], 0);
+        assert_eq!(report["native_instructions"], 0);
+        fixture.preserved();
+    }
+}
+
 // CodexAstraUlt: Invalid input is rejected before machine guards, so an
 // unrelated existing diagnostic counter must not replace the actual cause.
 #[test]
@@ -622,6 +665,38 @@ fn tone(samples: &[[i16; 2]], period: usize) {
     assert!(changes.windows(2).all(|pair| pair[1] - pair[0] == period));
 }
 
+// CodexAstraUlt: Actual original guest calls, frames and audio exercise all
+// fixed scopes. Validate the exported nesting without treating command time as
+// disjoint from its enclosing service/frame/audio work or requiring host speed.
+fn assert_core_work_report(report: &Value) {
+    let work = report["core_work"].as_object().unwrap();
+    assert_eq!(work.len(), 3);
+    let mut nested_commands = 0;
+    for name in ["svc", "frame", "audio"] {
+        let scope = work[name].as_object().unwrap();
+        assert_eq!(scope.len(), 3);
+        assert!(scope["calls"].as_u64().unwrap() > 0, "missing {name} calls");
+        let wall = scope["wall_nanoseconds"].as_u64().unwrap();
+        let nested = scope["nested_command_wall_nanoseconds"].as_u64().unwrap();
+        assert!(wall > 0, "missing {name} wall time");
+        assert!(nested <= wall, "{name} nested work exceeds enclosing scope");
+        nested_commands += nested;
+    }
+    assert_eq!(work["frame"]["calls"], report["frames"]);
+    // CodexAstraUlt: This authored guest submits real commands through GSP;
+    // an accidentally unrecorded nested subset must fail the oracle too.
+    assert!(
+        nested_commands > 0,
+        "original guest commands were not attributed"
+    );
+    assert!(
+        nested_commands
+            <= report["gpu"]["command_processing_wall_nanoseconds"]
+                .as_u64()
+                .unwrap()
+    );
+}
+
 #[test]
 fn generic_session_delivers_original_pixels_audio_and_input_on_both_cpu_routes() {
     let _serial = SERIAL.lock().unwrap();
@@ -697,6 +772,7 @@ fn generic_session_delivers_original_pixels_audio_and_input_on_both_cpu_routes()
             247
         );
         assert!(session.pcm_nonzero_frames > 0);
+        assert_core_work_report(&session.report());
         if native {
             assert!(session.report()["native_instructions"].as_u64().unwrap() > 0);
         }
@@ -770,6 +846,7 @@ fn native_vulkan_oracle(fixture: &Fixture, vertex_shading: VertexShading) {
     tone(&frame.pcm, 20);
     let report = session.report();
     assert!(report["native_instructions"].as_u64().unwrap() > 0);
+    assert_core_work_report(&report);
     assert!(report["gpu"]["hardware"]["submissions"].as_u64().unwrap() > 0);
     assert_eq!(report["gpu"]["hardware"]["software_raster_fallbacks"], 0);
     assert_eq!(report["gpu"]["hardware"]["draw_errors"], 0);

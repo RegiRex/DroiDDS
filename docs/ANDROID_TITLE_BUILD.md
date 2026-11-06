@@ -1,25 +1,18 @@
 # Build an Android title candidate
 
-<!-- CodexAstraUlt: Record published code 14 separately from the completed code
-13 device evidence and the next unperformed Native/CPU performance check. -->
-The current published candidate is **0.0.8-preview.4/code 14**, prioritizing
-Native/CPU performance. Local correctness/runtime, retained-library APK/bundle
-and hosted main checks pass at implementation source `a77a85e`. Tag build/
-publication and independent public-download verification pass at documentation-
-only release source `62eb45e`. The new Thor checks remain unperformed.
-Its [build record](builds/0.0.8-cpu-work-followup.md) covers reduced vertex-output
-work, avoiding full-TEXT verification after unrelated GPU guards while retaining
-mapping/backing/code protection, and fixed CPU decoding/placement timings.
-The player retains application ID
-`org.droidds.title.t<program_id>` and the
+<!-- CodexAstraUlt: Replace the completed code 14 task with the new candidate;
+publication must pass before another private device run. -->
+The published candidate is **0.0.8-preview.4/code 14**. The next candidate,
+**0.0.8-preview.5/code 15**, is under development with cloud/package/publication
+checks pending. Read its [build record](builds/0.0.8-cpu-decode-followup.md).
+The player retains application ID `org.droidds.title.t<program_id>` and the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
 
-The [completed private code 13 test](device-tests/0.0.8-preview3-dark-moon-thor.md)
-reached file selection with Native/CPU vertices at **18.12% speed**, without a
-demonstrated gain. CPU vertex work consumed **34.80% of core time**; audio had
-1,471 underruns, 235 flushed frames and observed short bursts/gaps. Native/GPU
-still failed before useful output. Further Thor GPU tests and audio-perfection
-work are deferred. Preserve all uploaded reports; no unchanged retry is needed.
+The [completed code 14 tests](device-tests/0.0.8-preview4-dark-moon-thor.md)
+record 17.31% menu speed and 16.66% in the separate owner intro. The owner reports
+no intro glitches; neither report records runtime/rendering errors. No speed
+improvement or playable segment is established. Further Thor GPU tests and
+audio-perfection work remain deferred; no unchanged retry is required.
 
 An existing preparation supplies the same generated C and headers to both target
 compilers. Its completed Linux and ARM64 libraries remain intact and reusable;
@@ -29,14 +22,14 @@ this update rebuilds the shared player/frontend, not the 521 title objects.
 
 <!-- CodexAstraUlt: Keep the existing anchor stable while replacing the finished
 GPU diagnostic with one CPU performance test after verified publication. -->
-Preview.4's local correctness/runtime/graphics/package, hosted publication and
-independent public-download checks pass. Proceed with this retained-library
-update and bounded Thor run;
+Preview.5's local correctness/runtime/graphics/package, hosted publication and
+independent public-download checks are pending. Wait for those gates before this
+retained-library update and bounded Thor run;
 no separate public original APK installation is required. Keep **Native guest
 execution, CPU vertex shaders, Vulkan 1×** and comparable menu
 progression/settings. Automatic stays the normal default.
 
-Use one CPU-vertex menu run matching code 13: press A around **91 seconds after
+Use one CPU-vertex menu run matching the earlier menu tests: press A around **91 seconds after
 Play** if the title prompt is ready, then request normal Stop around **110
 seconds**. Never exceed **120 wall seconds**. Record actual input timing and
 progression; do not extend for a late prompt. Stop early on failure or visual
@@ -45,7 +38,7 @@ separately. Do not extend the run or replay a failure. If the app has
 already failed/stopped, end observation and preserve the error instead of
 counting the observer's later wait as guest execution.
 
-Preserve code 11/code 12/code 13 and all other prior reports before any new session.
+Preserve code 14 menu/intro and all other prior reports before any new session.
 The app keeps one `files/latest-title-report.json` and replaces it on later
 sessions. **After each stop or failure, export the complete JSON immediately,
 before any restart.** Capture a relevant bounded driver-log excerpt only when
@@ -62,7 +55,7 @@ Reuse the successful tool environment, private preparation, completed ARM64
 compilation directory containing `compiled-manifest.json`, and owner signing
 profile. Source the existing environment in each build shell. Use a fresh private
 package output with a version code **greater than the installed code and at least
-14**. The retained title needs only this packaging command:
+15**. The retained title needs only this packaging command:
 
 ```bash
 python3 tools/build_android_title.py \
@@ -86,11 +79,11 @@ preserve original reports and deliver reviewed copies with verified links. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Confirm preview.4 cloud route/package/publication gates passed before packaging.
-Preserve the existing code 11/code 12/code 13 reports and all earlier evidence.
+Confirm preview.5 cloud route/package/publication gates passed before packaging.
+Preserve the existing code 14 menu/intro reports and all earlier evidence.
 Reuse working tools, preparation, completed ARM64 compilation and owner signing
 profile. Repackage only with the same package/certificate and an install code
-above the installed one, at least 14. Install a compatible update preserving
+above the installed one, at least 15. Install a compatible update preserving
 imports and saves.
 
 Keep Native execution, CPU vertex shaders, Vulkan 1x and comparable menu
@@ -344,7 +337,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 14 \
+  --version-code 15 \
   --diagnostic-signing --diagnostic-fixture homebrew
 ```
 

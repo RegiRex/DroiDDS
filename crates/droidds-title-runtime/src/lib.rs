@@ -313,11 +313,14 @@ impl Session {
         {
             return Err("title_runtime_blocker".into());
         }
-        let diagnostics = self.system.gpu.hardware_diagnostics();
-        if diagnostics.is_some() != self.hardware {
+        // CodexAstraUlt: Check the same live fields without cloning the full
+        // hardware report after every dispatch. Keep machine/route/draw/fence
+        // blocker priority unchanged; full evidence is still captured on export.
+        let draw_failed = self.system.gpu.hardware_draw_failed();
+        if draw_failed.is_some() != self.hardware {
             return Err("title_renderer_route_changed".into());
         }
-        if diagnostics.is_some_and(|gpu| gpu.draw_errors != 0 || gpu.last_error.is_some()) {
+        if draw_failed == Some(true) {
             return Err("title_renderer_draw_failed".into());
         }
         self.system.memory.verify_base_code_fence()
@@ -499,6 +502,21 @@ impl Session {
         // command recording and waits, and is not a GPU execution timestamp.
         report["gpu"]["command_processing_wall_nanoseconds"] =
             json!(self.system.gpu.busy.as_nanos().min(u64::MAX as u128) as u64);
+        // CodexAstraUlt: Fixed SVC/frame/audio scopes locate work outside
+        // command processing without an instruction timer. Their inclusive wall
+        // totals overlap command time by the separately recorded nested subset;
+        // subtract that subset before combining these with existing GPU totals.
+        let core_work = self.system.core_work_diagnostics();
+        for (name, work) in [
+            ("svc", &core_work.svc),
+            ("frame", &core_work.frame),
+            ("audio", &core_work.audio),
+        ] {
+            report["core_work"][name] = json!({
+                "calls":work.calls,
+                "wall_nanoseconds":work.wall.as_nanos().min(u64::MAX as u128) as u64,
+                "nested_command_wall_nanoseconds":work.nested_command_wall.as_nanos().min(u64::MAX as u128) as u64});
+        }
         // CodexAstraUlt: Export aggregate CPU vertex batch timing. This
         // command-processing subset includes VS/GS execution, packing and worker
         // joins; it excludes attribute decoding, clipping and Vulkan work.

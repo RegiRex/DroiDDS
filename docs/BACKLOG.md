@@ -1,27 +1,29 @@
 # DroidDS implementation queue
 
-<!-- CodexAstraUlt: Advance generic product work independently of another
-private trace, while retaining the separate device and owned-title gates. -->
-Current work for **0.0.7-preview.2** implements the generic portions of
-DDS-012/013: admitted title sessions, durable runtime storage, matching import,
-Android controls/audio/lifecycle, resumable ARM64 compilation and per-title
-packaging. Original-input cloud checks exercise the actual runtime and Vulkan.
-See [the interface contract](ANDROID_TITLE_CONTRACT.md) and
-[builder procedure](ANDROID_TITLE_BUILD.md). DDS-014's actual owned-title Thor
-launch, install/update preservation and measured playback remain the next
-consolidated local gate. The [roadmap](ROADMAP.md) defines the playable beta
-requirements; another isolated unchanged interpreter trace is not a prerequisite
-for this generic implementation.
+<!-- CodexAstraUlt: Replace the obsolete pre-boot task with completed code 14
+device evidence and the next CPU candidate's pending cloud qualification. -->
+Current work is **0.0.8-preview.5/code 15 development**; the published candidate
+remains **0.0.8-preview.4/code 14**. DDS-012/013's generic title session, matching
+import, durable runtime storage, controls/audio/lifecycle and per-title ARM64
+packaging are implemented. Dark Moon has reached interactive menus on Thor,
+and compatible updates preserve its retained import, saves and signing identity.
+See [the interface contract](ANDROID_TITLE_CONTRACT.md),
+[builder procedure](ANDROID_TITLE_BUILD.md) and [roadmap](ROADMAP.md).
 
-<!-- CodexAstraUlt: Retain new owner evidence and move the next private batch
-to the actual Android package, rather than repeating the fulfilled host task. -->
-The [Thor original-title run](device-tests/0.0.7-preview2-thor-title.md) now
-records native execution and Vulkan rendering without a runtime error. The
-[corrected private host comparison](host-tests/dark-moon-native-2026-11-02.md)
-is also complete: one synchronized match, raw flags still different, no first
-scheduler-pending mismatch. Neither is owned-game boot. The next private task
-remains the consolidated ARM64 build and Thor opening run; no unchanged host
-comparison or regeneration of completed private sources is required.
+The [code 14 reports](device-tests/0.0.8-preview4-dark-moon-thor.md) record a
+bounded Native/CPU menu run at **17.31% emulated speed**, with choppy audio, and a
+separate intro run at **16.66%**. The owner observed no intro graphical glitches;
+the report records no runtime/rendering errors. These observations do not
+establish a speed gain, a qualified playable segment or reliable audio/save-load.
+
+The next cloud work targets attribute decoding and repeated full GPU diagnostic
+copies in the CPU execution loop. Implementation, authored correctness/performance
+checks, retained-library APK packaging and publication remain pending. Complete
+those gates before a new local handoff. Keep Native execution, CPU vertex shaders
+and Vulkan 1×; further Thor GPU tests remain deferred. Reuse both completed
+521-object target builds/libraries and preserve preparation, imports, saves,
+owner signer and previous reports. No unchanged host/device trace, title
+regeneration or setup repeat is needed.
 
 <!-- CodexAstraUlt: Reduce the supplied 119-ticket catalog to bounded work packages with explicit tests and links back to the source requirements. -->
 

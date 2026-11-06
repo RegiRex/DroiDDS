@@ -64,25 +64,34 @@ Native/CPU priority and require fresh cloud gates before the next private run. -
   GPU failed before useful output; metadata identifies the attempted public
   interpreted-vertex/generic-fragment pipeline, not the faulty shader stage.
   Further Thor GPU tests and audio-perfection work are deferred.
-- The published CPU candidate is 0.0.8-preview.4/code 14. Local correctness/runtime,
+<!-- CodexAstraUlt: Replace the completed code 14 handoff with its separate menu
+and intro evidence, then finish cloud changes before requesting another run. -->
+- Read docs/device-tests/0.0.8-preview4-dark-moon-thor.md and the full reports
+  uploaded in ed8ebef and a09289a. Code 14's bounded Native/CPU menu run reaches
+  file selection at 17.31% emulated speed with choppy audio. The separate owner
+  intro run advances at 16.66%; the owner reports no graphical glitches and the
+  report records no runtime/rendering errors. Its input timing was not observed
+  independently. Do not treat the intro as a controlled menu comparison, infer
+  a speed gain, or qualify gameplay from the observed intro. Audio underruns
+  remain 1,382 and 2,793 respectively; no new intro audio observation was supplied.
+- The published CPU candidate remains 0.0.8-preview.4/code 14. Local correctness/runtime,
   retained-library APK and independent bundle checks pass at implementation
   a77a85e895461f6f62b9fa868c5bab5a82a64b44. Hosted main checks pass at that source;
   tag build/publication and independent public-download verification pass at
   documentation-only release source 62eb45e0c9958d588a06b279f19fcbbd6f9196d6.
-  New Thor checks remain unperformed; no handheld speed gain is established.
+  Its two new Thor reports are now available; no handheld speed gain is established.
   Read docs/builds/0.0.8-cpu-work-followup.md. It reduces repeated vertex-output
   work and full-TEXT verification after unrelated GPU guards, preserving actual
   mapping/backing/protection checks. Fixed decode/placement timers and geometry-
   mode/parallel-vertex batch counts distinguish remaining command work without
-  per-vertex logging. Proceed with the retained-library CPU handoff; do not repeat
-  the unchanged code 13 run. Reuse the retained ARM64
-  library and owner signer for a compatible update with an install code above
-  the installed one, at least 14. Keep Native execution, CPU vertex shaders and
-  Vulkan 1× for one comparable menu run: A around 91 seconds after Play if the
-  title prompt is ready, normal Stop around 110 seconds, at most 120 wall seconds.
-  Record actual timing/progression and stop early on failure/corruption. Export the full
-  JSON before any restart, upload reviewed reports/log excerpts and return
-  verified links. Preserve imports, saves, both 521-object builds and previous
+  per-vertex logging. Preview.5/code 15 is under development: input-decoder
+  specialization and a compact GPU health query target repeated CPU work.
+  Implementation, correctness/performance checks, APK packaging and publication
+  are not yet qualified. Finish those cloud gates before a new local handoff;
+  do not repeat the unchanged code 14 run. Keep Native execution, CPU vertex
+  shaders and Vulkan 1×; further Thor GPU tests remain deferred. The next
+  validated candidate must reuse the retained ARM64 library and owner signer
+  for a compatible update. Preserve imports, saves, both 521-object builds and previous
   reports. No setup, preparation, title compilation or permission reconfiguration
   is required. Automatic and error handling remain unchanged; do not add shader
   dumps, growing logs or optional JIT. No separate public diagnostic APK install

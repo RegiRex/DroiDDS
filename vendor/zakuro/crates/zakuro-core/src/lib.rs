@@ -8,6 +8,10 @@ pub mod cro;
 pub mod download_play;
 // CodexAstraUlt: Fixed-size, opt-in host reconnaissance; normal frontends keep it disabled.
 pub mod diagnostics;
+// CodexAstraUlt: Fixed coarse work totals separate HLE/frame costs without a
+// timer or allocation for ordinary native/interpreted instruction dispatches.
+mod core_work;
+pub use core_work::{CoreWorkDiagnostics, CoreWorkTiming};
 pub mod hints;
 pub mod idle;
 pub mod kernel;
@@ -217,6 +221,8 @@ pub struct System {
     // CodexAstraUlt: One optional completed-SVC marker gives comparison tools
     // a natural materialized boundary without retaining an event trace.
     native_comparison_boundary: Option<Box<diagnostics::NativeComparisonBoundary>>,
+    // CodexAstraUlt: Host-only lifetime observations; not guest state or pacing.
+    core_work: CoreWorkDiagnostics,
     /// branches into unmapped memory, keyed by target.
     pub prefetch_aborts: BTreeMap<u32, u32>,
     /// the last few instruction addresses, so a fault can say how it got there.
@@ -325,6 +331,7 @@ impl System {
             diagnostic_fault: None,
             diagnostic_trace: None,
             native_comparison_boundary: None,
+            core_work: CoreWorkDiagnostics::default(),
             prefetch_aborts: BTreeMap::new(),
             history: [0; HISTORY_LENGTH],
             history_index: 0,
@@ -403,6 +410,12 @@ impl System {
     /// Unsupported services/SVCs and memory faults have their existing counters.
     pub fn diagnostic_fault(&self) -> Option<&DiagnosticFault> {
         self.diagnostic_fault.as_ref()
+    }
+
+    /// CodexAstraUlt: Borrow three fixed totals without constructing a report.
+    /// Nested command time is a subset of each wall scope, not additional work.
+    pub fn core_work_diagnostics(&self) -> &CoreWorkDiagnostics {
+        &self.core_work
     }
 
     /// advances the machine by one instruction, doing whatever scheduling is
@@ -591,7 +604,13 @@ impl System {
                     self.cpu.regs[15].wrapping_sub(if self.cpu.cpsr.thumb { 2 } else { 4 }),
                     self.kernel.current().map(|thread| thread.guest_id),
                 ));
+                // CodexAstraUlt: Time the actual HLE call, including commands
+                // it synchronously submits, while leaving CPU/scheduler timing
+                // and trace bookkeeping outside this coarse scope.
+                let command_before = self.gpu.busy;
+                let started = std::time::Instant::now();
                 kernel::svc::dispatch(self, number);
+                self.core_work.svc.record(started.elapsed(), self.gpu.busy.saturating_sub(command_before));
                 self.trace_svc_exit(entry);
             }
             Some(Exit::Undefined { pc, opcode }) => {
@@ -831,6 +850,10 @@ impl System {
 
     /// everything that happens between frames, vertical blank, input, clock.
     fn end_frame(&mut self) {
+        // CodexAstraUlt: This scope includes a held GSP queue released at the
+        // frame boundary, so retain its nested command time for subtraction.
+        let command_before = self.gpu.busy;
+        let started = std::time::Instant::now();
         self.idle_interrupted(false);
         self.frames += 1;
         if self.frames.is_multiple_of(hints::SAVE_EVERY) {
@@ -864,7 +887,7 @@ impl System {
         // both LCDs finish scanning out, in that order.
         services::gsp::signal_interrupt(self, services::gsp::InterruptId::Pdc0);
         services::gsp::signal_interrupt(self, services::gsp::InterruptId::Pdc1);
-
+        self.core_work.frame.record(started.elapsed(), self.gpu.busy.saturating_sub(command_before));
     }
 
     /// frame interpolation at a refresh. while a title sets a new picture
@@ -923,6 +946,10 @@ impl System {
     /// the DSP finishing an audio frame, it plays its voices one frame on and
     /// interrupts the title, whose sound library does one update per interrupt.
     fn audio_frame(&mut self) {
+        // CodexAstraUlt: Count DSP/peripheral ticks even when DSP is inactive.
+        // Keep any nested command subset explicit rather than assuming zero.
+        let command_before = self.gpu.busy;
+        let started = std::time::Instant::now();
         self.idle_interrupted(false);
         // the whole opening froze until this ran every 4.9 ms. goddamn audio timing
         if self.services.dsp.running {
@@ -936,6 +963,7 @@ impl System {
         services::cam::tick(self);
         services::uds::tick(self);
         services::dlp::tick(self);
+        self.core_work.audio.record(started.elapsed(), self.gpu.busy.saturating_sub(command_before));
     }
 
     /// the stereo samples the console played since the last call, at

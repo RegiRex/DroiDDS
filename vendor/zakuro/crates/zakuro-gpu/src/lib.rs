@@ -676,6 +676,14 @@ impl Gpu {
         self.resources.hardware.as_ref().map(raster::hardware::Hardware::diagnostics)
     }
 
+    /// CodexAstraUlt: Preserve renderer presence and its current draw-failure
+    /// predicate without materializing the report snapshot on every CPU step.
+    /// None denotes software rendering; Some(false) is a present healthy route.
+    #[cfg(feature = "vulkan")]
+    pub fn hardware_draw_failed(&self) -> Option<bool> {
+        self.resources.hardware.as_ref().map(raster::hardware::Hardware::draw_failed)
+    }
+
     /// CodexAstraUlt: Snapshot actual CPU processing batches and their unique
     /// input count separately from GPU draw references and selected policy.
     pub fn vertex_processing_diagnostics(&self) -> VertexProcessingDiagnostics {
@@ -1448,6 +1456,16 @@ fn external_index(gsp_offset: u32) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: A software route must remain distinguishable from a
+    // healthy hardware renderer; neither API fabricates hardware presence.
+    #[cfg(feature = "vulkan")]
+    #[test]
+    fn draw_guard_preserves_absent_hardware_route() {
+        let gpu = Gpu::new();
+        assert!(gpu.hardware_diagnostics().is_none());
+        assert_eq!(gpu.hardware_draw_failed(), None);
+    }
 
     // CodexAstraUlt: The default remains automatic across software-only builds,
     // and serialized/report labels must agree without relying on enum ordinals.

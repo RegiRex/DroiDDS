@@ -64,19 +64,25 @@ audio-perfection work are deferred. The published code 13
 [build record](docs/builds/0.0.8-pipeline-followup.md) retains its passed cloud
 gates and verified public downloads.
 
-The published candidate, **0.0.8-preview.4/code 14**, reduces repeated vertex-output
-work and native code-fence scans after unrelated GPU guards. Fixed CPU decoding
-and placement timings help identify remaining costs; see the
-[build record](docs/builds/0.0.8-cpu-work-followup.md). Local correctness/runtime,
-retained-library APK and independent bundle checks pass at `a77a85e`; hosted main
-checks pass there, and tag build/publication plus independent public-download
-verification pass at `62eb45e`. New Thor checks remain unperformed. Reuse the
-completed private library and signer for one comparable Native/CPU,
-Vulkan 1× menu test: A around 91 seconds if the title prompt is ready, Stop around
-110 seconds, with a 120-wall-second maximum. Upload the full report. No new
-handheld speed gain is established. Automatic stays the default.
-Gameplay, reliable audio, save/resume and sustained speed
-remain unqualified.
+<!-- CodexAstraUlt: Replace the completed code 14 test request with its separate
+menu/intro results and the next cloud candidate's unqualified development state. -->
+The [code 14 Thor reports](docs/device-tests/0.0.8-preview4-dark-moon-thor.md) are
+now available. The bounded menu run reaches file selection at **17.31% emulated
+speed** with choppy audio. A separate owner intro session runs at **16.66%**;
+the owner reports **no graphical glitches**, and the report records no
+runtime/rendering errors. These different scenes and durations do not establish
+a performance improvement. The menu and intro retain 1,382 and 2,793 audio
+underruns respectively; no new intro audio observation was supplied.
+
+Published **0.0.8-preview.4/code 14** remains the current download, with passed
+cloud/publication gates recorded in its [build record](docs/builds/0.0.8-cpu-work-followup.md).
+**Preview.5/code 15 is under development**, targeting repeated attribute-decoding
+work and full GPU diagnostic copies in the CPU execution loop. Validation and
+publication remain pending; finish cloud checks before another local run.
+The retained private title library and signer remain reusable. Native execution,
+CPU vertex shaders and Vulkan 1× remain the test priority; further Thor GPU tests
+are deferred. Gameplay, reliable audio, save/resume and sustained speed remain
+unqualified.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->

@@ -73,6 +73,9 @@ fn component_size(ty: u32) -> u32 {
 }
 
 /// one component of an attribute, from its bytes.
+// CodexAstraUlt: Retain the former component-at-a-time decoder only as an
+// independent equivalence/benchmark baseline for the specialized field path.
+#[cfg(test)]
 fn component(bytes: &[u8], ty: u32) -> f32 {
     match ty {
         0 => bytes[0] as i8 as f32,
@@ -258,6 +261,37 @@ impl LoaderPlan {
     /// an array does not provide read as (0, 0, 0, 1), a two-component
     /// texture coordinate arrives as (u, v, 0, 1).
     fn place(&self, bytes: &[u8], input: &mut [Vec4; shader::INPUT_REGISTERS]) {
+        // CodexAstraUlt: Select the field's format once, with compile-time
+        // component widths/counts. This preserves defaults and float bits while
+        // removing per-component type dispatch and variable-width slicing.
+        for field in &self.fields {
+            let bytes = &bytes[field.offset as usize..];
+            input[field.register] = match (field.ty, field.count) {
+                (0, 1) => field_components::<1, 1>(bytes, |[x]| x as i8 as f32),
+                (0, 2) => field_components::<1, 2>(bytes, |[x]| x as i8 as f32),
+                (0, 3) => field_components::<1, 3>(bytes, |[x]| x as i8 as f32),
+                (0, 4) => field_components::<1, 4>(bytes, |[x]| x as i8 as f32),
+                (1, 1) => field_components::<1, 1>(bytes, |[x]| x as f32),
+                (1, 2) => field_components::<1, 2>(bytes, |[x]| x as f32),
+                (1, 3) => field_components::<1, 3>(bytes, |[x]| x as f32),
+                (1, 4) => field_components::<1, 4>(bytes, |[x]| x as f32),
+                (2, 1) => field_components::<2, 1>(bytes, |x| i16::from_le_bytes(x) as f32),
+                (2, 2) => field_components::<2, 2>(bytes, |x| i16::from_le_bytes(x) as f32),
+                (2, 3) => field_components::<2, 3>(bytes, |x| i16::from_le_bytes(x) as f32),
+                (2, 4) => field_components::<2, 4>(bytes, |x| i16::from_le_bytes(x) as f32),
+                (3, 1) => field_components::<4, 1>(bytes, f32::from_le_bytes),
+                (3, 2) => field_components::<4, 2>(bytes, f32::from_le_bytes),
+                (3, 3) => field_components::<4, 3>(bytes, f32::from_le_bytes),
+                (3, 4) => field_components::<4, 4>(bytes, f32::from_le_bytes),
+                _ => unreachable!("attribute formats have four types and one to four components"),
+            };
+        }
+    }
+
+    // CodexAstraUlt: Keep the original decoder verbatim for authored bitwise
+    // comparisons and paired fetch measurements; application builds omit it.
+    #[cfg(test)]
+    fn place_componentwise(&self, bytes: &[u8], input: &mut [Vec4; shader::INPUT_REGISTERS]) {
         for field in &self.fields {
             let size = component_size(field.ty) as usize;
             let mut value = [0.0f32, 0.0, 0.0, 1.0];
@@ -268,6 +302,18 @@ impl LoaderPlan {
             input[field.register] = value;
         }
     }
+}
+
+// CodexAstraUlt: One checked field range supplies fixed-size components. Short
+// attributes retain (0, 0, 0, 1); no arithmetic touches a stored float value.
+#[inline(always)]
+fn field_components<const SIZE: usize, const COUNT: usize>(bytes: &[u8], convert: impl Fn([u8; SIZE]) -> f32) -> Vec4 {
+    let components = bytes[..SIZE * COUNT].as_chunks::<SIZE>().0;
+    let mut value = [0.0, 0.0, 0.0, 1.0];
+    for i in 0..COUNT {
+        value[i] = convert(components[i]);
+    }
+    value
 }
 
 /// the words a draw's vertex layout comes from: the attribute formats,
@@ -2888,6 +2934,188 @@ mod tests {
         let plan = plans.update(&registers, &fixed);
         assert_eq!(plan.fetch(&mut memory, 0x2000_0000, 0)[0], [5.0, 6.0, 0.0, 1.0]);
         assert_eq!(plans.keys.len(), 2);
+    }
+
+    // CodexAstraUlt: This retained fetch baseline differs only in its original
+    // component decoder; comparisons include translation, slices and fallback
+    // reads rather than benchmarking a detached arithmetic helper.
+    fn fetch_componentwise<M: GpuMemory>(plan: &InputPlan, memory: &mut M, base: u32, vertex_index: u32) -> [Vec4; shader::INPUT_REGISTERS] {
+        let mut input = plan.template;
+        for loader in &plan.loaders {
+            let vertex = memory.translate(base + loader.offset + vertex_index * loader.stride);
+            let size = loader.size as usize;
+            match memory.slice(vertex, size) {
+                Some(bytes) => loader.place_componentwise(bytes, &mut input),
+                None => {
+                    let mut bytes = [0u8; 256];
+                    memory.read(vertex, &mut bytes[..size]);
+                    loader.place_componentwise(&bytes[..size], &mut input);
+                }
+            }
+        }
+        input
+    }
+
+    // CodexAstraUlt: Authored byte patterns cover every input format, integer
+    // sign boundary and float bit pattern without retail-derived input data.
+    fn input_bytes() -> Vec<u8> {
+        let words: [u32; 16] = [0, 0x8000_0000, 0x7F80_0000, 0xFF80_0000,
+            0x7FC1_2345, 0xFFC5_4321, 1, 0x8000_0001, 0x7F7F_FFFF,
+            0x0080_0000, 0x007F_FFFF, 0xBF80_0000, 0x3F80_0000,
+            0x807F_FF00, 0x8000_7FFF, 0x0102_0304];
+        words.into_iter().flat_map(u32::to_le_bytes).cycle().take(8192).collect()
+    }
+
+    // CodexAstraUlt: Observe the complete memory-call sequence as well as all
+    // sixteen register rows, so specialization cannot silently avoid a fetch.
+    struct ObservedInputMemory {
+        memory: ConsoleMemory,
+        events: std::cell::RefCell<Vec<(u8, u32, usize)>>,
+    }
+
+    impl GpuMemory for ObservedInputMemory {
+        fn read(&mut self, addr: u32, out: &mut [u8]) {
+            self.events.get_mut().push((1, addr, out.len()));
+            self.memory.read(addr, out);
+        }
+
+        fn write(&mut self, addr: u32, bytes: &[u8]) {
+            self.memory.write(addr, bytes);
+        }
+
+        fn slice(&mut self, addr: u32, len: usize) -> Option<&[u8]> {
+            self.events.get_mut().push((2, addr, len));
+            self.memory.slice(addr, len)
+        }
+
+        fn translate(&self, addr: u32) -> u32 {
+            self.events.borrow_mut().push((0, addr, 0));
+            self.memory.translate(addr)
+        }
+    }
+
+    // CodexAstraUlt: Compare register bits, including NaN payloads and signed
+    // zero, rather than float equality or approximate numeric equivalence.
+    fn input_bits(input: [Vec4; shader::INPUT_REGISTERS]) -> [[u32; 4]; shader::INPUT_REGISTERS] {
+        input.map(|row| row.map(f32::to_bits))
+    }
+
+    // CodexAstraUlt: Exhaust the sixteen legal formats with all register rows
+    // compared and identical calls required on direct and fallback memory paths.
+    #[test]
+    fn specialized_input_fetch_matches_every_format_and_memory_path() {
+        for whole in [true, false] {
+            for ty in 0..4 {
+                for count in 1..=4 {
+                    let mut registers = vec![0; 0x300];
+                    registers[REG_ATTRIBUTE_FORMAT_LOW] = ty | ((count - 1) << 2);
+                    registers[REG_ATTRIBUTE_LOADER] = 0x1000;
+                    // A word of padding precedes the field; stride deliberately
+                    // exceeds its size, and the destination is register fifteen.
+                    registers[REG_ATTRIBUTE_LOADER + 1] = 0x0C;
+                    registers[REG_ATTRIBUTE_LOADER + 2] = (2 << 28) | (28 << 16);
+                    registers[REG_VS_BLOCK + SHADER_INPUT_MAP_LOW] = 15;
+                    let plan = InputPlan::new(&registers, &VertexLayout::read(&registers), &[shader::ZERO; 16]);
+                    let mut memory = ConsoleMemory { whole, ..ConsoleMemory::default() };
+                    memory.write(0x1000, &input_bytes());
+                    let mut before = ObservedInputMemory { memory: memory.clone(), events: Default::default() };
+                    let mut after = ObservedInputMemory { memory, events: Default::default() };
+                    for index in 0..64 {
+                        let expected = fetch_componentwise(&plan, &mut before, 0, index);
+                        let found = plan.fetch(&mut after, 0, index);
+                        assert_eq!(input_bits(found), input_bits(expected), "whole {whole}, type {ty}, count {count}, vertex {index}");
+                        assert_eq!(*after.events.borrow(), *before.events.borrow());
+                    }
+                }
+            }
+        }
+    }
+
+    // CodexAstraUlt: Preserve last-owner precedence, physical-region translation,
+    // fixed values and missing-component defaults independently of the baseline.
+    #[test]
+    fn specialized_input_fetch_preserves_shadowing_fixed_values_and_defaults() {
+        let mut registers = vec![0; 0x300];
+        // Float4, unsigned-byte2 and signed-short3, in two loaders. The later
+        // loader owns attribute one; its later map entry also owns register 7.
+        registers[REG_ATTRIBUTE_FORMAT_LOW] = 0xA5F;
+        registers[REG_ATTRIBUTE_FORMAT_HIGH] = (1 << 17) | (1 << 19) | (1 << 20);
+        registers[REG_ATTRIBUTE_LOADER] = 0x0800_0100;
+        registers[REG_ATTRIBUTE_LOADER + 1] = 0x210;
+        registers[REG_ATTRIBUTE_LOADER + 2] = (3 << 28) | (32 << 16);
+        registers[REG_ATTRIBUTE_LOADER + REG_ATTRIBUTE_LOADER_STRIDE] = 0x0800_0200;
+        registers[REG_ATTRIBUTE_LOADER + REG_ATTRIBUTE_LOADER_STRIDE + 1] = 1;
+        registers[REG_ATTRIBUTE_LOADER + REG_ATTRIBUTE_LOADER_STRIDE + 2] = (1 << 28) | (4 << 16);
+        registers[REG_VS_NUM_INPUT_ATTRIBUTES] = 5;
+        registers[REG_VS_BLOCK + SHADER_INPUT_MAP_LOW] = 0xA98377;
+        let mut fixed = [shader::ZERO; 16];
+        fixed[3] = [f32::from_bits(0x7FC1_2345), -0.0, f32::NEG_INFINITY, 1.0];
+        fixed[4] = [-1.0, 2.0, 3.0, 4.0];
+        let plan = InputPlan::new(&registers, &VertexLayout::read(&registers), &fixed);
+        let mut memory = ConsoleMemory::scattered();
+        memory.write(0x1400_0100, &input_bytes()[..32]);
+        memory.write(0x1400_0112, &[0x00, 0x80, 0xFF, 0x7F, 0xFF, 0xFF]);
+        memory.write(0x1400_0200, &[255, 128]);
+        let mut before = ObservedInputMemory { memory: memory.clone(), events: Default::default() };
+        let mut after = ObservedInputMemory { memory, events: Default::default() };
+        let expected = fetch_componentwise(&plan, &mut before, 0x1800_0000, 0);
+        let found = plan.fetch(&mut after, 0x1800_0000, 0);
+        assert_eq!(input_bits(found), input_bits(expected));
+        assert_eq!(*after.events.borrow(), *before.events.borrow());
+        assert_eq!(found[7], [255.0, 128.0, 0.0, 1.0]);
+        assert_eq!(found[3], [-32768.0, 32767.0, -1.0, 1.0]);
+        assert_eq!(found[8].map(f32::to_bits), fixed[3].map(f32::to_bits));
+        assert_eq!(found[9], fixed[4]);
+        assert_eq!(found[10], [0.0, 0.0, 0.0, 1.0]);
+        for register in [0, 1, 2, 4, 5, 6, 11, 12, 13, 14, 15] {
+            assert_eq!(found[register], shader::ZERO);
+        }
+    }
+
+    // CodexAstraUlt: Pair complete fetches in one binary, alternate their order,
+    // and include small/large indexed patterns, mixed/float formats and the read
+    // fallback. This bounded original-fixture measurement is not Thor evidence.
+    #[test]
+    #[ignore = "bounded input-fetch microbenchmark; not a correctness gate"]
+    fn benchmark_specialized_input_fetch_against_componentwise() {
+        use std::hint::black_box;
+        for (name, formats) in [("float", 0xF_FFFF), ("mixed", 0x6_7AFD)] {
+            let mut registers = vec![0; 0x300];
+            registers[REG_ATTRIBUTE_FORMAT_LOW] = formats;
+            registers[REG_ATTRIBUTE_LOADER] = 0x1000;
+            registers[REG_ATTRIBUTE_LOADER + 1] = 0x43210;
+            registers[REG_ATTRIBUTE_LOADER + 2] = (5 << 28) | (80 << 16);
+            registers[REG_VS_NUM_INPUT_ATTRIBUTES] = 4;
+            registers[REG_VS_BLOCK + SHADER_INPUT_MAP_LOW] = 0x43210;
+            let plan = InputPlan::new(&registers, &VertexLayout::read(&registers), &[shader::ZERO; 16]);
+            for whole in [true, false] {
+                let mut memory = ConsoleMemory { whole, ..ConsoleMemory::default() };
+                let bytes = input_bytes();
+                for start in (0x1000..0x19000).step_by(bytes.len()) {
+                    memory.write(start, &bytes);
+                }
+                for count in [24, 320, 1024] {
+                    let indices: Vec<_> = (0..count).map(|index| (index * 37 % 1024) as u32).collect();
+                    for round in 0..4 {
+                        for specialized in if round % 2 == 0 { [false, true] } else { [true, false] } {
+                            let started = Instant::now();
+                            for _ in 0..(262_144 / count) {
+                                for &index in &indices {
+                                    let result = if specialized {
+                                        black_box(&plan).fetch(black_box(&mut memory), 0, black_box(index))
+                                    } else {
+                                        fetch_componentwise(black_box(&plan), black_box(&mut memory), 0, black_box(index))
+                                    };
+                                    black_box(result);
+                                }
+                            }
+                            eprintln!("input fetch {name}, whole {whole}, batch {count}, round {round}, specialized {specialized}, vertices {}, elapsed {:?}",
+                                (262_144 / count) * count, started.elapsed());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     const COLOR: u32 = 0x1000;

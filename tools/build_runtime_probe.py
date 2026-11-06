@@ -38,12 +38,20 @@ GPU_REQUIRED_TESTS = {
     "raster::tests::vertex_output_plan_matches_all_masks_and_semantic_defaults",
     "raster::tests::mapped_vertex_packing_preserves_serial_and_parallel_order",
     "shader::tests::mapped_divergent_batches_preserve_partial_outputs",
+    # CodexAstraUlt: Decode equivalence and live error guards must execute for
+    # both normal and forced-static renderer qualification.
+    "raster::tests::specialized_input_fetch_matches_every_format_and_memory_path",
+    "raster::tests::specialized_input_fetch_preserves_shadowing_fixed_values_and_defaults",
+    "raster::hardware::tests::draw_guard_matches_full_snapshot_with_live_error_combinations",
+    "tests::draw_guard_preserves_absent_hardware_route",
 }
 # CodexAstraUlt: Performance comparisons run separately in release mode; their
 # exact output controls remain mandatory ordinary tests, never ignored gates.
 GPU_IGNORED_BENCHMARKS = {"shader::tests::batch_speed", "shader::tests::compiled_speed",
                           "shader::tests::mapped_vertex_batch_speed",
-                          "raster::tests::benchmark_vertex_output_plan_against_packing"}
+                          "raster::tests::benchmark_vertex_output_plan_against_packing",
+                          "raster::tests::benchmark_specialized_input_fetch_against_componentwise",
+                          "raster::hardware::tests::measure_draw_guard_against_snapshot"}
 LOADER_REQUIRED_TESTS = {
     "droidds_real_loader_reports_geometry_and_executes_every_supported_mode",
     "droidds_real_kernel_resource_limit_heap_linear_and_hid_base_allocation",

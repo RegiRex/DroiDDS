@@ -1728,6 +1728,13 @@ pub struct Hardware {
 }
 
 impl Hardware {
+    // CodexAstraUlt: Dispatch guards need only these existing failure fields.
+    // Borrow them directly instead of cloning the full report and its optional
+    // pipeline evidence for every interpreted instruction or native dispatch.
+    pub(crate) fn draw_failed(&self) -> bool {
+        self.diagnostics.draw_errors != 0 || self.diagnostics.last_error.is_some()
+    }
+
     // CodexAstraUlt: The public snapshot is bounded evidence; never expose
     // shaders, guest buffers or continuously sampled per-draw logs.
     pub fn diagnostics(&self) -> HardwareDiagnostics {
@@ -5928,6 +5935,65 @@ fn pick(instance: &ash::Instance) -> Result<(vk::PhysicalDevice, u32), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: Mutate the live renderer through all existing error-field
+    // combinations. The compact guard must match the old owned snapshot,
+    // including an empty error string and unrelated compiler/failure evidence.
+    #[test]
+    fn draw_guard_matches_full_snapshot_with_live_error_combinations() {
+        let mut hardware = Hardware::new().expect("Vulkan renderer for draw-guard parity");
+        hardware.diagnostics.compiler_failures = 7;
+        let key = generic_keys(true)[0];
+        hardware.diagnostics.pipeline_failures.background = Some(PipelineFailure::from_key(
+            &key, Dynamic::default(), vk::PipelineCreateFlags::empty(),
+            vk::Result::ERROR_UNKNOWN, [None, None]));
+        for count in [0, 1, u64::MAX] {
+            for error in [None, Some(String::new()), Some("original fixture failure".into())] {
+                hardware.diagnostics.draw_errors = count;
+                hardware.diagnostics.last_error = error;
+                let snapshot = hardware.diagnostics();
+                assert_eq!(hardware.draw_failed(), snapshot.draw_errors != 0 || snapshot.last_error.is_some());
+                assert_eq!(hardware.draw_failed(), count != 0 || hardware.diagnostics.last_error.is_some());
+                assert_eq!(snapshot.compiler_failures, 7);
+                assert!(snapshot.pipeline_failures.background.is_some());
+            }
+        }
+        hardware.diagnostics.draw_errors = 0;
+        hardware.diagnostics.last_error = None;
+        assert!(!hardware.draw_failed(), "a cleared live failure cannot remain cached");
+    }
+
+    // CodexAstraUlt: Optional same-binary measurement isolates the removed
+    // snapshot work on a healthy authored renderer. It has no timing threshold
+    // and cannot qualify a private title or handheld performance improvement.
+    #[test]
+    #[ignore = "manual same-binary host measurement"]
+    fn measure_draw_guard_against_snapshot() {
+        let hardware = Hardware::new().expect("host renderer for guard measurement");
+        const CHECKS: u64 = 2_000_000;
+        // CodexAstraUlt: Alternate order in one binary rather than attributing
+        // a first-run/cache difference to the change being measured.
+        for round in 0..3 {
+            let mut elapsed = [std::time::Duration::ZERO; 2];
+            for kind in if round % 2 == 0 { [0, 1] } else { [1, 0] } {
+                let mut results = 0;
+                let before = std::time::Instant::now();
+                for _ in 0..CHECKS {
+                    let failed = if kind == 0 {
+                        let snapshot = std::hint::black_box(&hardware).diagnostics();
+                        snapshot.draw_errors != 0 || snapshot.last_error.is_some()
+                    } else {
+                        std::hint::black_box(&hardware).draw_failed()
+                    };
+                    results += std::hint::black_box(failed) as u64;
+                }
+                elapsed[kind] = before.elapsed();
+                assert_eq!(results, 0);
+            }
+            eprintln!("original healthy renderer: round={round}; checks={CHECKS}; snapshot_bytes={}; snapshot_ns={}; guard_ns={}",
+                std::mem::size_of::<HardwareDiagnostics>(), elapsed[0].as_nanos(), elapsed[1].as_nanos());
+        }
+    }
 
     // CodexAstraUlt: Fingerprints are over canonical little-endian SPIR-V bytes,
     // independent of whether a built-in blob or Naga word vector supplied them.

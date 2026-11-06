@@ -283,9 +283,9 @@ class PublicPolicyTests(unittest.TestCase):
         for tag, commit in (("v0.0.7-preview.1", COMMIT), ("v0.0.7-preview.2", COMMIT),
                             ("v0.0.7-preview.3", COMMIT), ("v0.0.7-preview.4", COMMIT),
                             ("v0.0.8-preview.1", COMMIT), ("v0.0.8-preview.2", COMMIT),
-                            ("v0.0.8-preview.3", COMMIT),
+                            ("v0.0.8-preview.3", COMMIT), ("v0.0.8-preview.4", COMMIT),
                             ("v0.1.0", COMMIT), (RELEASE.TAG, "main"),
-                            (RELEASE.TAG, "A" * 40), ("../v0.0.8-preview.4", COMMIT)):
+                            (RELEASE.TAG, "A" * 40), ("../v0.0.8-preview.5", COMMIT)):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 RELEASE.identity(tag, commit)
 
