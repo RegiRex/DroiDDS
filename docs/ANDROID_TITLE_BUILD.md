@@ -3,8 +3,9 @@
 <!-- CodexAstraUlt: Replace the completed code 14 task with the new candidate;
 publication must pass before another private device run. -->
 The published candidate is **0.0.8-preview.4/code 14**. The next candidate,
-**0.0.8-preview.5/code 15**, is under development with cloud/package/publication
-checks pending. Read its [build record](builds/0.0.8-cpu-decode-followup.md).
+**0.0.8-preview.5/code 15**, passes local correctness/runtime, retained-library
+APK and independent bundle checks at `f687911`. Hosted publication and
+independent public-download verification remain pending. Read its [build record](builds/0.0.8-cpu-decode-followup.md).
 The player retains application ID `org.droidds.title.t<program_id>` and the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
 
@@ -22,8 +23,9 @@ this update rebuilds the shared player/frontend, not the 521 title objects.
 
 <!-- CodexAstraUlt: Keep the existing anchor stable while replacing the finished
 GPU diagnostic with one CPU performance test after verified publication. -->
-Preview.5's local correctness/runtime/graphics/package, hosted publication and
-independent public-download checks are pending. Wait for those gates before this
+Preview.5's local correctness/runtime/graphics/package checks pass at `f687911`.
+Hosted publication and independent public-download checks remain pending. Wait
+for those gates before this
 retained-library update and bounded Thor run;
 no separate public original APK installation is required. Keep **Native guest
 execution, CPU vertex shaders, Vulkan 1×** and comparable menu

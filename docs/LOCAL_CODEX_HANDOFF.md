@@ -2,8 +2,9 @@
 
 <!-- CodexAstraUlt: Replace the completed code 14 test with one changed update;
 cloud validation and publication remain prerequisites for the next private run. -->
-Current candidate: **0.0.8-preview.5/code 15**, under development.
-Cloud correctness, package and publication gates are pending. Read
+Current candidate: **0.0.8-preview.5/code 15**. Local correctness/runtime,
+retained-library APK and independent bundle checks pass at `f687911`.
+Hosted publication and independent public-download verification remain pending. Read
 [the build record](builds/0.0.8-cpu-decode-followup.md), [AGENTS.md](../AGENTS.md)
 and [the current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
 Do not repeat the unchanged code 14 test.
