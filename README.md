@@ -8,20 +8,21 @@ An Android ARM64 3DS recompilation project built around **3dsrecomp + Zakuro**.
 The desktop builder will translate supported guest CPU code into native libraries;
 a shared runtime will retain 3DS services, graphics, audio and interpreter fallback.
 
-<!-- CodexAstraUlt: Lead with the current product work instead of making readers
-infer progress from the historical probe and private tracing records below. -->
-**[0.0.8-preview.5/code 15 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5), the current generic Android title player candidate.**
+<!-- CodexAstraUlt: Lead with the verified current candidate and downloads;
+retain private performance evidence separately from passed cloud gates. -->
+**[0.0.8-preview.6/code 16 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6), the current generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest.
 Host, main and release CI pass for that published candidate; the four public
 downloads are independently verified.
-[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.5/DroiDDS-0.0.8-preview.5-original-android-arm64.apk).
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.6/DroiDDS-0.0.8-preview.6-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
-The [candidate build record](docs/builds/0.0.8-cpu-decode-followup.md) records
-release source `365c1a0`, exact public artifact identities and executed gates.
+The [candidate build record](docs/builds/0.0.8-service-projection-followup.md)
+records implementation `64f1404`, release source
+`2354ed0`, exact public artifact identities and executed gates.
 
 <!-- CodexAstraUlt: Credit private menu boot separately from the new public
 original-fixture release; neither establishes a qualified playable segment. -->
@@ -84,8 +85,8 @@ See the [build record](docs/builds/0.0.8-cpu-decode-followup.md). The previous
 [code 14 build record](docs/builds/0.0.8-cpu-work-followup.md) preserves its own
 source and artifact identities.
 
-<!-- CodexAstraUlt: Replace the completed code 15 request with its actual
-measurement and the next candidate's unqualified development status. -->
+<!-- CodexAstraUlt: Preserve the completed code 15 measurement while separating
+verified preview.6 cloud publication from its unperformed Thor check. -->
 The [code 15 Thor test](docs/device-tests/0.0.8-preview5-dark-moon-thor.md) reaches
 file selection at **16.70% speed**, with no reported runtime/rendering errors.
 No improvement is established; the saved File 1 panel changes the post-A workload.
@@ -93,12 +94,16 @@ New counters identify **33.975 seconds of SVC work outside the PICA command-list
 timer**, which can still include transfers and GPU synchronization. Another
 6.779 seconds remains unclassified. No new audio observation was supplied.
 
-**Preview.6/code 16 is under cloud development.** A shader-output projection
-prototype and detailed fixed SVC/service/GSP attribution are being evaluated;
-benchmarks, validation, packaging and publication remain pending. Native
-execution, CPU vertex shaders and Vulkan 1× remain the priority. No unchanged
-code 15 run is needed. Gameplay, reliable audio, save/resume and sustained speed
-remain unqualified.
+**Preview.6/code 16 is published.** It projects completed CPU shader outputs
+directly into compact raster vertices and adds fixed SVC/service/GSP attribution
+for the previously unclassified nested work. Local correctness/runtime,
+retained-library APK, independent bundle and hosted main checks pass at
+`64f1404`; tag publication and independent public-download
+verification pass at `2354ed0`.
+Authored x86-64 component benchmarks improve; **the new Thor test is unperformed,
+and no handheld speed gain is established**. Native execution, CPU vertex
+shaders and Vulkan 1× remain the priority. No unchanged code 15 run is needed.
+Gameplay, reliable audio, save/resume and sustained speed remain unqualified.
 
 <!-- CodexAstraUlt: The owner's connection instruction requires an actual pause,
 while cloud development and preparation of a reviewable package may continue. -->

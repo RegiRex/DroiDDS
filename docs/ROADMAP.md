@@ -3,14 +3,15 @@
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
 The public title-player candidate is
-**[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**;
+**[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. The published candidate implements the generic per-title
 Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
-The [candidate build record](builds/0.0.8-cpu-decode-followup.md) records release
-source `365c1a0`, exact public artifact identities and executed gates. The
+The [candidate build record](builds/0.0.8-service-projection-followup.md) records
+implementation `64f1404`, release source `2354ed0`,
+exact public artifact identities and executed gates. The
 [code 14 Thor reports](device-tests/0.0.8-preview4-dark-moon-thor.md) now record a
 bounded menu run at **17.31% emulated speed** with choppy audio, and a separate
 owner intro run at **16.66%**. The owner reports **no graphical glitches** in that
@@ -22,7 +23,8 @@ qualify a playable segment or close the 0.0.8 gate.
 from its completed device report into the next measured cloud work. -->
 **Preview.5/code 15 is published and tested on Thor.** Its local/runtime/package
 and hosted main checks pass at `f687911`; publication and independent public
-asset verification pass at `365c1a0`. The
+asset verification pass at `365c1a0`; its
+[build record](builds/0.0.8-cpu-decode-followup.md) preserves those identities. The
 [code 15 report](device-tests/0.0.8-preview5-dark-moon-thor.md) reaches file
 selection at **16.70% speed**, with no reported runtime/rendering errors and no
 established gain. File 1 is now populated, so the post-A workload differs from
@@ -31,10 +33,18 @@ the earlier empty menu. There is no new listening observation.
 The report attributes **33.975 seconds to SVC work outside the PICA command-list
 timer** and leaves 6.779 seconds unclassified. Transfers, fills, DMA and GPU
 synchronization can still be part of the SVC remainder; it is not proven pure
-kernel overhead or non-rendering time. **Preview.6/code 16 is under cloud
-development**, evaluating a shader-output projection prototype and detailed
-fixed SVC/service/GSP attribution. Benchmarks, correctness/package checks and
-publication remain pending. No new device run is authorized by this status.
+kernel overhead or non-rendering time.
+
+<!-- CodexAstraUlt: Advance verified cloud publication without promoting host
+component gains to a handheld result or closing the playability milestone. -->
+**Preview.6/code 16 is published.** It projects completed CPU shader outputs
+directly into compact raster vertices and adds fixed SVC/service/GSP attribution.
+Local correctness/runtime, retained-library APK, independent bundle and hosted
+main checks pass at `64f1404`; tag publication and independent
+public-download verification pass at `2354ed0`. Authored x86-64
+component benchmarks improve, but the new Thor test remains **unperformed**
+and no handheld speed gain is established. Publication does not authorize a new
+device run or close the 0.0.8 playability gate.
 
 Native execution, CPU vertex shaders and Vulkan 1× remain the priority. Further
 Thor GPU tests and audio-perfection work remain deferred. The code 14
@@ -117,9 +127,9 @@ prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
 preserving the owner signing identity and existing reports. The code 15 run is
-complete; do not repeat it unchanged. Finish preview.6's cloud gates before the
-next local package. Reuse the completed title library and prepare a compatible
-package from existing records before device access when possible.
+complete; do not repeat it unchanged. Preview.6's cloud gates and publication
+are verified. Reuse the completed title library and prepare a compatible package
+from existing records before requesting device access when possible.
 
 <!-- CodexAstraUlt: Preserve the explicit owner approval boundary for every new
 Thor batch without blocking independent cloud code/build/report work. -->
@@ -417,16 +427,18 @@ gates; public fixture progress must not silently close the private baseline. -->
    Carry historical A evidence explicitly; do not rewrite the new report or
    erase its eleven underruns. Keep scheduler/CRO, first-use pipeline-stall and
    sustained-memory work.
-3. Preserve both completed Dark Moon target builds and separate code 11/12/13
-   reports. Code 13 does not establish a CPU speed gain; further Thor GPU tests
-   are deferred. Preview.4's local correctness/runtime/APK/bundle and hosted
-   publication/independent download checks pass. Repackage the
-   retained library with the existing signer for one comparable Native/CPU,
-   Vulkan 1× menu run. Match A around 91 seconds if ready and Stop around 110,
-   never exceeding 120 wall seconds. Export its full report before another restart, then
+3. Preserve both completed Dark Moon target builds and all separate code 11–15
+   reports. Preview.6's cloud correctness/runtime/APK/bundle, hosted publication
+   and independent public-download gates pass; its new Thor test is unperformed.
+   Repackage the retained library with the existing signer using prior build
+   records, then **signal the owner and STOP until explicit approval** before
+   any Thor/ADB connection, discovery, export, installation or testing.
+   After approval, run one comparable Native/CPU, Vulkan 1× menu test. Match A
+   around 91 seconds if ready and normal Stop around 110; never exceed 120 wall
+   seconds. Export the full report before restart, then
    [upload reviewed diagnostics](DEVICE_REPORT_HANDOFF.md) with verified links.
    Do not repeat setup, source generation, title compilation, historical traces
-   or the unchanged failed GPU attempt.
+   or failed GPU attempts; further Thor GPU tests remain deferred.
 
 The integrated guest exposed a conditional-control-flow accounting defect in the
 selected compiler: before correction, the reference executed 598 instructions

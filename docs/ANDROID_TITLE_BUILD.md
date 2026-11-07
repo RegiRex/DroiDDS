@@ -1,20 +1,25 @@
 # Build an Android title candidate
 
-<!-- CodexAstraUlt: Preserve published code 15 identities while replacing its
-completed device task with the next candidate and explicit connection approval. -->
-The published candidate remains **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**.
-Local/runtime/package and hosted main checks pass at `f687911`; publication and
-independent download verification pass at `365c1a0`. Its
-[build record](builds/0.0.8-cpu-decode-followup.md) retains those identities.
+<!-- CodexAstraUlt: Publish verified preview.6 cloud gates while preserving
+code 15 identities and the owner's explicit new-device approval boundary. -->
+The published candidate is **[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**.
+Local correctness/runtime, retained-library APK, independent bundle and hosted
+main checks pass at `64f1404`; tag publication and independent
+public-download verification pass at `2354ed0`. Its
+[build record](builds/0.0.8-service-projection-followup.md) retains exact identities.
+
+Historical preview.5/code 15 passed local/runtime/package and hosted main checks
+at `f687911`, with publication and independent download verification at
+`365c1a0`. Its [build record](builds/0.0.8-cpu-decode-followup.md) remains preserved.
 The [completed code 15 test](device-tests/0.0.8-preview5-dark-moon-thor.md) reaches
 file selection at 16.70% speed with no reported runtime/rendering errors; no
 improvement is established. Its 33.975-second SVC remainder lies outside the
 PICA command-list timer, not necessarily outside rendering/GPU work.
 
-**Preview.6/code 16 is under cloud development.** A shader-output projection
-prototype and fixed SVC/service/GSP attribution are being evaluated; benchmarks,
-correctness, packaging and publication remain pending. No unchanged code 15 run
-is needed. The player retains application ID `org.droidds.title.t<program_id>`
+Preview.6 implements CPU shader-output projection and fixed SVC/service/GSP
+attribution. Authored x86-64 component benchmarks improve; the new Thor test is
+**unperformed**, and no handheld speed gain is established. No unchanged code 15
+run is needed. The player retains application ID `org.droidds.title.t<program_id>`
 and the [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
 An existing preparation supplies the same generated C/headers to both target
 compilers. Completed Linux and ARM64 libraries remain reusable; repackaging
@@ -22,12 +27,14 @@ rebuilds the shared player/frontend, not the 521 title objects.
 
 ## Current Dark Moon repackaging and audio test
 
-<!-- CodexAstraUlt: Keep this established anchor while requiring completed
-cloud gates and a prepared package before the owner's new connection decision. -->
-Preview.6's cloud correctness/package/publication gates are pending. Finish those
-before the next local packaging batch. Further Thor GPU tests and audio-perfection
-work remain deferred. The eventual approved test keeps **Native guest execution,
-CPU vertex shaders and Vulkan 1×**. Automatic stays the ordinary default.
+<!-- CodexAstraUlt: Keep this established anchor and verified cloud status;
+prepare the compatible package before the owner's new connection decision. -->
+Preview.6's cloud correctness/package/publication gates and independent public
+download verification pass. Repackage the retained title library using the
+working tools and owner signer. Further Thor GPU tests and audio-perfection
+work remain deferred. The new Thor test is unperformed; the eventual approved
+test keeps **Native guest execution, CPU vertex shaders and Vulkan 1×**.
+Automatic stays the ordinary default.
 
 **Before any new Thor/ADB connection or device-work batch, signal the owner and
 STOP until explicit approval.** This includes discovery, report export,

@@ -110,16 +110,26 @@ scope, while preserving the published artifact history and new access boundary. 
   not necessarily outside rendering/GPU work. Transfers, fills, DMA and GPU
   synchronization can occur in that scope. The remaining unclassified core time
   is 6.779 seconds; do not label it native execution time alone.
-- Preview.6/code 16 is under cloud development. A fused shader-output projection
-  prototype and fixed SVC/service/GSP attribution are being evaluated; benchmarks,
-  correctness checks, packaging and publication remain pending. Do not claim an
-  implemented speed gain or request an unchanged code 15 run. Finish cloud gates
-  before the next local packaging batch. Reuse working tools, preparation, both
-  completed 521-object builds/libraries and the owner signer. Prepare a compatible
-  update with a code above the last verified installation and at least 16, using
-  existing records before connection approval. Then signal the owner and STOP
-  until explicit approval before any Thor/ADB connection, discovery, export,
-  install or test. Preserve imports, saves and previous reports.
+
+<!-- CodexAstraUlt: Publish only after source-bound cloud and download gates;
+keep host component measurements separate from the unperformed Thor check. -->
+
+- Published 0.0.8-preview.6/code 16 passed local correctness/runtime,
+  retained-library APK and independent bundle checks at implementation
+  64f1404ed0a357cf9325568a2376137079b120ad. Hosted main checks passed there;
+  tag build/publication and independent public-download verification passed at
+  release source 2354ed0f516926ff11fd613d95333141040cc3af. Read
+  docs/builds/0.0.8-service-projection-followup.md for exact gates and identities.
+  The ordinary CPU vertex route projects completed shader outputs directly into
+  compact raster vertices; fixed SVC/service/GSP tables identify nested work.
+  Authored x86-64 component benchmarks improve, but no new Thor result or
+  handheld speed gain is established. Do not repeat the unchanged code 15 run.
+  Reuse working tools, preparation, both completed 521-object builds/libraries
+  and the owner signer. Prepare a compatible update with a code above the last
+  verified installation and at least 16, using existing records before
+  connection approval. Then signal the owner and STOP until explicit approval
+  before any Thor/ADB connection, discovery, export, install or test. Preserve
+  imports, saves and previous reports.
   The eventual approved test keeps Native execution, CPU vertex shaders and
   Vulkan 1×, with A around 91 seconds if ready and normal Stop around 110 seconds,
   bounded by 120 wall seconds. Export the full JSON before restart and upload

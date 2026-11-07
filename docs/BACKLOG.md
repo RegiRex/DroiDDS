@@ -1,8 +1,8 @@
 # DroidDS implementation queue
 
-<!-- CodexAstraUlt: Replace the completed code 15 test with the measured SVC
-scope and the next candidate's pending cloud work; preserve published identities. -->
-The published candidate remains **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**.
+<!-- CodexAstraUlt: Publish verified preview.6 cloud progress while retaining
+code 15 evidence and the explicit approval boundary for its new Thor check. -->
+The published candidate is **[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**.
 DDS-012/013's generic title session, matching import, durable runtime storage,
 controls/audio/lifecycle and per-title ARM64 packaging are implemented. Published
 code 15 passes local/runtime/package and hosted main checks at `f687911`, with
@@ -18,18 +18,24 @@ command-list timer**, not necessarily outside rendering/GPU work. The remaining
 observation is supplied. The [code 14 menu/intro evidence](device-tests/0.0.8-preview4-dark-moon-thor.md)
 retains its separate results and owner's no-intro-glitches observation.
 
-**Preview.6/code 16 is under cloud development.** Evaluate the shader-output
-projection prototype and detailed fixed SVC/service/GSP attribution, with
-benchmarks and correctness checks before packaging/publication. These gates
-remain pending. Native execution, CPU vertex shaders and Vulkan 1× remain the
-priority; further Thor GPU tests and audio-perfection work are deferred. No
-unchanged code 15 test, title regeneration or setup repeat is needed.
+**Preview.6/code 16 is published.** The ordinary CPU vertex route projects
+completed shader outputs directly into compact raster vertices, with fixed
+SVC/service/GSP attribution for nested work. Local correctness/runtime,
+retained-library APK, independent bundle and hosted main checks pass at
+`64f1404`; tag publication and independent public-download
+verification pass at `2354ed0`. The
+[build record](builds/0.0.8-service-projection-followup.md) retains exact gates
+and identities. Authored x86-64 component benchmarks improve; the new Thor test
+is **unperformed**, and no handheld gain is established. Native execution, CPU
+vertex shaders and Vulkan 1× remain the priority. Further Thor GPU tests and
+audio-perfection work are deferred. No unchanged code 15 test, title regeneration
+or setup repeat is needed.
 
 <!-- CodexAstraUlt: Prepare a concrete compatible package while preserving the
 owner's stop-and-wait requirement before any new device access. -->
-After cloud gates pass, reuse both completed 521-object target builds/libraries,
-preparation and owner signer to prepare the next compatible package. Preserve
-imports, saves and reports. Before any new Thor/ADB connection or device-work
+With the cloud gates verified, reuse both completed 521-object target
+builds/libraries, preparation and owner signer to prepare the compatible package.
+Preserve imports, saves and reports. Before any new Thor/ADB connection or device-work
 batch, including discovery, export, installation and testing, **signal the owner
 and stop until explicit approval**; notification alone is not approval. Use
 existing build/installation records for preparation and follow the

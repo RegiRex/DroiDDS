@@ -1,12 +1,18 @@
 # Local Dark Moon Native/CPU performance handoff
 
-<!-- CodexAstraUlt: Replace the completed code 15 batch with pending cloud work
-and the owner's explicit stop before any new Thor connection or device action. -->
-Next candidate: **0.0.8-preview.6/code 16**, under cloud development. A
-shader-output projection prototype and detailed fixed SVC/service/GSP attribution
-are being evaluated. Benchmarks, correctness, package and publication gates
-remain pending. Do not repeat the unchanged code 15 test or start a new Thor
-batch now. Read [AGENTS.md](../AGENTS.md) and
+<!-- CodexAstraUlt: Hand off verified cloud work for compatible repackaging;
+publication does not authorize the new Thor connection or qualify performance. -->
+Current candidate: **[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**, published.
+CPU shader-output projection and fixed SVC/service/GSP attribution are implemented.
+Local correctness/runtime, retained-library APK, independent bundle and hosted
+main checks pass at `64f1404`; tag publication and independent
+public-download verification pass at `2354ed0`. See the
+[build record](builds/0.0.8-service-projection-followup.md) for exact identities.
+Authored x86-64 component benchmarks improve; the new Thor test is **unperformed**,
+and no handheld speed gain is established. Prepare the compatible update using
+existing records, then signal the owner and **STOP until explicit approval**
+before any Thor/ADB connection or device-work batch. Do not repeat code 15.
+Read [AGENTS.md](../AGENTS.md) and
 [the current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
 
 Published [preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)
@@ -41,7 +47,7 @@ authorize access. Cloud coding/building and review of already uploaded reports
 may continue. Prepare the compatible package first when possible, using existing
 build/installation records without querying the device in advance.
 
-## Suggested task for local Codex after cloud gates pass
+## Suggested task for local Codex
 
 <!-- CodexAstraUlt: Make the package reviewable before asking for access; the
 remaining device procedure is conditional on the owner's actual answer. -->
