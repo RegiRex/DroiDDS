@@ -84,12 +84,31 @@ See the [build record](docs/builds/0.0.8-cpu-decode-followup.md). The previous
 [code 14 build record](docs/builds/0.0.8-cpu-work-followup.md) preserves its own
 source and artifact identities.
 
-New code 15 Thor checks remain unperformed; host component results do not
-establish a handheld speed gain. Reuse the retained private title library and
-signer for one compatible update and the [bounded menu test](docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
-Keep Native execution, CPU vertex shaders and Vulkan 1×; further Thor GPU tests
-remain deferred. Gameplay, reliable audio, save/resume and sustained speed remain
-unqualified.
+<!-- CodexAstraUlt: Replace the completed code 15 request with its actual
+measurement and the next candidate's unqualified development status. -->
+The [code 15 Thor test](docs/device-tests/0.0.8-preview5-dark-moon-thor.md) reaches
+file selection at **16.70% speed**, with no reported runtime/rendering errors.
+No improvement is established; the saved File 1 panel changes the post-A workload.
+New counters identify **33.975 seconds of SVC work outside the PICA command-list
+timer**, which can still include transfers and GPU synchronization. Another
+6.779 seconds remains unclassified. No new audio observation was supplied.
+
+**Preview.6/code 16 is under cloud development.** A shader-output projection
+prototype and detailed fixed SVC/service/GSP attribution are being evaluated;
+benchmarks, validation, packaging and publication remain pending. Native
+execution, CPU vertex shaders and Vulkan 1× remain the priority. No unchanged
+code 15 run is needed. Gameplay, reliable audio, save/resume and sustained speed
+remain unqualified.
+
+<!-- CodexAstraUlt: The owner's connection instruction requires an actual pause,
+while cloud development and preparation of a reviewable package may continue. -->
+Before any new Thor/ADB connection or device-work batch, including discovery,
+export, installation or testing, **signal the owner and stop until explicit
+approval**. Notification alone is not approval. Cloud work can continue; prepare
+the compatible package before requesting connection approval when possible.
+The [local procedure](docs/ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test)
+preserves existing libraries, signer, imports, saves and reports. Further Thor
+GPU tests remain deferred.
 
 <!-- CodexAstraUlt: Add actual owner evidence without promoting the original
 test guest to a playable owned title or the whole 0.0.7 milestone. -->
@@ -211,10 +230,10 @@ for current packaging and signing.
 
 <!-- CodexAstraUlt: Persist the owner's report-driven release instruction in the
 public overview without promising background execution or bypassing hardware. -->
-After each owner-supplied report, development proceeds to the next qualified build
-through 0.1.0 without a routine approval round. Failed gates receive diagnosis and
-a corrective build before promotion; required hardware/input decisions remain
-explicit.
+After each owner-supplied report, cloud development proceeds to the next
+qualified build through 0.1.0 without a routine approval round. Failed gates
+receive diagnosis and a corrective build before promotion. New Thor/ADB access
+requires signaling the owner and waiting for explicit approval, as above.
 
 | Read | Purpose |
 | --- | --- |

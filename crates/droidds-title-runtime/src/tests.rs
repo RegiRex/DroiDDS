@@ -670,7 +670,7 @@ fn tone(samples: &[[i16; 2]], period: usize) {
 // disjoint from its enclosing service/frame/audio work or requiring host speed.
 fn assert_core_work_report(report: &Value) {
     let work = report["core_work"].as_object().unwrap();
-    assert_eq!(work.len(), 3);
+    assert_eq!(work.len(), 7);
     let mut nested_commands = 0;
     for name in ["svc", "frame", "audio"] {
         let scope = work[name].as_object().unwrap();
@@ -694,6 +694,72 @@ fn assert_core_work_report(report: &Value) {
             <= report["gpu"]["command_processing_wall_nanoseconds"]
                 .as_u64()
                 .unwrap()
+    );
+    // CodexAstraUlt: The numbered table is the same SVC measurement partition,
+    // and actual authored GSP work must appear inside the bounded child tables.
+    let numbered = work["svc_by_number"].as_array().unwrap();
+    assert!(!numbered.is_empty() && numbered.len() <= 129);
+    for field in [
+        "calls",
+        "wall_nanoseconds",
+        "nested_command_wall_nanoseconds",
+    ] {
+        assert_eq!(
+            numbered
+                .iter()
+                .map(|row| row[field].as_u64().unwrap())
+                .sum::<u64>(),
+            work["svc"][field].as_u64().unwrap()
+        );
+    }
+    assert!(numbered
+        .windows(2)
+        .all(|pair| pair[0]["number"].as_u64().unwrap() < pair[1]["number"].as_u64().unwrap()));
+    for (name, labels) in [
+        (
+            "ipc_by_service",
+            &zakuro_core::CoreWorkDiagnostics::IPC_SERVICE_NAMES[..],
+        ),
+        (
+            "gsp_direct",
+            &zakuro_core::CoreWorkDiagnostics::GSP_OPERATION_NAMES[..],
+        ),
+        (
+            "gsp_queued",
+            &zakuro_core::CoreWorkDiagnostics::GSP_OPERATION_NAMES[..],
+        ),
+    ] {
+        let rows = work[name].as_object().unwrap();
+        assert!(rows.len() <= labels.len());
+        for (label, row) in rows {
+            assert!(labels.contains(&label.as_str()));
+            assert_eq!(row.as_object().unwrap().len(), 3);
+            assert!(row["calls"].as_u64().unwrap() > 0);
+            assert!(
+                row["nested_command_wall_nanoseconds"].as_u64().unwrap()
+                    <= row["wall_nanoseconds"].as_u64().unwrap()
+            );
+        }
+    }
+    let gsp = &work["ipc_by_service"]["gsp"];
+    assert!(gsp["calls"].as_u64().unwrap() > 0);
+    assert!(gsp["nested_command_wall_nanoseconds"].as_u64().unwrap() > 0);
+    assert!(
+        gsp["nested_command_wall_nanoseconds"].as_u64().unwrap()
+            <= work["svc"]["nested_command_wall_nanoseconds"]
+                .as_u64()
+                .unwrap()
+    );
+    let direct = work["gsp_direct"].as_object().unwrap();
+    assert!(direct
+        .values()
+        .any(|row| row["nested_command_wall_nanoseconds"].as_u64().unwrap() > 0));
+    assert_eq!(
+        direct
+            .values()
+            .map(|row| row["calls"].as_u64().unwrap())
+            .sum::<u64>(),
+        gsp["calls"].as_u64().unwrap()
     );
 }
 
@@ -857,6 +923,10 @@ fn native_vulkan_oracle(fixture: &Fixture, vertex_shading: VertexShading) {
     assert_eq!(report["vertex_shading_policy"], vertex_shading.as_str());
     let gpu = &report["gpu"]["hardware"];
     assert_eq!(gpu["vertex_shading_policy"], vertex_shading.as_str());
+    // CodexAstraUlt: Both authored guest panels use actual cached targets; the
+    // report must expose the numeric retained-entry snapshot for hardware.
+    assert!(gpu["retained_surfaces"].as_u64().unwrap() >= 2);
+    assert!(gpu["retained_pipelines"].as_u64().is_some());
     // CodexAstraUlt: Successful authored routes must expose the complete
     // pipeline-failure schema with no failed foreground, worker or cache attempt.
     // An absent field cannot pass this object comparison as an implicit null.

@@ -122,6 +122,46 @@ pub(super) fn run(
     }
 }
 
+// CodexAstraUlt: Project completed SIMD components directly into compact lane
+// rows. Preserve fork/final overwrite order and each real input's lane slot;
+// callers initialize constant/unwritten fields before every batch. Full shader
+// state and divergent copies remain unchanged, and geometry uses its old path.
+#[cfg(not(feature = "jit"))]
+pub(super) fn run_projected<const N: usize>(
+    unit: &ShaderUnit,
+    uniforms: &Uniforms,
+    program: &Program,
+    inputs: &[[Vec4; INPUT_REGISTERS]],
+    projection: &[u8; N],
+    outputs: &mut [[f32; N]],
+    blocks: &mut Vec<Block>,
+    forks: &mut Vec<Fork>,
+) {
+    debug_assert!(!inputs.is_empty() && inputs.len() <= LANES);
+    let mut batch = start(program, inputs);
+    blocks.clear();
+    forks.clear();
+    let finished = execute(unit, uniforms, program, &mut batch, blocks, forks, unit.entry_point, 0, ALL, None);
+    let completed = forks.iter().map(|(lanes, registers)| (*lanes, registers))
+        .chain(std::iter::once((finished, &batch.output)));
+    for (lanes, registers) in completed {
+        for (field, &source) in projection.iter().enumerate() {
+            let register = source as usize / 4;
+            if register >= OUTPUT_REGISTERS || program.outputs & (1 << register) == 0 {
+                continue;
+            }
+            // Transpose once per semantic component, not once per lane. Values
+            // are copied without arithmetic, retaining NaN payloads and -0.
+            let values = registers[register][source as usize % 4].to_array();
+            for (lane, output) in outputs.iter_mut().enumerate() {
+                if lanes & (1 << lane) != 0 {
+                    output[field] = values[lane];
+                }
+            }
+        }
+    }
+}
+
 // CodexAstraUlt: Test-only baseline preserves code 13's final-output copy so
 // the opt-in benchmark can compare the same shader/input/packing work in one
 // process. This is never included in the application or chosen at runtime.

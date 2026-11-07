@@ -103,6 +103,38 @@ mod command {
 }
 
 pub fn handle(system: &mut System, buffer: &CommandBuffer, header: Header) -> bool {
+    // CodexAstraUlt: Direct GSP request timing includes its reply/interrupts and
+    // any queued child work. Keep queue wrappers separate from queued command
+    // rows, so readers cannot mistake both levels for disjoint GPU work.
+    let slot = direct_timing_slot(header.command_id());
+    let command_before = system.gpu.busy;
+    let started = std::time::Instant::now();
+    let handled = handle_inner(system, buffer, header);
+    system.core_work.gsp_direct[slot].record(started.elapsed(), system.gpu.busy.saturating_sub(command_before));
+    handled
+}
+
+// CodexAstraUlt: Classify only fixed documented opcodes; arbitrary identifiers
+// collapse into one other row and no request parameters enter the report.
+fn direct_timing_slot(id: u16) -> usize {
+    use command::*;
+    match id {
+        REQUEST_DMA => 0,
+        SET_COMMAND_LIST => 1,
+        SET_MEMORY_FILL => 2,
+        SET_DISPLAY_TRANSFER => 3,
+        SET_TEXTURE_COPY => 4,
+        FLUSH_DATA_CACHE | INVALIDATE_DATA_CACHE | STORE_DATA_CACHE => 5,
+        TRIGGER_CMD_REQ_QUEUE => 6,
+        WRITE_HW_REGS | WRITE_HW_REGS_WITH_MASK | WRITE_HW_REG_REPEAT | READ_HW_REGS => 7,
+        SET_BUFFER_SWAP => 8,
+        _ => 9,
+    }
+}
+
+// CodexAstraUlt: Preserve every existing direct command branch inside the
+// wrapper, including unknown-command false returns and multi-bank fills.
+fn handle_inner(system: &mut System, buffer: &CommandBuffer, header: Header) -> bool {
     use command::*;
     let id = header.command_id();
     match id {
@@ -546,6 +578,19 @@ fn process_command_queue(system: &mut System) {
 }
 
 fn execute_command(system: &mut System, command: GxCommand) {
+    // CodexAstraUlt: One row per consumed GX command, including no-op cache and
+    // unknown commands. These may run inside a direct queue request or later
+    // inside frame refresh; they are nested observations, not extra core time.
+    let slot = if command.id <= 5 { command.id as usize } else { 9 };
+    let command_before = system.gpu.busy;
+    let started = std::time::Instant::now();
+    execute_command_inner(system, command);
+    system.core_work.gsp_queued[slot].record(started.elapsed(), system.gpu.busy.saturating_sub(command_before));
+}
+
+// CodexAstraUlt: Keep the real consumed command and interrupt sequence intact
+// so timers do not turn deferred work into immediate work or omit failures.
+fn execute_command_inner(system: &mut System, command: GxCommand) {
     log::trace!(
         "gx command 0x{:02X}: {:08X?}",
         command.id,
@@ -681,6 +726,82 @@ mod tests {
         );
         system.services.gsp.shared_memory_address = vaddr;
         (system, vaddr)
+    }
+
+    // CodexAstraUlt: Original tiny command lists exercise both direct and
+    // queued execution, preserving command effects and exact nested accounting.
+    #[test]
+    fn direct_and_queued_timings_keep_lists_and_dma_effects() {
+        use std::time::Duration;
+        let (mut system, vaddr) = system_with_mapped_gsp_shm();
+        let buffer = CommandBuffer::new(vaddr + 0x100);
+        let input = vaddr + 0x600;
+        let output = vaddr + 0x640;
+        system.memory.write32(input, 0x1234_5678);
+        let dma = Header::new(command::REQUEST_DMA, 3, 0);
+        buffer.set(&mut system.memory, 1, input);
+        buffer.set(&mut system.memory, 2, output);
+        buffer.set(&mut system.memory, 3, 4);
+        assert!(handle(&mut system, &buffer, dma));
+        assert_eq!(system.memory.read32(output), 0x1234_5678);
+        system.memory.write32(input, 0x89AB_CDEF);
+        execute_command(&mut system, GxCommand { id: 0, data: [input, output, 4, 0, 0, 0, 0] });
+        assert_eq!(system.memory.read32(output), 0x89AB_CDEF);
+        assert_eq!(system.core_work_diagnostics().gsp_direct[0].calls, 1);
+        assert_eq!(system.core_work_diagnostics().gsp_queued[0].calls, 1);
+        assert_eq!(system.core_work_diagnostics().gsp_direct[0].nested_command_wall, Duration::ZERO);
+
+        // A harmless register write is an actual PICA list, not a mock timer.
+        let list = vaddr + 0x680;
+        system.memory.write32(list, 0x2468_ACE0);
+        system.memory.write32(list + 4, 0x000F_0010);
+        let list_header = Header::new(command::SET_COMMAND_LIST, 2, 0);
+        buffer.set(&mut system.memory, 1, list);
+        buffer.set(&mut system.memory, 2, 8);
+        let before = system.gpu.busy;
+        assert!(handle(&mut system, &buffer, list_header));
+        let direct = system.core_work_diagnostics().gsp_direct[1];
+        assert_eq!(direct.calls, 1);
+        assert_eq!(direct.nested_command_wall, system.gpu.busy - before);
+        assert!(direct.nested_command_wall > Duration::ZERO);
+        assert!(direct.wall >= direct.nested_command_wall);
+        assert_eq!(system.gpu.command_lists, 1);
+
+        let ring = vaddr + COMMAND_BUFFER_BASE;
+        system.memory.write32(ring, 1 << 8);
+        system.memory.write32(ring + 0x20, 1);
+        system.memory.write32(ring + 0x24, list);
+        system.memory.write32(ring + 0x28, 8);
+        let trigger = Header::new(command::TRIGGER_CMD_REQ_QUEUE, 0, 0);
+        let before = system.gpu.busy;
+        assert!(handle(&mut system, &buffer, trigger));
+        assert_eq!(system.memory.read32(ring), 1);
+        assert_eq!(system.gpu.command_lists, 2);
+        let work = system.core_work_diagnostics();
+        assert_eq!(work.gsp_direct[6].calls, 1);
+        assert_eq!(work.gsp_queued[1].calls, 1);
+        assert_eq!(work.gsp_direct[6].nested_command_wall, system.gpu.busy - before);
+        assert_eq!(work.gsp_queued[1].nested_command_wall, work.gsp_direct[6].nested_command_wall);
+        assert!(work.gsp_direct[6].wall >= work.gsp_queued[1].wall);
+        assert_eq!(work.svc.calls, 0, "direct test calls do not fabricate a CPU SVC");
+        assert_eq!(work.ipc_by_service.iter().map(|row| row.calls).sum::<u64>(), 0);
+
+        // CodexAstraUlt: Unsupported calls still occupy the fixed other slot;
+        // timing wrappers must preserve the direct rejection and queued no-op.
+        let previous_word = system.memory.read32(output);
+        let previous_cycles = system.cpu.cycles;
+        let previous_busy = system.gpu.busy;
+        assert!(!handle(&mut system, &buffer, Header::new(0xFFFF, 0, 0)));
+        execute_command(&mut system, GxCommand { id: 0xFF, data: [0; 7] });
+        assert_eq!(system.memory.read32(output), previous_word);
+        assert_eq!(system.cpu.cycles, previous_cycles);
+        assert_eq!(system.gpu.busy, previous_busy);
+        assert_eq!(system.gpu.command_lists, 2);
+        let work = system.core_work_diagnostics();
+        assert_eq!(work.gsp_direct[9].calls, 1);
+        assert_eq!(work.gsp_queued[9].calls, 1);
+        assert_eq!(work.gsp_direct[9].nested_command_wall, Duration::ZERO);
+        assert_eq!(work.gsp_queued[9].nested_command_wall, Duration::ZERO);
     }
 
     /// SetLcdForceBlack's flag is a u8. OoT3D sends false in a word whose top

@@ -1188,6 +1188,9 @@ pub struct HardwareDiagnostics {
     pub retained_translations: usize,
     pub retained_modules: usize,
     pub retained_pipelines: usize,
+    // CodexAstraUlt: Snapshot the surface-cache entry count in O(1); this is
+    // neither allocated bytes nor the number of active or dirty surfaces.
+    pub retained_surfaces: usize,
     pub retained_shader_bytes: usize,
     pub max_compiler_outstanding: usize,
     pub max_translations: usize,
@@ -1745,6 +1748,9 @@ impl Hardware {
             retained_translations: self.translated.len(),
             retained_modules: self.modules.len(),
             retained_pipelines: self.pipelines.len(),
+            // CodexAstraUlt: Read only Vec length when a report is requested;
+            // the per-dispatch draw-failure guard remains unchanged.
+            retained_surfaces: self.surfaces.len(),
             retained_shader_bytes: self.shader_bytes,
             max_compiler_outstanding: self.limits.jobs,
             max_translations: self.limits.translations,
@@ -5935,6 +5941,37 @@ fn pick(instance: &ash::Instance) -> Result<(vk::PhysicalDevice, u32), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: Two tiny original surfaces distinguish retained entries
+    // from lookups and active contents, preserving the count after invalidation.
+    #[test]
+    fn surface_diagnostics_count_retained_entries_without_changing_draw_guard() {
+        struct OriginalMemory([u8; 512]);
+        impl GpuMemory for OriginalMemory {
+            fn read(&mut self, addr: u32, out: &mut [u8]) {
+                out.copy_from_slice(&self.0[addr as usize..addr as usize + out.len()]);
+            }
+            fn write(&mut self, addr: u32, data: &[u8]) {
+                self.0[addr as usize..addr as usize + data.len()].copy_from_slice(data);
+            }
+        }
+        let mut hardware = Hardware::new().expect("Vulkan renderer for retained-surface evidence");
+        let mut memory = OriginalMemory([0; 512]);
+        assert_eq!(hardware.diagnostics().retained_surfaces, 0);
+        hardware.begin().unwrap();
+        let kind = Kind::Color(ColorFormat::Rgba8);
+        let first = hardware.surface(&mut memory, 0, (8, 8), kind, true).unwrap();
+        assert_eq!(hardware.diagnostics().retained_surfaces, 1);
+        assert_eq!(hardware.surface(&mut memory, 0, (8, 8), kind, true).unwrap(), first);
+        assert_eq!(hardware.diagnostics().retained_surfaces, 1);
+        hardware.surface(&mut memory, 256, (8, 8), kind, true).unwrap();
+        hardware.flush(&mut memory).unwrap();
+        hardware.forget();
+        let snapshot = hardware.diagnostics();
+        assert_eq!(snapshot.retained_surfaces, 2, "invalidation retains both allocations");
+        assert_eq!(serde_json::to_value(&snapshot).unwrap()["retained_surfaces"], 2);
+        assert!(!hardware.draw_failed(), "reporting retention is not a renderer failure");
+    }
 
     // CodexAstraUlt: Mutate the live renderer through all existing error-field
     // combinations. The compact guard must match the old owned snapshot,

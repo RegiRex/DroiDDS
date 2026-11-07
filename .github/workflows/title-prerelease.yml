@@ -166,9 +166,9 @@ jobs:
       - name: Build signed installable original title candidate
         id: apk
         run: |
-          # CodexAstraUlt: Give the CPU decode/health follow-up its own identity;
+          # CodexAstraUlt: Give the CPU projection/attribution follow-up its own identity;
           # the authored guest and all historical release artifacts stay fixed.
-          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 15 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
+          python3 tools/build_android_title.py --preparation "$RUNNER_TEMP/title-preparation" --compilation "$RUNNER_TEMP/title-compilation" --output "$RUNNER_TEMP/title-android" --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --version-code 16 --jobs 2 --diagnostic-signing --diagnostic-fixture homebrew
       - name: Verify and sanitize exactly four public assets
         id: bundle
         run: |
@@ -247,7 +247,7 @@ jobs:
         with:
           name: original-title-prerelease
           path: |
-            ${{ runner.temp }}/title-release/DroiDDS-0.0.8-preview.5-original-android-arm64.apk
+            ${{ runner.temp }}/title-release/DroiDDS-0.0.8-preview.6-original-android-arm64.apk
             ${{ runner.temp }}/title-release/BUILD_REPORT.json
             ${{ runner.temp }}/title-release/SHA256SUMS
             ${{ runner.temp }}/title-release/THIRD_PARTY_NOTICES.txt

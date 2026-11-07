@@ -424,6 +424,15 @@ struct Vertex {
 }
 
 impl Vertex {
+    // CodexAstraUlt: Assemble the same 21 raster semantics from compact batch
+    // output using copies only; no shader arithmetic or float normalization.
+    fn from_projected(values: [f32; 21]) -> Self {
+        let [x, y, z, w, r, g, b, a, u0, v0, u1, v1, u2, v2, q0, q1, q2, q3, vx, vy, vz] = values;
+        Self { clip: [x, y, z, w], color: [r, g, b, a],
+            texcoords: [[u0, v0], [u1, v1], [u2, v2]],
+            quaternion: [q0, q1, q2, q3], view: [vx, vy, vz] }
+    }
+
     /// the vertex a fraction t of the way from self to other, which is
     /// how clipping makes new vertices where an edge crosses a plane.
     fn lerp(&self, other: &Vertex, t: f32) -> Vertex {
@@ -604,6 +613,21 @@ impl VertexOutputPlan {
         }
     }
 
+    // CodexAstraUlt: The compact batch uses the existing composed selectors in
+    // fixed Vertex order, including zero/one defaults and packed-mask holes.
+    fn projection(&self) -> [u8; 21] {
+        let mut selectors = [Self::ZERO; 21];
+        selectors[..4].copy_from_slice(&self.position);
+        selectors[4..8].copy_from_slice(&self.color);
+        selectors[8..14].copy_from_slice(self.texcoords.as_flattened());
+        selectors[14..18].copy_from_slice(&self.quaternion);
+        selectors[18..].copy_from_slice(&self.view);
+        selectors
+    }
+
+    // CodexAstraUlt: Retain the former register-row mapper as an independent
+    // bitwise and paired-benchmark baseline; applications use compact output.
+    #[cfg(test)]
     fn vertex(&self, outputs: &[Vec4; shader::OUTPUT_REGISTERS]) -> Vertex {
         let get = |component: u8| {
             outputs.as_flattened().get(component as usize).copied()
@@ -658,7 +682,7 @@ fn process_vertices<'a>(
     // CodexAstraUlt: The shared plan is immutable across worker chunks. Mapping
     // directly from shader outputs changes no shader execution or vertex order.
     let plan = VertexOutputPlan::new(&map, registers[REG_VS_OUTPUT_MASK]);
-    let vertices = shade_with(vertex_shader, inputs, |outputs| plan.vertex(&outputs));
+    let vertices = shade_projected(vertex_shader, inputs, &plan.projection());
     (vertices, order)
 }
 
@@ -809,6 +833,23 @@ fn shade_with<T: Send>(
     // the threads waiting on the last
     let chunk = (inputs.len() / (rayon::current_num_threads() * 4)).next_multiple_of(8).max(PARALLEL_CHUNK);
     inputs.par_chunks(chunk).flat_map_iter(|chunk| shader::run_vertices_with(unit, chunk, &then)).collect()
+}
+
+// CodexAstraUlt: The ordinary raster route keeps the same parallel threshold,
+// chunk sizing and input order, but its eight-lane output scratch holds only
+// the 21 needed components. Geometry and full-width callers keep shade_with.
+fn shade_projected(
+    unit: &ShaderUnit,
+    inputs: &[[Vec4; shader::INPUT_REGISTERS]],
+    projection: &[u8; 21],
+) -> Vec<Vertex> {
+    if inputs.len() < PARALLEL_VERTICES {
+        return shader::run_vertices_projected(unit, inputs, projection, Vertex::from_projected);
+    }
+    let chunk = (inputs.len() / (rayon::current_num_threads() * 4)).next_multiple_of(8).max(PARALLEL_CHUNK);
+    inputs.par_chunks(chunk).flat_map_iter(|chunk| {
+        shader::run_vertices_projected(unit, chunk, projection, Vertex::from_projected)
+    }).collect()
 }
 
 fn geometry_stage(
@@ -3217,6 +3258,13 @@ mod tests {
                     let expected = vertex_bits(to_vertex(map, &pack_outputs(values, mask)));
                     let found = vertex_bits(VertexOutputPlan::new(map, mask).vertex(values));
                     assert_eq!(found, expected, "map {index}, mask {mask:04X}");
+                    // CodexAstraUlt: Exhaust the compact semantic layout too;
+                    // actual shader projection has separate scalar/fork gates.
+                    let projected = VertexOutputPlan::new(map, mask).projection().map(|source| {
+                        values.as_flattened().get(source as usize).copied()
+                            .unwrap_or(if source == VertexOutputPlan::ONE { 1.0 } else { 0.0 })
+                    });
+                    assert_eq!(vertex_bits(Vertex::from_projected(projected)), expected);
                 }
                 for mask in [0xFFFF_0000, 0xFFFF_0001, 0xFFFF_8000, u32::MAX] {
                     assert_eq!(vertex_bits(VertexOutputPlan::new(map, mask).vertex(values)),
@@ -3297,12 +3345,150 @@ mod tests {
             input
         }).collect();
         for count in [0, 7, 9, PARALLEL_VERTICES - 1, PARALLEL_VERTICES, PARALLEL_VERTICES + 1, all_inputs.len()] {
-            let packed = shade_with(&unit, &all_inputs[..count], |outputs| plan.vertex(&outputs));
+            let packed = shade_projected(&unit, &all_inputs[..count], &plan.projection());
+            let previous = shade_with(&unit, &all_inputs[..count], |outputs| plan.vertex(&outputs));
+            assert_eq!(packed.iter().copied().map(vertex_bits).collect::<Vec<_>>(),
+                previous.into_iter().map(vertex_bits).collect::<Vec<_>>());
             assert_eq!(packed.len(), count);
             for (i, vertex) in packed.iter().enumerate() {
                 assert_eq!(vertex.clip.map(f32::to_bits), all_inputs[i][0].map(f32::to_bits));
                 assert_eq!(vertex.color.map(f32::to_bits), unit.float_uniforms[0].map(f32::to_bits));
                 assert_eq!(vertex.texcoords, [[0.0; 2]; 3]);
+            }
+        }
+    }
+
+    // CodexAstraUlt: Original short/arithmetic/divergent programs exercise the
+    // actual raster projection route; no private shader data enters this test.
+    fn projected_raster_units() -> Vec<(&'static str, ShaderUnit)> {
+        const IDENTITY: u32 = 0xF | 0x1B << 5 | 0x1B << 14 | 0x1B << 23;
+        let mov = |destination: u32, source: u32, descriptor: u32| {
+            (0x13 << 26) | (destination << 21) | (source << 12) | descriptor
+        };
+        let short = vec![mov(0, 0, 0), mov(2, 1, 0), mov(5, 2, 0), mov(7, 0x20, 0), 0x22 << 26];
+        let mut arithmetic = Vec::new();
+        for _ in 0..8 {
+            for i in 0..4 {
+                arithmetic.push((0x02 << 26) | (0x10 << 21) | ((0x20 + i) << 12));
+                arithmetic.push((0x02 << 26) | ((0x24 + i) << 12) | (0x10 << 7));
+            }
+            arithmetic.push((0x08 << 26) | (1 << 21) | (0x28 << 12) | (1 << 7));
+            arithmetic.push(mov(2, 2, 0));
+        }
+        arithmetic.push(0x22 << 26);
+        let cmp = |input: u32| (0x2E << 26) | (2 << 24) | (0x20 << 12) | (input << 7);
+        let ifc = |otherwise: u32| (0x28 << 26) | (1 << 25) | (2 << 22) | (otherwise << 10) | 1;
+        let divergent = vec![cmp(0), ifc(7), mov(0, 0x21, 1), cmp(1), ifc(6),
+            mov(1, 0x22, 2), mov(1, 0x23, 1), mov(0, 0x24, 2), mov(2, 2, 0), 0x22 << 26];
+        [("short", short), ("arithmetic", arithmetic), ("divergent", divergent)].into_iter().map(|(name, program)| {
+            let mut unit = ShaderUnit::new();
+            unit.program[..program.len()].copy_from_slice(&program);
+            unit.descriptors[..3].copy_from_slice(&[IDENTITY, (IDENTITY & !0xF) | 0b1010, (IDENTITY & !0xF) | 0b0101]);
+            for (i, uniform) in unit.float_uniforms.iter_mut().enumerate() {
+                *uniform = std::array::from_fn(|component| (i + component + 1) as f32 / 100.0);
+            }
+            unit.float_uniforms[0] = shader::ZERO;
+            unit.prepare();
+            (name, unit)
+        }).collect()
+    }
+
+    // CodexAstraUlt: Compare both complete raster routes to independent scalar
+    // execution, including sparse/identity masks, all fields and parallel tails.
+    #[test]
+    fn projected_raster_outputs_match_scalar_for_masks_and_parallel_tails() {
+        let inputs: Vec<_> = (0..PARALLEL_VERTICES * 2 + 17).map(|i| {
+            std::array::from_fn(|register| std::array::from_fn(|component| {
+                ((i * 17 + register * 11 + component * 7) % 101) as f32 / 50.0 - 1.0
+            }))
+        }).collect();
+        let mut registers = target_registers();
+        registers[REG_SHADER_OUTPUT_TOTAL] = 6;
+        registers[REG_SHADER_OUTPUT_MAP..REG_SHADER_OUTPUT_MAP + 6].copy_from_slice(&[
+            0x0302_0100, 0x0706_0504, 0x0B0A_0908, 0x0F0E_0D0C, 0x1F14_1312, 0x1F1F_1716,
+        ]);
+        let map = read_output_map(&registers);
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(2).build().unwrap();
+        for (name, unit) in projected_raster_units() {
+            let scalar: Vec<_> = inputs.iter().map(|input| {
+                let mut state = shader::ShaderState::new();
+                state.input = *input;
+                shader::run(&unit, &mut state);
+                state.output
+            }).collect();
+            for mask in [0, 1, 0xA5, 0x0FFF, 0x8000, 0xFFFF_0000, u32::MAX] {
+                let plan = VertexOutputPlan::new(&map, mask);
+                for count in [0, 1, 7, 8, 9, 511, 512, 513, inputs.len()] {
+                    let expected: Vec<_> = scalar[..count].iter().map(|outputs| {
+                        vertex_bits(to_vertex(&map, &pack_outputs(outputs, mask)))
+                    }).collect();
+                    let (previous, projected) = pool.install(|| (
+                        shade_with(&unit, &inputs[..count], |outputs| plan.vertex(&outputs)),
+                        shade_projected(&unit, &inputs[..count], &plan.projection()),
+                    ));
+                    assert_eq!(previous.into_iter().map(vertex_bits).collect::<Vec<_>>(), expected,
+                        "baseline {name}, mask {mask:x}, count {count}");
+                    assert_eq!(projected.into_iter().map(vertex_bits).collect::<Vec<_>>(), expected,
+                        "projected {name}, mask {mask:x}, count {count}");
+                }
+            }
+        }
+    }
+
+    // CodexAstraUlt: Pair complete old/new raster projection in one executable,
+    // including allocation, shader execution, packing and unchanged worker
+    // thresholds. This bounded host measurement has no speed pass threshold.
+    #[test]
+    #[ignore = "bounded projected-raster microbenchmark; not a correctness gate"]
+    fn benchmark_projected_raster_against_register_rows() {
+        use std::hint::black_box;
+        let inputs: Vec<_> = (0..4096).map(|i| {
+            std::array::from_fn(|register| std::array::from_fn(|component| {
+                ((i * 17 + register * 11 + component * 7) % 101) as f32 / 50.0 - 1.0
+            }))
+        }).collect();
+        let mut registers = target_registers();
+        registers[REG_SHADER_OUTPUT_TOTAL] = 6;
+        registers[REG_SHADER_OUTPUT_MAP..REG_SHADER_OUTPUT_MAP + 6].copy_from_slice(&[
+            0x0302_0100, 0x0706_0504, 0x0B0A_0908, 0x0F0E_0D0C, 0x1F14_1312, 0x1F1F_1716,
+        ]);
+        let map = read_output_map(&registers);
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(2).build().unwrap();
+        for (name, unit) in projected_raster_units() {
+            for mask in [0, 0xA5] {
+                let plan = VertexOutputPlan::new(&map, mask);
+                for count in [8, 64, 320, 512, 4096] {
+                    let inputs = &inputs[..count];
+                    let scalar: Vec<_> = inputs.iter().map(|input| {
+                        let mut state = shader::ShaderState::new();
+                        state.input = *input;
+                        shader::run(&unit, &mut state);
+                        vertex_bits(plan.vertex(&state.output))
+                    }).collect();
+                    let shade = |projected: bool| {
+                        if projected {
+                            shade_projected(black_box(&unit), black_box(inputs), &plan.projection())
+                        } else {
+                            shade_with(black_box(&unit), black_box(inputs), |outputs| plan.vertex(&outputs))
+                        }
+                    };
+                    pool.install(|| {
+                        for projected in [false, true] {
+                            assert_eq!(shade(projected).into_iter().map(vertex_bits).collect::<Vec<_>>(), scalar);
+                        }
+                        let repeats = 65_536_usize.div_ceil(count);
+                        for round in 0..5 {
+                            for projected in if round % 2 == 0 { [false, true] } else { [true, false] } {
+                                let started = Instant::now();
+                                for _ in 0..repeats {
+                                    black_box(shade(projected));
+                                }
+                                eprintln!("raster projection {name}, mask {mask:x}, inputs {count}, round {round}, projected {projected}, ns_per_input {:.3}",
+                                    started.elapsed().as_secs_f64() * 1e9 / (count * repeats) as f64);
+                            }
+                        }
+                    });
+                }
             }
         }
     }

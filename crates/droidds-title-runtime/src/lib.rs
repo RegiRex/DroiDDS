@@ -445,6 +445,8 @@ impl Session {
             .map_or(0, |library| library.fallbacks());
         // CodexAstraUlt: Retain actual blend/logic capability selection so the
         // static-state route used by Thor can be required in host qualification.
+        // CodexAstraUlt: Retained surfaces counts unique cache entries at report
+        // time; it is not a byte, dirty/active surface or leak measurement.
         let hardware = self.system.gpu.hardware_diagnostics().map(|gpu| {
             let mut hardware = json!({
             "recorded_draws":gpu.recorded_draws,"submissions":gpu.submissions,
@@ -453,7 +455,8 @@ impl Session {
             "compiler_peak":gpu.compiler_peak,"compiler_deferred":gpu.compiler_deferred,
             "compiler_failures":gpu.compiler_failures,"retained_shader_bytes":gpu.retained_shader_bytes,
             "retained_translations":gpu.retained_translations,"retained_modules":gpu.retained_modules,
-            "retained_pipelines":gpu.retained_pipelines,"vertex_shading_on_gpu":gpu.vertex_shading_on_gpu,
+            "retained_pipelines":gpu.retained_pipelines,"retained_surfaces":gpu.retained_surfaces,
+            "vertex_shading_on_gpu":gpu.vertex_shading_on_gpu,
             "vertex_shading_policy":gpu.vertex_shading_policy.as_str(),
             "gpu_vertex_draws":gpu.gpu_vertex_draws,"placed_vertex_draws":gpu.placed_vertex_draws,
             "dynamic_blend":gpu.dynamic_blend,"dynamic_logic_op":gpu.dynamic_logic_op,
@@ -507,15 +510,64 @@ impl Session {
         // totals overlap command time by the separately recorded nested subset;
         // subtract that subset before combining these with existing GPU totals.
         let core_work = self.system.core_work_diagnostics();
+        let timing_value = |work: &zakuro_core::CoreWorkTiming| {
+            json!({
+            "calls":work.calls,
+            "wall_nanoseconds":work.wall.as_nanos().min(u64::MAX as u128) as u64,
+            "nested_command_wall_nanoseconds":work.nested_command_wall.as_nanos().min(u64::MAX as u128) as u64})
+        };
         for (name, work) in [
             ("svc", &core_work.svc),
             ("frame", &core_work.frame),
             ("audio", &core_work.audio),
         ] {
-            report["core_work"][name] = json!({
-                "calls":work.calls,
-                "wall_nanoseconds":work.wall.as_nanos().min(u64::MAX as u128) as u64,
-                "nested_command_wall_nanoseconds":work.nested_command_wall.as_nanos().min(u64::MAX as u128) as u64});
+            report["core_work"][name] = timing_value(work);
+        }
+        // CodexAstraUlt: Export only observed slots from fixed tables. Numbered
+        // SVC rows partition their parent; IPC and direct/queued GSP tables are
+        // nested children and must not be added to each other or to core time.
+        // No guest names, request words, addresses or growing trace leave here.
+        report["core_work"]["svc_by_number"] = Value::Array(
+            core_work
+                .svc_by_number
+                .iter()
+                .enumerate()
+                .filter(|(_, work)| work.calls != 0)
+                .map(|(number, work)| {
+                    let mut value = timing_value(work);
+                    value["number"] = if number < 128 {
+                        json!(number)
+                    } else {
+                        Value::Null
+                    };
+                    value
+                })
+                .collect(),
+        );
+        for (name, labels, rows) in [
+            (
+                "ipc_by_service",
+                &zakuro_core::CoreWorkDiagnostics::IPC_SERVICE_NAMES[..],
+                &core_work.ipc_by_service[..],
+            ),
+            (
+                "gsp_direct",
+                &zakuro_core::CoreWorkDiagnostics::GSP_OPERATION_NAMES[..],
+                &core_work.gsp_direct[..],
+            ),
+            (
+                "gsp_queued",
+                &zakuro_core::CoreWorkDiagnostics::GSP_OPERATION_NAMES[..],
+                &core_work.gsp_queued[..],
+            ),
+        ] {
+            let values: serde_json::Map<String, Value> = labels
+                .iter()
+                .zip(rows)
+                .filter(|(_, work)| work.calls != 0)
+                .map(|(label, work)| ((*label).to_owned(), timing_value(work)))
+                .collect();
+            report["core_work"][name] = Value::Object(values);
         }
         // CodexAstraUlt: Export aggregate CPU vertex batch timing. This
         // command-processing subset includes VS/GS execution, packing and worker

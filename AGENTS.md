@@ -4,6 +4,17 @@
 and publication; preserve existing artifact identities in historical evidence. -->
 - The repository is `RegiRex/DroiDDS`. Use that spelling in current GitHub links.
 
+<!-- CodexAstraUlt: Preserve the owner's explicit connection boundary separately
+from authorization to continue cloud development and verified publication. -->
+- Before any new Thor/ADB connection or device-work batch, signal the owner and
+  STOP until explicit approval. This includes device discovery, report export,
+  installation and testing. “Signal me before connecting” means wait for the
+  owner's answer; notification alone, an available cable/device or an earlier
+  batch does not authorize the next one. Cloud coding, builds, source review and
+  uploaded-report analysis may continue. Prepare and verify the compatible
+  package before requesting connection approval when possible; use existing
+  build/installation records rather than querying the Thor in advance.
+
 <!-- CodexAstraUlt: The owner has completed the private Android build and first
 interactive menus; advance to audio/playability work without repeating setup. -->
 - Read docs/device-tests/0.0.7-dark-moon-thor-menu.md. The owner reports all
@@ -81,30 +92,40 @@ and intro evidence, then finish cloud changes before requesting another run. -->
   documentation-only release source 62eb45e0c9958d588a06b279f19fcbbd6f9196d6.
   Its two Thor reports are now available; no handheld speed gain is established.
   Preserve docs/builds/0.0.8-cpu-work-followup.md and those artifact identities.
-<!-- CodexAstraUlt: The verified code 15 publication authorizes one compatible
-retained-library test; cloud timings are not new handheld performance evidence. -->
-- The published CPU candidate is 0.0.8-preview.5/code 15. Local correctness/runtime,
-  retained-library APK and independent bundle checks pass at implementation
-  f6879110dace4d47edd3796ab4b85acc69effcb0. Hosted main checks pass there;
-  tag build/publication and independent public-download verification pass at
-  release source 365c1a0ffa3fce8d7001f625a0c42e399ea5b1aa. New Thor checks remain
-  unperformed; no handheld speed gain is established. Read
-  docs/builds/0.0.8-cpu-decode-followup.md. Input-decoder specialization and a
-  compact GPU health query target repeated CPU work. Fixed SVC/frame/audio
-  timings retain nested command subsets; subtract those subsets before combining
-  these scopes with command time. Do not repeat the unchanged code 14 run.
-  Follow the current retained-library handoff using Native execution, CPU vertex
-  shaders and Vulkan 1×. Reuse the retained ARM64 library and owner signer for a
-  compatible update with an install code greater than the installed one and at
-  least 15. Run once: A around 91 seconds after Play if the title prompt is ready,
-  normal Stop around 110 seconds, at most 120 wall seconds. Stop early on failure
-  or corruption and record actual input timing/progression. Export the full JSON
-  before any restart, upload reviewed evidence and return verified links.
-  Preserve imports, saves, both 521-object builds and previous reports. No setup,
-  preparation, title compilation or permission reconfiguration is required.
-  Further Thor GPU tests remain deferred. Automatic and error handling remain
-  unchanged; do not add shader dumps, growing logs or optional JIT. No separate
-  public diagnostic APK install is required.
+<!-- CodexAstraUlt: Advance from the completed code 15 run using precise timer
+scope, while preserving the published artifact history and new access boundary. -->
+- Published 0.0.8-preview.5/code 15 passed local correctness/runtime,
+  retained-library APK and independent bundle checks at implementation
+  f6879110dace4d47edd3796ab4b85acc69effcb0. Hosted main checks passed there;
+  tag build/publication and independent public-download verification passed at
+  release source 365c1a0ffa3fce8d7001f625a0c42e399ea5b1aa. Preserve
+  docs/builds/0.0.8-cpu-decode-followup.md and those source/artifact identities.
+- Read docs/device-tests/0.0.8-preview5-dark-moon-thor.md and report commit
+  7670dc3. The code 15 Native/CPU menu run reached file selection and stopped
+  normally at 16.70% speed, with no reported runtime/rendering errors and 1,362
+  audio underruns. No new listening observation or performance gain is
+  established. A populated File 1 panel differs from the earlier empty menu;
+  preserve that save state rather than trying to manufacture an identical run.
+  SVC handling accounts for 33.975 seconds outside the PICA command-list timer,
+  not necessarily outside rendering/GPU work. Transfers, fills, DMA and GPU
+  synchronization can occur in that scope. The remaining unclassified core time
+  is 6.779 seconds; do not label it native execution time alone.
+- Preview.6/code 16 is under cloud development. A fused shader-output projection
+  prototype and fixed SVC/service/GSP attribution are being evaluated; benchmarks,
+  correctness checks, packaging and publication remain pending. Do not claim an
+  implemented speed gain or request an unchanged code 15 run. Finish cloud gates
+  before the next local packaging batch. Reuse working tools, preparation, both
+  completed 521-object builds/libraries and the owner signer. Prepare a compatible
+  update with a code above the last verified installation and at least 16, using
+  existing records before connection approval. Then signal the owner and STOP
+  until explicit approval before any Thor/ADB connection, discovery, export,
+  install or test. Preserve imports, saves and previous reports.
+  The eventual approved test keeps Native execution, CPU vertex shaders and
+  Vulkan 1×, with A around 91 seconds if ready and normal Stop around 110 seconds,
+  bounded by 120 wall seconds. Export the full JSON before restart and upload
+  reviewed evidence with verified links. Further Thor GPU tests and
+  audio-perfection work remain deferred. Do not add shader dumps, growing logs
+  or optional JIT; no separate public diagnostic APK installation is required.
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->
@@ -184,8 +205,10 @@ so receiving a device report does not create an unnecessary approval round. -->
   Continue in the same turn when possible. A failing gate requires diagnosis and
   a corrective build before promotion, not silently skipping the gate. Ask only
   for missing input or a consequential decision that actually blocks progress.
-  End each build with its download and next device test; do not claim autonomous
-  background work after the turn or proceed past unperformed hardware gates.
+  End each build with its download and prepared next-device procedure; signal
+  and wait for explicit approval before new Thor/ADB access as required above.
+  Do not claim autonomous background work after the turn or proceed past
+  unperformed hardware gates.
 <!-- CodexAstraUlt: Preserve the measured CPU milestone and the next platform
 test without treating a host Vulkan draw as a qualified PICA renderer. -->
 - The owner's 0.0.2 Thor report passes the four CPU fixtures and two corruption

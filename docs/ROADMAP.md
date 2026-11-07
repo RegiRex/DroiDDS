@@ -18,19 +18,28 @@ intro; its report records no runtime/rendering errors. Different scenes and
 durations do not establish a speed improvement. The intro observation does not
 qualify a playable segment or close the 0.0.8 gate.
 
-<!-- CodexAstraUlt: Advance after verified publication while retaining the
-separate unperformed code 15 hardware gate and code 14 artifact history. -->
-**Preview.5/code 15 is published**. Input-decoder specialization and a compact
-GPU health query reduce repeated work; fixed SVC/frame/audio timings distinguish
-additional core costs while recording nested command time separately. Local
-correctness/runtime, retained-library APK and independent bundle checks pass at
-`f687911`; hosted main checks pass there, and tag build/publication plus independent
-public-download verification pass at `365c1a0`. New Thor checks remain unperformed.
-Code 14's [build record](builds/0.0.8-cpu-work-followup.md) retains passed
-implementation checks at `a77a85e` and verified publication at `62eb45e`.
-Native execution, CPU vertex shaders and Vulkan 1× remain the priority.
-Further Thor GPU tests and audio-perfection work are deferred; no handheld gain
-is established by source changes or host component timings.
+<!-- CodexAstraUlt: Preserve code 15 publication identities while advancing
+from its completed device report into the next measured cloud work. -->
+**Preview.5/code 15 is published and tested on Thor.** Its local/runtime/package
+and hosted main checks pass at `f687911`; publication and independent public
+asset verification pass at `365c1a0`. The
+[code 15 report](device-tests/0.0.8-preview5-dark-moon-thor.md) reaches file
+selection at **16.70% speed**, with no reported runtime/rendering errors and no
+established gain. File 1 is now populated, so the post-A workload differs from
+the earlier empty menu. There is no new listening observation.
+
+The report attributes **33.975 seconds to SVC work outside the PICA command-list
+timer** and leaves 6.779 seconds unclassified. Transfers, fills, DMA and GPU
+synchronization can still be part of the SVC remainder; it is not proven pure
+kernel overhead or non-rendering time. **Preview.6/code 16 is under cloud
+development**, evaluating a shader-output projection prototype and detailed
+fixed SVC/service/GSP attribution. Benchmarks, correctness/package checks and
+publication remain pending. No new device run is authorized by this status.
+
+Native execution, CPU vertex shaders and Vulkan 1× remain the priority. Further
+Thor GPU tests and audio-perfection work remain deferred. The code 14
+[build record](builds/0.0.8-cpu-work-followup.md) preserves its own identities;
+no handheld gain follows from source changes or host component measurements.
 
 <!-- CodexAstraUlt: Record actual private interactive boot as progress into the
 next alpha stage; a menu and an underrun total do not establish playable speed. -->
@@ -87,7 +96,7 @@ that historical preview's artifacts and records native CPU execution, Vulkan
 draws, PCM and pause/resume without reported runtime failure. The owner confirmed
 both images, D-pad/A, touch, pause/resume and steady sound for that build. This
 closes its historical original-title device check; later private boot and
-code 11–14 observations remain separate above.
+code 11–15 observations remain separate above.
 
 <!-- CodexAstraUlt: Record independently testable gameplay prerequisites while
 the owner's private build proceeds; fixtures do not promote title milestones. -->
@@ -107,15 +116,18 @@ correctness and scheduler optimization. Another Dark Moon checkpoint is not a
 prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
-preserving the owner signing identity and existing reports. The code 14 menu
-test and separate owner intro export are complete. Preview.5's cloud/package,
-hosted publication and independent download checks now pass. Proceed with the
-retained-library Native/CPU, Vulkan 1× update, using an install code greater than
-the installed one and at least 15. Run one comparable menu test: A around
-91 seconds after Play if ready, normal Stop around 110 seconds, with a strict
-120-wall-second maximum. Preserve/export the full JSON before any restart and
-upload the reviewed evidence. Keep private hardware results separate from
-original-input cloud checks.
+preserving the owner signing identity and existing reports. The code 15 run is
+complete; do not repeat it unchanged. Finish preview.6's cloud gates before the
+next local package. Reuse the completed title library and prepare a compatible
+package from existing records before device access when possible.
+
+<!-- CodexAstraUlt: Preserve the explicit owner approval boundary for every new
+Thor batch without blocking independent cloud code/build/report work. -->
+Before any new Thor/ADB connection or device-work batch, including discovery,
+export, installation or testing, **signal the owner and stop until explicit
+approval**. Notification alone is not approval. After approval, one bounded
+Native/CPU menu test and reviewed report delivery can follow the current
+procedure. Cloud evidence and private hardware qualification remain separate.
 
 <!-- CodexAstraUlt: Replace the research pack's broad serial implementation sequence with evidence-gated work and early Android, memory and correctness risk checks. -->
 

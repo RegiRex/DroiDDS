@@ -610,7 +610,7 @@ impl System {
                 let command_before = self.gpu.busy;
                 let started = std::time::Instant::now();
                 kernel::svc::dispatch(self, number);
-                self.core_work.svc.record(started.elapsed(), self.gpu.busy.saturating_sub(command_before));
+                self.core_work.record_svc(number, started.elapsed(), self.gpu.busy.saturating_sub(command_before));
                 self.trace_svc_exit(entry);
             }
             Some(Exit::Undefined { pc, opcode }) => {

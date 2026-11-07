@@ -1,35 +1,41 @@
 # DroidDS implementation queue
 
-<!-- CodexAstraUlt: Advance from verified code 15 publication to its separate
-retained-library hardware test while preserving code 14's observed results. -->
-The current published candidate is **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**. DDS-012/013's generic title session, matching
-import, durable runtime storage, controls/audio/lifecycle and per-title ARM64
-packaging are implemented. Dark Moon has reached interactive menus on Thor,
-and compatible updates preserve its retained import, saves and signing identity.
-See [the interface contract](ANDROID_TITLE_CONTRACT.md),
-[builder procedure](ANDROID_TITLE_BUILD.md) and [roadmap](ROADMAP.md).
+<!-- CodexAstraUlt: Replace the completed code 15 test with the measured SVC
+scope and the next candidate's pending cloud work; preserve published identities. -->
+The published candidate remains **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**.
+DDS-012/013's generic title session, matching import, durable runtime storage,
+controls/audio/lifecycle and per-title ARM64 packaging are implemented. Published
+code 15 passes local/runtime/package and hosted main checks at `f687911`, with
+publication and independent download verification at `365c1a0`; see its
+[build record](builds/0.0.8-cpu-decode-followup.md).
 
-The [code 14 reports](device-tests/0.0.8-preview4-dark-moon-thor.md) record a
-bounded Native/CPU menu run at **17.31% emulated speed**, with choppy audio, and a
-separate intro run at **16.66%**. The owner observed no intro graphical glitches;
-the report records no runtime/rendering errors. These observations do not
-establish a speed gain, a qualified playable segment or reliable audio/save-load.
+The [code 15 Thor report](device-tests/0.0.8-preview5-dark-moon-thor.md) reaches
+file selection at **16.70% speed**, with no reported runtime/rendering errors.
+No improvement is established; the populated File 1 panel changes the post-A
+workload. New counters place **33.975 seconds of SVC work outside the PICA
+command-list timer**, not necessarily outside rendering/GPU work. The remaining
+6.779 seconds is unclassified, not native execution time alone. No fresh audio
+observation is supplied. The [code 14 menu/intro evidence](device-tests/0.0.8-preview4-dark-moon-thor.md)
+retains its separate results and owner's no-intro-glitches observation.
 
-Preview.5 specializes attribute decoding, replaces full diagnostic copies in
-the CPU guard with a compact health query, and adds fixed SVC/frame/audio timing
-with explicit nested command subsets. Local correctness/runtime, retained-library
-APK and independent bundle checks pass at `f687911`; hosted main checks pass
-there, with tag build/publication and independent public-download verification
-at `365c1a0`. See the [build record](builds/0.0.8-cpu-decode-followup.md).
-New code 15 Thor checks remain unperformed; no handheld speed gain is established.
+**Preview.6/code 16 is under cloud development.** Evaluate the shader-output
+projection prototype and detailed fixed SVC/service/GSP attribution, with
+benchmarks and correctness checks before packaging/publication. These gates
+remain pending. Native execution, CPU vertex shaders and Vulkan 1× remain the
+priority; further Thor GPU tests and audio-perfection work are deferred. No
+unchanged code 15 test, title regeneration or setup repeat is needed.
 
-Proceed with the [current retained-library handoff](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test):
-Native execution, CPU vertex shaders and Vulkan 1×, one bounded menu run and
-reviewed report delivery. Use a compatible install code greater than the
-installed one and at least 15. Further Thor GPU tests remain deferred. Reuse both
-completed 521-object target builds/libraries and preserve preparation, imports,
-saves, owner signer and previous reports. No unchanged host/device trace, title
-regeneration or setup repeat is needed.
+<!-- CodexAstraUlt: Prepare a concrete compatible package while preserving the
+owner's stop-and-wait requirement before any new device access. -->
+After cloud gates pass, reuse both completed 521-object target builds/libraries,
+preparation and owner signer to prepare the next compatible package. Preserve
+imports, saves and reports. Before any new Thor/ADB connection or device-work
+batch, including discovery, export, installation and testing, **signal the owner
+and stop until explicit approval**; notification alone is not approval. Use
+existing build/installation records for preparation and follow the
+[current local procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test)
+only after its gates and that access approval. Gameplay, reliable audio,
+save/load and sustained speed remain unqualified.
 
 <!-- CodexAstraUlt: Reduce the supplied 119-ticket catalog to bounded work packages with explicit tests and links back to the source requirements. -->
 

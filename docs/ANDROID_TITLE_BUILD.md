@@ -1,69 +1,48 @@
 # Build an Android title candidate
 
-<!-- CodexAstraUlt: Record verified code 15 publication while retaining the
-separate new-device gate and the same title library, signer and app identity. -->
-The published candidate is **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**.
-Local correctness/runtime, retained-library APK and independent bundle checks
-pass at `f687911`; hosted main checks pass there. Tag build/publication and
-independent public-download verification pass at release source `365c1a0`.
-New Thor checks remain unperformed; no handheld speed gain is established.
-Read the [build record](builds/0.0.8-cpu-decode-followup.md) and proceed with the
-retained-library update below.
-The player retains application ID `org.droidds.title.t<program_id>` and the
-[manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
+<!-- CodexAstraUlt: Preserve published code 15 identities while replacing its
+completed device task with the next candidate and explicit connection approval. -->
+The published candidate remains **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**.
+Local/runtime/package and hosted main checks pass at `f687911`; publication and
+independent download verification pass at `365c1a0`. Its
+[build record](builds/0.0.8-cpu-decode-followup.md) retains those identities.
+The [completed code 15 test](device-tests/0.0.8-preview5-dark-moon-thor.md) reaches
+file selection at 16.70% speed with no reported runtime/rendering errors; no
+improvement is established. Its 33.975-second SVC remainder lies outside the
+PICA command-list timer, not necessarily outside rendering/GPU work.
 
-The [completed code 14 tests](device-tests/0.0.8-preview4-dark-moon-thor.md)
-record 17.31% menu speed and 16.66% in the separate owner intro. The owner reports
-no intro glitches; neither report records runtime/rendering errors. No speed
-improvement or playable segment is established. Further Thor GPU tests and
-audio-perfection work remain deferred; no unchanged retry is required.
-
-An existing preparation supplies the same generated C and headers to both target
-compilers. Its completed Linux and ARM64 libraries remain intact and reusable;
-this update rebuilds the shared player/frontend, not the 521 title objects.
+**Preview.6/code 16 is under cloud development.** A shader-output projection
+prototype and fixed SVC/service/GSP attribution are being evaluated; benchmarks,
+correctness, packaging and publication remain pending. No unchanged code 15 run
+is needed. The player retains application ID `org.droidds.title.t<program_id>`
+and the [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
+An existing preparation supplies the same generated C/headers to both target
+compilers. Completed Linux and ARM64 libraries remain reusable; repackaging
+rebuilds the shared player/frontend, not the 521 title objects.
 
 ## Current Dark Moon repackaging and audio test
 
-<!-- CodexAstraUlt: Keep the existing anchor stable and proceed with the CPU
-test after verified publication, without treating cloud checks as a Thor result. -->
-Published **[0.0.8-preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)**
-passes local correctness/runtime/graphics/package and independent bundle checks
-at `f687911`; hosted main checks pass there. Tag build/publication and independent
-public-download verification pass at release source `365c1a0`; see the
-[build record](builds/0.0.8-cpu-decode-followup.md). New Thor checks remain
-unperformed, and no handheld speed gain is established. Proceed with this
-retained-library update and bounded Thor run; no separate public original APK
-installation is required. Keep **Native guest
-execution, CPU vertex shaders, Vulkan 1×** and comparable menu
-progression/settings. Automatic stays the normal default.
+<!-- CodexAstraUlt: Keep this established anchor while requiring completed
+cloud gates and a prepared package before the owner's new connection decision. -->
+Preview.6's cloud correctness/package/publication gates are pending. Finish those
+before the next local packaging batch. Further Thor GPU tests and audio-perfection
+work remain deferred. The eventual approved test keeps **Native guest execution,
+CPU vertex shaders and Vulkan 1×**. Automatic stays the ordinary default.
 
-Use one CPU-vertex menu run matching the earlier menu tests: press A around **91 seconds after
-Play** if the title prompt is ready, then request normal Stop around **110
-seconds**. Never exceed **120 wall seconds**. Record actual input timing and
-progression; do not extend for a late prompt. Stop early on failure or visual
-corruption. Further GPU testing is deferred. Record actual worker-running time
-separately. Do not extend the run or replay a failure. If the app has
-already failed/stopped, end observation and preserve the error instead of
-counting the observer's later wait as guest execution.
-
-Preserve code 14 menu/intro and all other prior reports before any new session.
-The app keeps one `files/latest-title-report.json` and replaces it on later
-sessions. **After each stop or failure, export the complete JSON immediately,
-before any restart.** Capture a relevant bounded driver-log excerpt only when
-needed to explain a new failure. Existing GPU evidence stays separate.
-
-<!-- CodexAstraUlt: Report delivery remains part of the actual test task;
-existing exports and GitHub access avoid new logging or another device run. -->
-Follow [report transfer](DEVICE_REPORT_HANDOFF.md): review and upload the full
-JSON, short summary and any relevant failure excerpt to
-`RegiRex/DroiDDS`, verify the remote files, and return commit/file links.
-Preserve raw originals locally. A missing upload is not grounds for another run.
+**Before any new Thor/ADB connection or device-work batch, signal the owner and
+STOP until explicit approval.** This includes discovery, report export,
+installation and testing. The owner's phrase “signal me before connecting” means
+wait for an answer; notification alone, an available device or a previous batch
+is not approval. Cloud coding/building and review of existing uploads may
+continue. Prepare and verify the compatible package before requesting access
+when possible. Use previous verified build/installation records rather than
+querying the Thor to determine paths, signing identity or install code.
 
 Reuse the successful tool environment, private preparation, completed ARM64
 compilation directory containing `compiled-manifest.json`, and owner signing
 profile. Source the existing environment in each build shell. Use a fresh private
-package output with a version code **greater than the installed code and at least
-15**. The retained title needs only this packaging command:
+package output with a version code **above the last verified installation and at
+least 16**. The retained title needs only this packaging command:
 
 ```bash
 python3 tools/build_android_title.py \
@@ -76,39 +55,66 @@ python3 tools/build_android_title.py \
   --signing-profile /absolute/path/to/existing-owner-title-signing.json
 ```
 
-Resolve paths and install code from the successful local build and installed
-package. Keep the same package and certificate for a compatible update; preserve
-imports and remaining saves. Do not uninstall, clear app data, create a
-replacement key, repeat tool setup, regenerate preparation, recompile either
-set of title objects or reconfigure permissions.
+Keep the same package/certificate, imports, saves, both completed 521-object
+builds/libraries and all previous reports. Do not uninstall, clear app data,
+create a replacement key, repeat tool setup, regenerate preparation, recompile
+title objects or reconfigure permissions. Package verification precedes the
+connection request; a completed package does not itself authorize device access.
 
-<!-- CodexAstraUlt: Limit the local prompt to the forthcoming CPU update;
-preserve original reports and deliver reviewed copies with verified links. -->
+After explicit approval, confirm exclusive device operation and verify the
+actual installed package/version/certificate before installation. If the
+installed version is newer than the retained record, prepare another compatible
+package with a sufficiently high code; do not bypass the version/signature check.
+Preserve the existing latest report before installing the compatible update.
+
+Use one CPU-vertex menu run with comparable progression: press A around
+**91 seconds after Play** if the prompt is ready, then request normal Stop around
+**110 seconds**. Never exceed **120 wall seconds**. Record actual timing and
+progression; stop early on failure/corruption, do not extend for a late prompt,
+and do not replay a failure. Preserve the populated File 1/save state. Record
+worker-running time separately from the observer's wall time.
+
+The app replaces `files/latest-title-report.json` on later sessions. **Export
+its full JSON immediately after stop/failure and before any restart**, within
+the approved device batch. Keep actual audio/visual observations separate from
+counters. Capture a bounded relevant driver-log excerpt only for a new failure.
+Follow [report transfer](DEVICE_REPORT_HANDOFF.md): upload reviewed reports and
+a short summary, verify remote bytes and return links. Raw originals and private
+game/build/signing data stay local. A missing upload is not grounds for a rerun.
+No separate public diagnostic APK installation is required.
+
+<!-- CodexAstraUlt: Keep the handoff limited to preparation and the approved
+bounded test; require a real pause before device access rather than notification. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Confirm preview.5 cloud route/package/publication gates passed before packaging.
-Preserve the existing code 14 menu/intro reports and all earlier evidence.
-Reuse working tools, preparation, completed ARM64 compilation and owner signing
-profile. Repackage only with the same package/certificate and an install code
-above the installed one, at least 15. Install a compatible update preserving
-imports and saves.
+Confirm preview.6 cloud route/package/publication gates passed before packaging.
+Preserve code 15 and all previous reports. Reuse working tools, preparation,
+completed ARM64 compilation and the same owner signing profile. Repackage only
+with the same package/certificate and a code above the last verified installed
+code, at least 16. Use prior build/installation records; do not query the Thor.
+Preserve imports, saves and both completed title builds.
 
-Keep Native execution, CPU vertex shaders, Vulkan 1x and comparable menu
-progression/settings. Run once: press A around 91 seconds after Play if the title
-prompt is ready, then Stop around 110 seconds; never exceed 120 wall seconds.
-Stop early on failure/corruption and do not extend for a late prompt. Record the
-actual input timing and progression. Further GPU testing is deferred.
-Export the complete JSON immediately after stop/failure and before any restart.
-Record actual worker time, CPU processing, input/scene progression, rendering
-paths and observed audio/images separately. Preserve a relevant bounded
-driver-log excerpt if needed.
+Finish package verification, then signal me and STOP for explicit approval before
+any Thor/ADB connection or device work, including discovery, export, installation
+or testing. Notification alone is not approval. Do not infer approval from an
+available device or a previous session.
 
-Follow docs/DEVICE_REPORT_HANDOFF.md to upload reviewed full reports, a short
-android-title-build-summary.md and relevant failure excerpts. Verify remote
-bytes and return commit/file links. Keep raw originals, both title builds and
-private game/build/signing files local. Do not repeat setup, preparation, title
-compilation, historical traces or permission configuration, or reset saves.
+After approval, confirm exclusive device operation and package compatibility.
+Preserve the latest report before installing the compatible update. Keep Native
+execution, CPU vertex shaders, Vulkan 1x and comparable menu progression/settings.
+Run once: press A around 91 seconds after Play if the title prompt is ready, then
+Stop around 110 seconds; never exceed 120 wall seconds. Stop early on failure or
+corruption and do not extend for a late prompt. Record actual input timing and
+progression. Further GPU testing is deferred.
+
+Export the full JSON immediately after stop/failure and before any restart.
+Record worker time, CPU processing, scene progression, rendering paths and actual
+audio/visual observations separately. Follow docs/DEVICE_REPORT_HANDOFF.md to
+upload reviewed reports, a short summary and relevant bounded failure excerpts.
+Verify remote bytes and return commit/file links. Keep raw originals and private
+game/build/signing files local. Do not repeat setup, preparation, title compilation,
+historical traces or permission configuration, or reset saves.
 ```
 
 <!-- CodexAstraUlt: Keep diagnostic timing scopes and failed-path evidence
@@ -345,7 +351,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 15 \
+  --version-code 16 \
   --diagnostic-signing --diagnostic-fixture homebrew
 ```
 
@@ -417,9 +423,13 @@ sandbox/device access, regenerate title C, repeat host traces or upload private
 artifacts. Report a failed setup with its precise error and local log, or an
 unresolved existing signing identity, as a concrete blocker.
 
-If the Thor is available and no other session is operating it, record the exact
-APK/package/version/certificate and device/driver identity. Install only a new
-package or a compatible update preserving app data; never uninstall, clear data,
+Finish package verification first. Before any new Thor/ADB connection or device
+work, including discovery, export, installation or testing, signal me and STOP
+until explicit approval. Notification alone, an available device or an earlier
+session is not approval. After approval, confirm no other session is operating
+the Thor, then record the exact APK/package/version/certificate and device/driver
+identity. Install only a new package or a compatible update preserving app data;
+never uninstall, clear data,
 or bypass a signature/version mismatch. Import the exact matching base input
 through the app without overwriting the original or another app's files.
 

@@ -700,6 +700,53 @@ pub(crate) fn run_vertices_with<T>(
     }
 }
 
+// CodexAstraUlt: Select output components without a full register-row
+// intermediate. Codes 0..63 select a register component; 64 is zero and 65 is
+// one, matching raster semantic defaults. Tracing and optional JIT execution
+// retain the existing full-output implementation and its observable behavior.
+pub(crate) fn run_vertices_projected<const N: usize, T>(
+    unit: &ShaderUnit,
+    inputs: &[[Vec4; INPUT_REGISTERS]],
+    projection: &[u8; N],
+    mut then: impl FnMut([f32; N]) -> T,
+) -> Vec<T> {
+    let from_full = |outputs: [Vec4; OUTPUT_REGISTERS]| {
+        projection.map(|source| outputs.as_flattened().get(source as usize).copied()
+            .unwrap_or(if source == 65 { 1.0 } else { 0.0 }))
+    };
+    #[cfg(feature = "jit")]
+    {
+        run_vertices_with(unit, inputs, |outputs| then(from_full(outputs)))
+    }
+    #[cfg(not(feature = "jit"))]
+    {
+        if log::log_enabled!(target: "zakuro_gpu::shader::nan", log::Level::Trace) {
+            return run_vertices_with(unit, inputs, |outputs| then(from_full(outputs)));
+        }
+        let decoded;
+        let program = match &unit.decoded {
+            Some(program) => program.as_ref(),
+            None => {
+                decoded = Program::decode(unit);
+                &decoded
+            }
+        };
+        let uniforms = batch::Uniforms::new(unit);
+        let (mut blocks, mut forks) = (Vec::with_capacity(16), Vec::new());
+        let mut mapped = Vec::with_capacity(inputs.len());
+        let template = projection.map(|source| if source == 65 { 1.0 } else { 0.0 });
+        for inputs in inputs.chunks(batch::LANES) {
+            // CodexAstraUlt: Reset compact rows every batch. Registers omitted
+            // by program.outputs and unwritten components must remain zero.
+            let mut outputs = [template; batch::LANES];
+            let outputs = &mut outputs[..inputs.len()];
+            batch::run_projected(unit, &uniforms, program, inputs, projection, outputs, &mut blocks, &mut forks);
+            mapped.extend(outputs.iter().copied().map(&mut then));
+        }
+        mapped
+    }
+}
+
 /// runs the shader over one vertex.
 pub fn run(unit: &ShaderUnit, state: &mut ShaderState) {
     match &unit.decoded {
@@ -1264,6 +1311,53 @@ mod tests {
                 assert_eq!(packed, expected.iter().enumerate().map(|(i, output)| {
                     (i, [output[0], output[1], output[2]])
                 }).collect::<Vec<_>>());
+            }
+        }
+    }
+
+    // CodexAstraUlt: Compact output must match every selected scalar bit across
+    // nested forks, untouched registers, repeated semantics, defaults and tails.
+    // The callback still runs once per real input in original lane order.
+    #[test]
+    fn projected_batches_preserve_scalar_bits_and_lane_order() {
+        let mut unit = mapped_divergent_unit();
+        unit.float_uniforms[1] = [f32::from_bits(0x7FC0_1234), 11.0, -0.0, 13.0];
+        unit.float_uniforms[2] = [20.0, f32::INFINITY, 22.0, -0.0];
+        unit.float_uniforms[3] = [-0.0, 31.0, f32::NEG_INFINITY, 33.0];
+        unit.float_uniforms[4] = [40.0, f32::from_bits(0x7FC0_5678), 42.0, -0.0];
+        let inputs: Vec<_> = (0..513).map(|i| {
+            let mut input = [ZERO; INPUT_REGISTERS];
+            input[0][0] = if i % 2 == 0 { 1.0 } else { -1.0 };
+            input[1][0] = if i % 4 < 2 { 1.0 } else { -1.0 };
+            input[2] = [i as f32, -0.0, i as f32 + 0.5, 1.0];
+            input
+        }).collect();
+        let projection = [65, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 32, 63, 64, 65, 0, 3, 8, 65];
+        let full: [u8; OUTPUT_REGISTERS * 4] = std::array::from_fn(|i| i as u8);
+        for prepared in [false, true] {
+            if prepared {
+                unit.prepare();
+            }
+            for count in [0, 1, 7, 8, 9, 16, 19, 64, 513] {
+                let inputs = &inputs[..count];
+                let scalar = one_by_one(&unit, inputs);
+                let expected: Vec<_> = scalar.iter().enumerate().map(|(index, outputs)| {
+                    (index, projection.map(|source| outputs.as_flattened().get(source as usize)
+                        .copied().unwrap_or(if source == 65 { 1.0 } else { 0.0 }).to_bits()))
+                }).collect();
+                let mut calls = 0;
+                let actual = run_vertices_projected(&unit, inputs, &projection, |outputs| {
+                    let result = (calls, outputs.map(f32::to_bits));
+                    calls += 1;
+                    result
+                });
+                assert_eq!(calls, count);
+                assert_eq!(actual, expected, "prepared {prepared}, inputs {count}");
+                let actual = run_vertices_projected(&unit, inputs, &full, |outputs| outputs.map(f32::to_bits));
+                let expected: Vec<[u32; OUTPUT_REGISTERS * 4]> = scalar.iter().map(|outputs| {
+                    std::array::from_fn(|i| outputs.as_flattened()[i].to_bits())
+                }).collect();
+                assert_eq!(actual, expected, "all registers prepared {prepared}, inputs {count}");
             }
         }
     }

@@ -86,6 +86,19 @@ pub struct ServiceState {
 
 /// entry point from svcSendSyncRequest.
 pub fn handle_request(system: &mut System, target: Target) {
+    // CodexAstraUlt: Attribute one natural IPC call, including early/unhandled
+    // outcomes, to a fixed family. This child overlaps its enclosing SVC and
+    // any GSP work; it is not an additional disjoint core duration.
+    let family = crate::CoreWorkDiagnostics::service_slot(target.name());
+    let command_before = system.gpu.busy;
+    let started = std::time::Instant::now();
+    handle_request_inner(system, target);
+    system.core_work.ipc_by_service[family].record(started.elapsed(), system.gpu.busy.saturating_sub(command_before));
+}
+
+// CodexAstraUlt: Retain the existing request/reply path intact inside the
+// timed wrapper, so early returns and service fallbacks keep their behavior.
+fn handle_request_inner(system: &mut System, target: Target) {
     let Some(thread) = system.kernel.current() else {
         return;
     };
@@ -219,6 +232,32 @@ pub(crate) mod tests {
         system.kernel.current_thread = Some(id);
         let buffer = CommandBuffer::new(system.kernel.thread(id).tls);
         (system, buffer)
+    }
+
+    // CodexAstraUlt: Real IPC replies and an early absent-thread return exercise
+    // bounded family attribution without changing guest results or cycles.
+    #[test]
+    fn service_timing_groups_aliases_and_preserves_real_replies() {
+        let (mut system, buffer) = system_with_thread();
+        let before = system.cpu.cycles;
+        for name in ["APT:U", "APT:A"] {
+            buffer.set(&mut system.memory, 0, Header::new(0x0009, 1, 0).0);
+            buffer.set(&mut system.memory, 1, 0x101);
+            handle_request(&mut system, Target::service(name.into(), 0));
+            assert_eq!(buffer.header(&mut system.memory), Header::new(0x0009, 2, 0));
+            assert_eq!(buffer.get(&mut system.memory, 1), 0);
+            assert_eq!(buffer.get(&mut system.memory, 2), 1);
+        }
+        assert_eq!(system.cpu.cycles, before);
+        let work = system.core_work_diagnostics();
+        assert_eq!(work.ipc_by_service[1].calls, 2);
+        assert_eq!(work.ipc_by_service.iter().map(|row| row.calls).sum::<u64>(), 2);
+        assert_eq!(work.svc.calls, 0, "direct helper calls are not CPU-dispatched SVCs");
+        assert_eq!(work.ipc_by_service[1].nested_command_wall, std::time::Duration::ZERO);
+        system.kernel.current_thread = None;
+        handle_request(&mut system, Target::service("arbitrary guest name".into(), 0));
+        assert_eq!(system.core_work_diagnostics().ipc_by_service[19].calls, 1);
+        assert_eq!(buffer.get(&mut system.memory, 2), 1, "early return keeps the existing reply");
     }
 
     /// no library applet is there until the title prepares one, a title
