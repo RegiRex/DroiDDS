@@ -1,5 +1,8 @@
 # Local Dark Moon Native/CPU performance handoff
 
+<!-- CodexAstraUlt: Point a resumed session to the owner-requested local save locations and completed code17 evidence before the historical packaging handoff below. -->
+**Continuation update, 2026-11-09:** code 17 testing and verified report publication are complete. Start with [the saved local session locator](LOCAL_SESSION_CONTINUATION.md) for the transcript and resume-handoff paths. The packaging/test instructions below describe the prior handoff; do not repeat them to resume. Every new Thor/ADB batch still requires fresh explicit owner approval.
+
 <!-- CodexAstraUlt: Hand off verified cloud work for compatible repackaging;
 publication does not authorize the new Thor connection or qualify performance. -->
 Current candidate: **[0.0.8-preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**, published.
