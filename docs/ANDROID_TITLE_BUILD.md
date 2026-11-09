@@ -1,40 +1,44 @@
 # Build an Android title candidate
 
-<!-- CodexAstraUlt: Publish verified preview.6 cloud gates while preserving
-code 15 identities and the owner's explicit new-device approval boundary. -->
-The published candidate is **[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**.
+<!-- CodexAstraUlt: Preserve published code 16 identities and completed test;
+keep the next transfer candidate pending until its own cloud gates pass. -->
+The published candidate remains **[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**.
 Local correctness/runtime, retained-library APK, independent bundle and hosted
-main checks pass at `64f1404`; tag publication and independent
-public-download verification pass at `2354ed0`. Its
+main checks pass at `64f1404`; tag publication and independent public-download
+verification pass at `2354ed0`. Its
 [build record](builds/0.0.8-service-projection-followup.md) retains exact identities.
+Historical [code 15](builds/0.0.8-cpu-decode-followup.md) retains implementation
+`f687911` and release `365c1a0`.
 
-Historical preview.5/code 15 passed local/runtime/package and hosted main checks
-at `f687911`, with publication and independent download verification at
-`365c1a0`. Its [build record](builds/0.0.8-cpu-decode-followup.md) remains preserved.
-The [completed code 15 test](device-tests/0.0.8-preview5-dark-moon-thor.md) reaches
-file selection at 16.70% speed with no reported runtime/rendering errors; no
-improvement is established. Its 33.975-second SVC remainder lies outside the
-PICA command-list timer, not necessarily outside rendering/GPU work.
+The [completed code 16 test](device-tests/0.0.8-preview6-dark-moon-thor.md) reached
+file selection at **18.70% speed**, versus code 15's 16.70%, with no reported
+runtime/rendering errors or visible corruption. A/Stop occurred at
+91.056/110.111 seconds. A sustained or causal improvement is unproven. Display
+transfers (**26.917 s**) and texture copies (**6.061 s**) account for 97.82% of
+SVC time outside PICA lists. Their internal subphases remain unseparated. Retain
+1,532 underruns and 160 discarded input frames; no fresh listening assessment
+was supplied. Nine retained surfaces is an entry count, not a byte/leak measure.
 
-Preview.6 implements CPU shader-output projection and fixed SVC/service/GSP
-attribution. Authored x86-64 component benchmarks improve; the new Thor test is
-**unperformed**, and no handheld speed gain is established. No unchanged code 15
-run is needed. The player retains application ID `org.droidds.title.t<program_id>`
-and the [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md).
-An existing preparation supplies the same generated C/headers to both target
-compilers. Completed Linux and ARM64 libraries remain reusable; repackaging
-rebuilds the shared player/frontend, not the 521 title objects.
+**Preview.7/code 17 is under cloud development.** The prototype defers tiled
+transfer captures/submissions with a 32-transfer batch cap, revalidates cached surfaces between
+transfers, and retains the previous linear route. Fixed route/subphase
+metrics are being evaluated. Correctness, benchmark, packaging and publication
+gates remain pending; no completed fix or handheld gain is claimed. No unchanged
+code 16 run is needed. The player retains application ID
+`org.droidds.title.t<program_id>` and the
+[manifest/runtime contract](ANDROID_TITLE_CONTRACT.md). Completed Linux and ARM64
+libraries remain reusable; repackaging rebuilds the shared player/frontend,
+not the 521 title objects.
 
 ## Current Dark Moon repackaging and audio test
 
-<!-- CodexAstraUlt: Keep this established anchor and verified cloud status;
-prepare the compatible package before the owner's new connection decision. -->
-Preview.6's cloud correctness/package/publication gates and independent public
-download verification pass. Repackage the retained title library using the
-working tools and owner signer. Further Thor GPU tests and audio-perfection
-work remain deferred. The new Thor test is unperformed; the eventual approved
-test keeps **Native guest execution, CPU vertex shaders and Vulkan 1×**.
-Automatic stays the ordinary default.
+<!-- CodexAstraUlt: Keep this established anchor while requiring completed
+cloud gates and a prepared package before the owner's next connection decision. -->
+Finish preview.7's pending cloud correctness/package/publication gates before
+the next local packaging batch. Reuse the recorded tools, retained title library
+and owner signer. Further Thor GPU tests and audio-perfection work remain
+deferred. The eventual approved test keeps **Native guest execution, CPU vertex
+shaders and Vulkan 1×**. Automatic stays the ordinary default.
 
 **Before any new Thor/ADB connection or device-work batch, signal the owner and
 STOP until explicit approval.** This includes discovery, report export,
@@ -49,7 +53,7 @@ Reuse the successful tool environment, private preparation, completed ARM64
 compilation directory containing `compiled-manifest.json`, and owner signing
 profile. Source the existing environment in each build shell. Use a fresh private
 package output with a version code **above the last verified installation and at
-least 16**. The retained title needs only this packaging command:
+least 17**. The retained title needs only this packaging command:
 
 ```bash
 python3 tools/build_android_title.py \
@@ -95,11 +99,11 @@ bounded test; require a real pause before device access rather than notification
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Confirm preview.6 cloud route/package/publication gates passed before packaging.
-Preserve code 15 and all previous reports. Reuse working tools, preparation,
+Confirm preview.7 cloud route/package/publication gates passed before packaging.
+Preserve code 16 and all previous reports. Reuse recorded tools, preparation,
 completed ARM64 compilation and the same owner signing profile. Repackage only
 with the same package/certificate and a code above the last verified installed
-code, at least 16. Use prior build/installation records; do not query the Thor.
+code, at least 17. Use prior build/installation records; do not query the Thor.
 Preserve imports, saves and both completed title builds.
 
 Finish package verification, then signal me and STOP for explicit approval before
@@ -349,7 +353,9 @@ python3 tools/prepare_private_title.py \
 ```
 
 Set `DROIDDS_PREPARATION` to that original preparation, choose fresh ARM64/package
-outputs, and run the ARM64 compilation command above. Package the original:
+outputs, and run the ARM64 compilation command above. The current development
+package targets preview.7/code 17; reproducing published code 16 requires its
+release tag and recorded version. Package the original:
 
 ```bash
 python3 tools/build_android_title.py \
@@ -358,7 +364,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 16 \
+  --version-code 17 \
   --diagnostic-signing --diagnostic-fixture homebrew
 ```
 

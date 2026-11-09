@@ -1,7 +1,7 @@
 # DroidDS implementation queue
 
-<!-- CodexAstraUlt: Publish verified preview.6 cloud progress while retaining
-code 15 evidence and the explicit approval boundary for its new Thor check. -->
+<!-- CodexAstraUlt: Preserve published code 16 identities while advancing
+from its completed test into the pending transfer follow-up and approval gate. -->
 The published candidate is **[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**.
 DDS-012/013's generic title session, matching import, durable runtime storage,
 controls/audio/lifecycle and per-title ARM64 packaging are implemented. Published
@@ -25,19 +25,31 @@ retained-library APK, independent bundle and hosted main checks pass at
 `64f1404`; tag publication and independent public-download
 verification pass at `2354ed0`. The
 [build record](builds/0.0.8-service-projection-followup.md) retains exact gates
-and identities. Authored x86-64 component benchmarks improve; the new Thor test
-is **unperformed**, and no handheld gain is established. Native execution, CPU
-vertex shaders and Vulkan 1× remain the priority. Further Thor GPU tests and
-audio-perfection work are deferred. No unchanged code 15 test, title regeneration
-or setup repeat is needed.
+and identities. The [code 16 test](device-tests/0.0.8-preview6-dark-moon-thor.md)
+is complete: **18.70% speed** versus code 15's 16.70%, file selection, no reported
+runtime/rendering errors or visible corruption. The single comparison does not
+establish sustained or causal improvement. Display transfers (**26.917 s**) and
+texture copies (**6.061 s**) account for 97.82% of SVC time outside PICA lists.
+Retain 1,532 underruns and 160 discarded frames; no fresh listening assessment
+was supplied. Nine retained surfaces is an entry count, not a leak measurement.
+
+**Preview.7/code 17 is under cloud development.** Evaluate deferred tiled
+transfer captures/submissions with a 32-transfer batch cap, surface
+revalidation at each transfer boundary and the previous linear route retained. Fixed route/subphase
+metrics are also being evaluated. Correctness, benchmark, package and publication
+gates remain pending; no completed fix or handheld gain is claimed. Native
+execution, CPU vertex shaders and Vulkan 1× remain the priority. Further Thor
+GPU tests and audio-perfection work are deferred. No unchanged code 16 test,
+title regeneration or setup repeat is needed.
 
 <!-- CodexAstraUlt: Prepare a concrete compatible package while preserving the
 owner's stop-and-wait requirement before any new device access. -->
-With the cloud gates verified, reuse both completed 521-object target
-builds/libraries, preparation and owner signer to prepare the compatible package.
-Preserve imports, saves and reports. Before any new Thor/ADB connection or device-work
-batch, including discovery, export, installation and testing, **signal the owner
-and stop until explicit approval**; notification alone is not approval. Use
+After preview.7's cloud gates pass, reuse recorded tools, both completed
+521-object target builds/libraries, preparation and owner signer to prepare a
+compatible package with a code above the last verified installation and at
+least 17. Preserve imports, saves and reports. Before any new Thor/ADB connection
+or device-work batch, including discovery, export, installation and testing,
+**signal the owner and stop until explicit approval**; notification alone is not approval. Use
 existing build/installation records for preparation and follow the
 [current local procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test)
 only after its gates and that access approval. Gameplay, reliable audio,

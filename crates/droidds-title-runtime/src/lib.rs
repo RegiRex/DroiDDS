@@ -456,6 +456,10 @@ impl Session {
             "compiler_failures":gpu.compiler_failures,"retained_shader_bytes":gpu.retained_shader_bytes,
             "retained_translations":gpu.retained_translations,"retained_modules":gpu.retained_modules,
             "retained_pipelines":gpu.retained_pipelines,"retained_surfaces":gpu.retained_surfaces,
+            // CodexAstraUlt: Deferred tiled work remains an accepted GPU
+            // transfer; a bounded-cap flush is a submission, not skipped work.
+            "deferred_tiled_transfers":gpu.deferred_tiled_transfers,
+            "deferred_transfer_flushes":gpu.deferred_transfer_flushes,
             "vertex_shading_on_gpu":gpu.vertex_shading_on_gpu,
             "vertex_shading_policy":gpu.vertex_shading_policy.as_str(),
             "gpu_vertex_draws":gpu.gpu_vertex_draws,"placed_vertex_draws":gpu.placed_vertex_draws,
@@ -505,6 +509,39 @@ impl Session {
         // command recording and waits, and is not a GPU execution timestamp.
         report["gpu"]["command_processing_wall_nanoseconds"] =
             json!(self.system.gpu.busy.as_nanos().min(u64::MAX as u128) as u64);
+        // CodexAstraUlt: Transfer phases are fixed nested host-wall scopes,
+        // already included in their enclosing GSP/SVC work. Hardware acceptance
+        // is separate from attempts; software synchronization includes readback
+        // and its copy phase includes allocation, reads, conversion and writes.
+        let transfer = self.system.gpu.transfer_processing_diagnostics();
+        let nanos = |wall: std::time::Duration| wall.as_nanos().min(u64::MAX as u128) as u64;
+        report["gpu"]["transfer_processing"] = json!({
+            "display": {
+                "calls":transfer.display.calls,
+                "wall_nanoseconds":nanos(transfer.display.wall),
+                "hardware_attempts":transfer.display.hardware_attempts,
+                "hardware_accepted":transfer.display.hardware_accepted,
+                "hardware_fallbacks":transfer.display.hardware_fallbacks,
+                "hardware_errors":transfer.display.hardware_errors,
+                "hardware_tiled":transfer.display.hardware_tiled,
+                "hardware_linear":transfer.display.hardware_linear,
+                "hardware_wall_nanoseconds":nanos(transfer.display.hardware_wall),
+                "software_calls":transfer.display.software_calls,
+                "software_empty":transfer.display.software_empty,
+                "input_sync_wall_nanoseconds":nanos(transfer.display.input_sync_wall),
+                "output_sync_wall_nanoseconds":nanos(transfer.display.output_sync_wall),
+                "software_copy_wall_nanoseconds":nanos(transfer.display.software_copy_wall)
+            },
+            "texture": {
+                "calls":transfer.texture.calls,
+                "contiguous_calls":transfer.texture.contiguous_calls,
+                "strided_calls":transfer.texture.strided_calls,
+                "wall_nanoseconds":nanos(transfer.texture.wall),
+                "input_sync_wall_nanoseconds":nanos(transfer.texture.input_sync_wall),
+                "output_sync_wall_nanoseconds":nanos(transfer.texture.output_sync_wall),
+                "copy_wall_nanoseconds":nanos(transfer.texture.copy_wall)
+            }
+        });
         // CodexAstraUlt: Fixed SVC/frame/audio scopes locate work outside
         // command processing without an instruction timer. Their inclusive wall
         // totals overlap command time by the separately recorded nested subset;

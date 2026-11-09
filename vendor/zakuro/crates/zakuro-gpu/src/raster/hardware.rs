@@ -62,6 +62,9 @@ const IN_FLIGHT: usize = 3;
 /// a batch past this much is run before the next draw, so a draw always
 /// finds room.
 const RING_FLUSH: u64 = RING_SIZE / 2;
+// CodexAstraUlt: Transfer-only streams must submit within a fixed command count
+// even when no draw fills the ring and no CPU read or screen needs the output.
+const DEFERRED_TILED_LIMIT: u32 = 32;
 
 /// a vertex is six vectors, position, color, texture coordinates 0 and 1,
 /// coordinate 2 with the mapped depth, the quaternion and the view vector.
@@ -795,6 +798,9 @@ struct Copied {
     /// it reaches past its last row.
     memory: Option<Arc<[[u8; 4]]>>,
     used: u64,
+    // CodexAstraUlt: Idle age follows logical transfer/submission boundaries;
+    // used remains a real GPU batch for completion-safe destruction.
+    idle_used: u64,
 }
 
 struct Texture {
@@ -802,6 +808,14 @@ struct Texture {
     /// holds the decoded texels the key points at, so the key stays theirs.
     _texels: Arc<[[u8; 4]]>,
     used: u64,
+    // CodexAstraUlt: See Copied: batching must not multiply idle retention.
+    idle_used: u64,
+}
+
+// CodexAstraUlt: Logical idleness and actual GPU completion are separate
+// requirements. Saturating age also keeps the epoch safe at its upper bound.
+fn cache_expired(epoch: u64, idle_used: u64, limit: u64, used: u64, completed_before: u64) -> bool {
+    epoch.saturating_sub(idle_used) > limit && used < completed_before
 }
 
 /// a texture pack's picture, drawn with for every texture it replaces.
@@ -809,6 +823,8 @@ struct Replaced {
     image: Image,
     bytes: u64,
     used: u64,
+    // CodexAstraUlt: Keep pack idle age independent from GPU lifetime.
+    idle_used: u64,
     width: u32,
     height: u32,
     levels: u32,
@@ -836,12 +852,11 @@ const REPLACING_BYTES: u64 = 64 << 20;
 /// of their own, which takes a while to make.
 const RING_PICTURE: u64 = 4 << 20;
 
-/// batches a picture goes unused before it goes to make room for others,
-/// when they take most of the room they may, otherwise they stay.
+// CodexAstraUlt: Logical idle epochs before an unused pack image may make
+// room; actual GPU completion is checked separately before destruction.
 const REPLACED_IDLE: u64 = 60;
 
-/// batches a picture read for a texture no longer drawn waits to be
-/// uploaded before the memory it takes goes.
+// CodexAstraUlt: Logical idle epochs a CPU picture may wait for upload.
 const WAITING_IDLE: u64 = 120;
 
 /// batches pictures wait to be read and uploaded after the GPU had no
@@ -1179,6 +1194,10 @@ pub struct HardwareDiagnostics {
     pub gpu_vertex_draws: u64,
     pub placed_vertex_draws: u64,
     pub submissions: u64,
+    // CodexAstraUlt: Count only accepted tiled transfers taking the lazy path
+    // and batches submitted by its bound; these are not skipped GPU operations.
+    pub deferred_tiled_transfers: u64,
+    pub deferred_transfer_flushes: u64,
     pub draw_errors: u64,
     pub software_raster_fallbacks: u64,
     pub compiler_outstanding: usize,
@@ -1679,8 +1698,8 @@ pub struct Hardware {
     replacing: (std::time::Duration, u64),
     /// the buffers they were uploaded from, by batch, freed once it is done.
     staged: Vec<(u64, Buffer)>,
-    /// pictures asked for and not uploaded yet, by hash, with the batch
-    /// they were last asked for in.
+    // CodexAstraUlt: Waiting pictures use logical idle epochs only; upload
+    // backoff and staged GPU buffers below continue to use actual batches.
     waiting: HashMap<u64, (Arc<Material>, u64)>,
     /// the batch pictures are read and uploaded again from, after the GPU
     /// had no memory for one.
@@ -1692,6 +1711,13 @@ pub struct Hardware {
     /// the tables' generation and where the batch copied them.
     tables: Option<((u64, u64, u64), u64)>,
     recording: bool,
+    // CodexAstraUlt: Bounded tiled transfer work in the current command batch.
+    // Other submission reasons reset it through the same submit path.
+    deferred_tiled: u32,
+    // CodexAstraUlt: The former eager route is an authored test/benchmark
+    // control only; application builds have no toggle or alternate policy.
+    #[cfg(test)]
+    eager_tiled_transfers: bool,
     /// uploads waiting for a barrier before anything reads them.
     uploads: bool,
     /// the color and depth surfaces being rendered into.
@@ -1711,6 +1737,10 @@ pub struct Hardware {
     /// and its indices in, and where, which the one in between reads too.
     twinned_inputs: Option<(u64, Staged, Staged)>,
     batch: u64,
+    // CodexAstraUlt: Preserve cache aging across deferred tiled requests.
+    // This advances on each such request and each real submission, without
+    // changing submission IDs used by fences, captures or upload backoff.
+    cache_epoch: u64,
     name: String,
     /// how many times the console's resolution surfaces are drawn at.
     scale: u32,
@@ -1988,6 +2018,9 @@ impl Hardware {
                 max_image_size: properties.limits.max_image_dimension2_d,
                 tables: None,
                 recording: false,
+                deferred_tiled: 0,
+                #[cfg(test)]
+                eager_tiled_transfers: false,
                 uploads: false,
                 rendering: None,
                 pass: Pass::Real,
@@ -1996,6 +2029,7 @@ impl Hardware {
                 twin_copies: HashMap::new(),
                 twinned_inputs: None,
                 batch: 0,
+                cache_epoch: 0,
                 name,
                 scale: 1,
                 blits,
@@ -2923,6 +2957,7 @@ impl Hardware {
         let key = Arc::as_ptr(&bound.texels) as *const u8 as usize;
         if let Some(texture) = self.textures.get_mut(&key) {
             texture.used = self.batch;
+            texture.idle_used = self.cache_epoch;
             return Ok((texture.image.view, 0));
         }
         self.mark(Work::Upload, false);
@@ -2951,7 +2986,7 @@ impl Hardware {
         };
         self.uploads = true;
         let view = image.view;
-        self.textures.insert(key, Texture { image, _texels: bound.texels.clone(), used: self.batch });
+        self.textures.insert(key, Texture { image, _texels: bound.texels.clone(), used: self.batch, idle_used: self.cache_epoch });
         Ok((view, 0))
     }
 
@@ -2963,13 +2998,14 @@ impl Hardware {
         let (hash, batch) = (material.hash(), self.batch);
         if let Some(replaced) = self.replaced.get_mut(&hash) {
             replaced.used = batch;
+            replaced.idle_used = self.cache_epoch;
             return Some((replaced.image.view, replaced.smallest(size)));
         }
         if self.crowded() || batch < self.replacing_from {
             return None;
         }
         // read meanwhile, uploaded in a batch with room for it
-        self.waiting.entry(hash).or_insert_with(|| (material.clone(), batch)).1 = batch;
+        self.waiting.entry(hash).or_insert_with(|| (material.clone(), self.cache_epoch)).1 = self.cache_epoch;
         // as fine as the GPU draws the largest textures, 1024 texels across
         let kept = (1024 * self.scale).next_power_of_two().max(4096).min(self.max_image_size);
         let picture = material.picture(kept)?;
@@ -2994,7 +3030,7 @@ impl Hardware {
                 material.release();
                 self.waiting.remove(&hash);
                 self.replaced_bytes += bytes;
-                let replaced = Replaced { image, bytes, used: batch, width, height, levels: picture.levels.len() as u32 };
+                let replaced = Replaced { image, bytes, used: self.batch, idle_used: self.cache_epoch, width, height, levels: picture.levels.len() as u32 };
                 let found = (replaced.image.view, replaced.smallest(size));
                 self.replaced.insert(hash, replaced);
                 Some(found)
@@ -3935,6 +3971,9 @@ impl Hardware {
         let mut twin_views = [self.blank.view; 3];
         let mut samplers = [vk::Sampler::null(); 3];
         let mut enabled = 0;
+        // CodexAstraUlt: The usual path needs no second cache lookup; only
+        // actual rotation while binding requires the final lifetime repair.
+        let texture_batch = self.batch;
         for (unit, bound) in draw.textures.iter().enumerate() {
             match bound {
                 Some(bound) => {
@@ -3958,6 +3997,16 @@ impl Hardware {
                     enabled |= 1 << unit;
                 }
                 None => samplers[unit] = self.sampler(false, Wrap::ClampToEdge, Wrap::ClampToEdge, 0)?,
+            }
+        }
+        // CodexAstraUlt: A later depth-texture lookup can grow its samples
+        // buffer and rotate the batch. Earlier selected views remain bound
+        // to this draw, so renew their actual lifetime after all lookups.
+        if self.batch != texture_batch {
+            for (unit, bound) in draw.textures.iter().enumerate() {
+                if let Some(bound) = bound {
+                    self.touch_bound_images(bound, [views[unit], twin_views[unit]]);
+                }
             }
         }
         let tables = match draw.lighting.is_some() || draw.proctex || draw.fog {
@@ -4374,9 +4423,9 @@ impl Hardware {
 
     /// a display transfer out of a buffer the GPU holds, one it drew or an
     /// earlier transfer wrote, done on the GPU, false when the input is
-    /// anything else, for the CPU to do. the output stays on the GPU, and a
-    /// copy of it heads for the host in the same batch, which goes to the
-    /// GPU right away without waiting for it.
+    /// anything else, for the CPU to do. Linear output retains its eager host
+    /// and screen copies; tiled output can remain in a bounded GPU batch until
+    /// a consumer needs it, since it cannot be a screen's linear framebuffer.
     pub(crate) fn display_transfer<M: GpuMemory>(&mut self, memory: &mut M, transfer: &Transfer) -> Result<bool, String> {
         let t = transfer;
         let input_kind = Kind::Color(t.input_format);
@@ -4472,6 +4521,30 @@ impl Hardware {
         self.surfaces[target].changed();
         self.surfaces[target].guard_writes(memory);
         self.overdrawn(target, (0, self.surfaces[target].height), None);
+        // CodexAstraUlt: Replace unconditional host/screen capture and submit
+        // for tiled intermediates with bounded lazy finalization. Every pixel,
+        // twin, dirty range and CPU-write guard above is retained. A later
+        // sync/write_back creates its readback; a linear transfer still follows
+        // the old path below, preserving ScreenRef batch/history semantics.
+        let defer = t.output_tiled;
+        #[cfg(test)]
+        let defer = defer && !self.eager_tiled_transfers;
+        if defer {
+            // submit used to clear these at every transfer boundary. Keep that
+            // revalidation independently of submission, so clean/unguarded
+            // source memory written between requests cannot remain cached.
+            for surface in &mut self.surfaces {
+                surface.checked = false;
+            }
+            self.deferred_tiled += 1;
+            self.cache_epoch = self.cache_epoch.saturating_add(1);
+            if self.deferred_tiled >= DEFERRED_TILED_LIMIT {
+                self.submit()?;
+                self.diagnostics.deferred_transfer_flushes = self.diagnostics.deferred_transfer_flushes.saturating_add(1);
+            }
+            self.diagnostics.deferred_tiled_transfers = self.diagnostics.deferred_tiled_transfers.saturating_add(1);
+            return Ok(true);
+        }
         self.capture(target)?;
         // turned upright for showing at any scale, at the console's own too
         // that beats the CPU waiting for the GPU and decoding the buffer
@@ -4593,14 +4666,18 @@ impl Hardware {
         } else {
             None
         };
-        let batch = self.batch;
+        let (batch, idle_epoch) = (self.batch, self.cache_epoch);
         if let Some(copy) = self.copies(twin).get_mut(texture) {
+            // CodexAstraUlt: The refresh below may submit when growing its
+            // depth sample buffer. Protect the existing image even
+            // when its contents must change, before saving its Vulkan view.
+            copy.used = batch;
+            copy.idle_used = idle_epoch;
             let same_memory = match (&copy.memory, &memory) {
                 (Some(kept), Some(now)) => Arc::ptr_eq(kept, now),
                 (kept, now) => kept.is_none() && now.is_none(),
             };
             if copy.surface == source && copy.generation == generation && same_memory {
-                copy.used = batch;
                 return Ok(copy.image.view);
             }
         }
@@ -4608,7 +4685,7 @@ impl Hardware {
             let usage = vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::TRANSFER_DST;
             self.end_rendering();
             let image = self.image(texture.width * self.scale, texture.height * self.scale, COLOR_FORMAT, usage, vk::ImageAspectFlags::COLOR)?;
-            self.copies(twin).insert(*texture, Copied { image, surface: source, generation, memory: None, used: batch });
+            self.copies(twin).insert(*texture, Copied { image, surface: source, generation, memory: None, used: batch, idle_used: idle_epoch });
         }
         let (view, image) = (self.copies(twin)[texture].image.view, self.copies(twin)[texture].image.image);
         if memory.is_some() {
@@ -4656,11 +4733,15 @@ impl Hardware {
             self.dispatch_transfer((from, view), constants, (texture.width * n, rows * n))?;
         }
         self.uploads = true;
+        // CodexAstraUlt: Growing the depth sample buffer may rotate the
+        // command batch. Use the final batch/epoch, not the lookup's stamps.
+        let (batch, idle_epoch) = (self.batch, self.cache_epoch);
         if let Some(copy) = self.copies(twin).get_mut(texture) {
             copy.surface = source;
             copy.generation = generation;
             copy.memory = memory;
             copy.used = batch;
+            copy.idle_used = idle_epoch;
         }
         Ok(view)
     }
@@ -4670,6 +4751,33 @@ impl Hardware {
         match twin {
             true => &mut self.twin_copies,
             false => &mut self.copies,
+        }
+    }
+
+    // CodexAstraUlt: Restamp only the constant-size set of selected cache
+    // entries, after a possible depth-sample batch rotation. Matching views
+    // distinguishes an uploaded pack image from its ordinary fallback.
+    fn touch_bound_images(&mut self, bound: &BoundTexture, views: [vk::ImageView; 2]) {
+        let (batch, epoch) = (self.batch, self.cache_epoch);
+        if let Some(drawn) = bound.drawn {
+            for twin in [false, true] {
+                if let Some(copy) = self.copies(twin).get_mut(&drawn).filter(|copy| views.contains(&copy.image.view)) {
+                    copy.used = batch;
+                    copy.idle_used = epoch;
+                }
+            }
+        } else {
+            let key = Arc::as_ptr(&bound.texels) as *const u8 as usize;
+            if let Some(texture) = self.textures.get_mut(&key).filter(|texture| views.contains(&texture.image.view)) {
+                texture.used = batch;
+                texture.idle_used = epoch;
+            }
+            if let Some(material) = &bound.replacement {
+                if let Some(replaced) = self.replaced.get_mut(&material.hash()).filter(|image| views.contains(&image.image.view)) {
+                    replaced.used = batch;
+                    replaced.idle_used = epoch;
+                }
+            }
         }
     }
 
@@ -5252,6 +5360,9 @@ impl Hardware {
             self.diagnostics.submissions = self.diagnostics.submissions.saturating_add(1);
         }
         self.recording = false;
+        // CodexAstraUlt: Reset the transfer bound after every actual submission,
+        // including ring pressure, readback, screen output and explicit flush.
+        self.deferred_tiled = 0;
         let next = self.free.pop().expect("a frame was freed above");
         let submitted = Frame {
             commands: std::mem::replace(&mut self.commands, next.commands),
@@ -5269,27 +5380,43 @@ impl Hardware {
         self.uniforms.at = None;
         self.shading.at = None;
         self.batch += 1;
+        // CodexAstraUlt: A deferred-transfer cap also advances this epoch,
+        // making idle retention slightly shorter at that boundary rather
+        // than extending it by up to 32 times. Sweep delay is at most one
+        // bounded transfer batch; unfinished GPU references always win.
+        self.cache_epoch = self.cache_epoch.saturating_add(1);
+        self.let_go_of_textures();
+        self.replacing = (std::time::Duration::ZERO, 0);
+        self.let_go_of_pictures();
+        Ok(())
+    }
 
-        // textures nobody drew with for a while go, long after the GPU
-        // last used them
-        let batch = self.batch;
-        let stale: Vec<usize> = self.textures.iter().filter(|(_, t)| batch - t.used > 600).map(|(&k, _)| k).collect();
+    // CodexAstraUlt: Resources used before this batch are no longer referenced
+    // by recording or in-flight commands. Idle age alone never proves that.
+    fn completed_before(&self) -> u64 {
+        self.in_flight.front().and_then(|frame| frame.pending).unwrap_or(self.batch)
+    }
+
+    // CodexAstraUlt: Keep the existing 600-boundary idle policy independently
+    // of GPU submission cadence, with explicit completion eligibility.
+    fn let_go_of_textures(&mut self) {
+        let (epoch, completed) = (self.cache_epoch, self.completed_before());
+        let stale: Vec<usize> = self.textures.iter()
+            .filter(|(_, t)| cache_expired(epoch, t.idle_used, 600, t.used, completed)).map(|(&k, _)| k).collect();
         for key in stale {
             if let Some(texture) = self.textures.remove(&key) {
                 self.destroy_image(&texture.image);
             }
         }
         for twin in [false, true] {
-            let stale: Vec<DrawnTexture> = self.copies(twin).iter().filter(|(_, c)| batch - c.used > 600).map(|(&k, _)| k).collect();
+            let stale: Vec<DrawnTexture> = self.copies(twin).iter()
+                .filter(|(_, c)| cache_expired(epoch, c.idle_used, 600, c.used, completed)).map(|(&k, _)| k).collect();
             for key in stale {
                 if let Some(copy) = self.copies(twin).remove(&key) {
                     self.destroy_image(&copy.image);
                 }
             }
         }
-        self.replacing = (std::time::Duration::ZERO, 0);
-        self.let_go_of_pictures();
-        Ok(())
     }
 
     /// whether the pictures take most of the room they may, in bytes or in
@@ -5303,9 +5430,9 @@ impl Hardware {
     /// the room they may, when those unused for a second or so go, the
     /// longest unused first, none a batch in flight may still read.
     fn let_go_of_pictures(&mut self) {
-        let batch = self.batch;
+        let (epoch, completed) = (self.cache_epoch, self.completed_before());
         self.waiting.retain(|_, (material, asked)| {
-            let wanted = batch - *asked <= WAITING_IDLE;
+            let wanted = epoch.saturating_sub(*asked) <= WAITING_IDLE;
             if !wanted {
                 material.release();
             }
@@ -5317,8 +5444,8 @@ impl Hardware {
         let mut idle: Vec<(u64, u64)> = self
             .replaced
             .iter()
-            .filter(|(_, replaced)| batch - replaced.used > REPLACED_IDLE)
-            .map(|(&hash, replaced)| (replaced.used, hash))
+            .filter(|(_, replaced)| cache_expired(epoch, replaced.idle_used, REPLACED_IDLE, replaced.used, completed))
+            .map(|(&hash, replaced)| (replaced.idle_used, hash))
             .collect();
         idle.sort_unstable();
         for (_, hash) in idle {
@@ -5941,6 +6068,297 @@ fn pick(instance: &ash::Instance) -> Result<(vk::PhysicalDevice, u32), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // CodexAstraUlt: Tiny authored memory keeps transfer/cache qualification
+    // independent of private titles, rendering scenes and device timing.
+    #[derive(Clone)]
+    struct TransferMemory(Vec<u8>);
+
+    impl TransferMemory {
+        fn original() -> Self {
+            let mut memory = Self(vec![0x93; 0x10000]);
+            for y in 0..16 {
+                for x in 0..16 {
+                    let offset = 0x1000 + pixel_offset(true, x, y, 16, 4);
+                    ColorFormat::Rgba8.encode([(x * 13) as u8, (y * 11) as u8, ((x + y) * 7) as u8, 255], &mut memory.0[offset..offset + 4]);
+                }
+            }
+            memory
+        }
+    }
+
+    impl GpuMemory for TransferMemory {
+        fn read(&mut self, addr: u32, out: &mut [u8]) {
+            out.copy_from_slice(&self.0[addr as usize..addr as usize + out.len()]);
+        }
+        fn write(&mut self, addr: u32, bytes: &[u8]) {
+            self.0[addr as usize..addr as usize + bytes.len()].copy_from_slice(bytes);
+        }
+        fn slice(&mut self, addr: u32, len: usize) -> Option<&[u8]> {
+            self.0.get(addr as usize..addr as usize + len)
+        }
+        fn slice_mut(&mut self, addr: u32, len: usize) -> Option<&mut [u8]> {
+            self.0.get_mut(addr as usize..addr as usize + len)
+        }
+    }
+
+    // CodexAstraUlt: The scalar oracle exercises the public CPU transfer path;
+    // it does not reproduce the Vulkan shader or its image layout internally.
+    fn original_transfer(input: u32, output: u32, tiled: bool) -> Transfer {
+        Transfer { input, output, input_width: 16, output_width: 16, output_height: 16,
+            copy: (16, 16), scale: (1, 1), flip: false, input_linear: false,
+            output_tiled: tiled, input_format: ColorFormat::Rgba8, output_format: ColorFormat::Rgba8 }
+    }
+
+    fn scalar_transfer(memory: &mut TransferMemory, transfer: &Transfer) {
+        let flags = u32::from(transfer.output_tiled) << 5;
+        crate::Gpu::new().display_transfer(memory, transfer.input, transfer.output, 16 | (16 << 16), 16 | (16 << 16), flags);
+    }
+
+    fn transfer_hardware(memory: &mut TransferMemory, scale: u32) -> Hardware {
+        let mut hardware = Hardware::new().expect("Vulkan renderer for authored transfer qualification");
+        assert_eq!(hardware.set_scale(scale), scale);
+        hardware.begin().unwrap();
+        hardware.surface(memory, 0x1000, (16, 16), Kind::Color(ColorFormat::Rgba8), true).unwrap();
+        hardware
+    }
+
+    // CodexAstraUlt: A clean source has no write guard. Its direct host edit
+    // between deferred requests must be observed without relying on submit's
+    // old checked reset. An explicit synchronized edit then covers dirty data.
+    #[test]
+    fn deferred_tiled_transfers_revalidate_cpu_writes_and_sync_dirty_outputs() {
+        let mut memory = TransferMemory::original();
+        let mut expected = memory.clone();
+        let mut hardware = transfer_hardware(&mut memory, 1);
+        let first = original_transfer(0x1000, 0x4000, true);
+        assert!(hardware.display_transfer(&mut memory, &first).unwrap());
+        scalar_transfer(&mut expected, &first);
+        assert_eq!(hardware.diagnostics.submissions, 0);
+        assert!(hardware.surfaces.iter().all(|surface| !surface.checked));
+        let pixel = [31, 67, 193, 255];
+        memory.write(0x1000, &pixel);
+        expected.write(0x1000, &pixel);
+        let second = original_transfer(0x1000, 0x8000, true);
+        assert!(hardware.display_transfer(&mut memory, &second).unwrap());
+        scalar_transfer(&mut expected, &second);
+        assert_eq!(hardware.diagnostics.submissions, 0);
+        assert!(hardware.surfaces.iter().all(|surface| surface.capture.is_none() && surface.screen.is_none()));
+        hardware.sync(&mut memory, 0x8000, 4).unwrap();
+        assert_eq!(&memory.0[0x8000..0x8400], &expected.0[0x8000..0x8400]);
+        memory.write(0x8000, &[91, 42, 201, 255]);
+        expected.write(0x8000, &[91, 42, 201, 255]);
+        let linear = original_transfer(0x8000, 0xc000, false);
+        assert!(hardware.display_transfer(&mut memory, &linear).unwrap());
+        scalar_transfer(&mut expected, &linear);
+        hardware.flush(&mut memory).unwrap();
+        assert_eq!(memory.0, expected.0);
+        assert_eq!(hardware.diagnostics.deferred_tiled_transfers, 2);
+        assert_eq!(hardware.diagnostics.deferred_transfer_flushes, 0);
+    }
+
+    // CodexAstraUlt: Real transfer chains test the command cap, old linear
+    // capture/history behavior and exact bytes at native and scaled resolution.
+    #[test]
+    fn deferred_tiled_chains_are_bounded_and_preserve_linear_screen_history() {
+        for scale in [1, 3] {
+            let mut memory = TransferMemory::original();
+            let mut expected = memory.clone();
+            let mut hardware = transfer_hardware(&mut memory, scale);
+            let mut input = 0x1000;
+            for i in 0..65 {
+                let output = if i % 2 == 0 { 0x4000 } else { 0x8000 };
+                let transfer = original_transfer(input, output, true);
+                assert!(hardware.display_transfer(&mut memory, &transfer).unwrap());
+                scalar_transfer(&mut expected, &transfer);
+                assert_eq!(hardware.deferred_tiled, (i + 1) % DEFERRED_TILED_LIMIT);
+                assert_eq!(hardware.diagnostics.submissions, ((i + 1) / DEFERRED_TILED_LIMIT) as u64);
+                input = output;
+            }
+            assert_eq!(hardware.diagnostics.deferred_transfer_flushes, 2);
+            assert_eq!(hardware.cache_epoch, 67, "65 transfer epochs plus two actual submissions");
+            assert!(hardware.surfaces.iter().all(|surface| surface.capture.is_none() && surface.screen.is_none() && surface.upright.is_none()));
+            let linear = original_transfer(input, 0xc000, false);
+            assert!(hardware.display_transfer(&mut memory, &linear).unwrap());
+            scalar_transfer(&mut expected, &linear);
+            assert_eq!(hardware.diagnostics.submissions, 3);
+            let old = hardware.screen(0xc000, (16, 16), 16, ColorFormat::Rgba8, &memory.0[0xc000..0xc400]).unwrap();
+            let old_picture = hardware.picture(old).unwrap().unwrap();
+            hardware.sync(&mut memory, input, 1024).unwrap();
+            memory.write(input, &[1, 2, 3, 255]);
+            expected.write(input, &[1, 2, 3, 255]);
+            let tile = original_transfer(input, 0x1000, true);
+            assert!(hardware.display_transfer(&mut memory, &tile).unwrap());
+            scalar_transfer(&mut expected, &tile);
+            assert_eq!(hardware.picture(old).unwrap().unwrap().0, old_picture.0);
+            let linear = original_transfer(0x1000, 0xc000, false);
+            assert!(hardware.display_transfer(&mut memory, &linear).unwrap());
+            scalar_transfer(&mut expected, &linear);
+            let new = hardware.screen(0xc000, (16, 16), 16, ColorFormat::Rgba8, &memory.0[0xc000..0xc400]).unwrap();
+            assert_ne!(new.batch, old.batch);
+            assert_eq!(hardware.picture(old).unwrap().unwrap().0, old_picture.0);
+            assert_ne!(hardware.picture(new).unwrap().unwrap().0, old_picture.0);
+            hardware.flush(&mut memory).unwrap();
+            assert_eq!(memory.0, expected.0, "scale {scale}");
+        }
+    }
+
+    // CodexAstraUlt: Exercise every cache's actual live Vulkan allocation.
+    // Artificial age changes are test-only; commands/fences are real, and
+    // neither a recording batch nor a completed-but-unretired fence may lose
+    // an image. Once retired, logical expiry removes it without 600 submits.
+    #[test]
+    fn logical_cache_expiry_preserves_recording_and_inflight_images() {
+        let mut memory = TransferMemory::original();
+        let mut hardware = transfer_hardware(&mut memory, 1);
+        let bound = BoundTexture { texels: vec![[13, 29, 47, 255]; 256].into(), drawn: None,
+            linear: false, wrap_s: Wrap::ClampToEdge, wrap_t: Wrap::ClampToEdge,
+            width: 16, height: 16, border: [0.0; 4], replacement: None };
+        let (ordinary_view, _) = hardware.texture(&bound).unwrap();
+        let drawn = DrawnTexture { addr: 0x1000, width: 16, height: 16, format: ColorFormat::Rgba8 };
+        hardware.copy_texture(&drawn, &bound, false).unwrap();
+        let source = hardware.surfaces.iter().position(|s| s.addr == 0x1000).unwrap();
+        hardware.make_twin(source).unwrap();
+        hardware.copy_texture(&drawn, &bound, true).unwrap();
+        // The depth staging allocation really rotates/waits, as a later draw
+        // binding can. Earlier bindings must then belong to the new batch.
+        hardware.samples(2048).unwrap();
+        let old_batch = hardware.textures.values().next().unwrap().used;
+        assert!(old_batch < hardware.batch);
+        hardware.touch_bound_images(&bound, [ordinary_view, ordinary_view]);
+        let copied_bound = BoundTexture { drawn: Some(drawn), ..bound };
+        let copied_views = [hardware.copies[&drawn].image.view, hardware.twin_copies[&drawn].image.view];
+        hardware.touch_bound_images(&copied_bound, copied_views);
+        assert_eq!(hardware.textures.values().next().unwrap().used, hardware.batch);
+        assert_eq!(hardware.copies[&drawn].used, hardware.batch);
+        assert_eq!(hardware.twin_copies[&drawn].used, hardware.batch);
+        let picture = crate::pack::Picture { width: 1, height: 1, texels: vec![7, 17, 37, 255],
+            levels: vec![crate::pack::Level { offset: 0, width: 1, height: 1 }] };
+        let image = hardware.upload_picture(&picture).unwrap();
+        hardware.replaced.insert(7, Replaced { image, bytes: 4, used: hardware.batch, idle_used: 0, width: 1, height: 1, levels: 1 });
+        hardware.replaced_bytes = 4;
+        hardware.replaced_budget = 4;
+        hardware.cache_epoch = 602;
+        hardware.let_go_of_textures();
+        hardware.let_go_of_pictures();
+        assert_eq!((hardware.textures.len(), hardware.copies.len(), hardware.twin_copies.len(), hardware.replaced.len()), (1, 1, 1, 1));
+        hardware.submit().unwrap();
+        assert!(!hardware.in_flight.is_empty());
+        assert_eq!((hardware.textures.len(), hardware.copies.len(), hardware.twin_copies.len(), hardware.replaced.len()), (1, 1, 1, 1));
+        hardware.wait().unwrap();
+        hardware.let_go_of_textures();
+        hardware.let_go_of_pictures();
+        assert_eq!((hardware.textures.len(), hardware.copies.len(), hardware.twin_copies.len(), hardware.replaced.len()), (0, 0, 0, 0));
+        assert_eq!(hardware.replaced_bytes, 0);
+        for limit in [60, 120, 600] {
+            assert!(!cache_expired(10 + limit, 10, limit, 4, 5));
+            assert!(cache_expired(11 + limit, 10, limit, 4, 5));
+            assert!(!cache_expired(11 + limit, 10, limit, 5, 5));
+        }
+    }
+
+    // CodexAstraUlt: Pending CPU pack pictures have no GPU references, but
+    // must use the same logical clock for insertion and expiry. Existing pack
+    // parsing supplies a real Material without exposing or forging its state.
+    #[test]
+    fn waiting_pack_pictures_expire_by_logical_epoch() {
+        let data = vec![0u8; 256];
+        let hash = crate::pack::hash(crate::pack::Hashing::Bytes, &data, crate::texture::TextureFormat::Rgba8, 8, 8, &mut Vec::new()).unwrap();
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let folder = std::env::temp_dir().join(format!("droidds-original-pack-idle-{}-{unique}", std::process::id()));
+        std::fs::create_dir(&folder).unwrap();
+        let file = std::fs::File::create(folder.join(format!("tex1_8x8_{hash:016X}_0.png"))).unwrap();
+        let mut encoder = png::Encoder::new(file, 1, 1);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder.write_header().unwrap().write_image_data(&[19, 43, 71, 255]).unwrap();
+        let pack = crate::pack::Pack::open(&folder).unwrap();
+        let material = pack.find(&data, crate::texture::TextureFormat::Rgba8, 8, 8, &mut Vec::new()).unwrap();
+        // Read the authored pixel before testing release, so removing this
+        // isolated fixture directory cannot race a background disk reader.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while material.picture(4096).is_none() {
+            assert!(std::time::Instant::now() < deadline, "authored pack picture failed to load");
+            std::thread::yield_now();
+        }
+        let mut hardware = Hardware::new().expect("Vulkan renderer for pack idle qualification");
+        hardware.cache_epoch = 777;
+        hardware.replacing.0 = REPLACING_TIME;
+        assert!(hardware.replacement(&material, (8, 8)).is_none());
+        assert_eq!(hardware.waiting[&hash].1, 777);
+        hardware.cache_epoch += WAITING_IDLE;
+        hardware.let_go_of_pictures();
+        assert_eq!(hardware.waiting.len(), 1);
+        hardware.cache_epoch += 1;
+        hardware.let_go_of_pictures();
+        assert!(hardware.waiting.is_empty());
+        assert_eq!(hardware.batch, 0, "CPU idle expiration needs no real submission");
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    // CodexAstraUlt: Cap sweeps bound the delay after an already completed
+    // image becomes logically idle, even when the stream contains no draws,
+    // CPU reads or displayable output. No driver timing assumption is needed.
+    #[test]
+    fn deferred_transfer_cap_bounds_logical_cache_sweep_delay() {
+        let mut memory = TransferMemory::original();
+        let mut hardware = transfer_hardware(&mut memory, 1);
+        let bound = BoundTexture { texels: vec![[13, 29, 47, 255]; 256].into(), drawn: None,
+            linear: false, wrap_s: Wrap::ClampToEdge, wrap_t: Wrap::ClampToEdge,
+            width: 16, height: 16, border: [0.0; 4], replacement: None };
+        hardware.texture(&bound).unwrap();
+        hardware.submit().unwrap();
+        hardware.wait().unwrap();
+        hardware.cache_epoch = 600;
+        let mut input = 0x1000;
+        for i in 0..DEFERRED_TILED_LIMIT {
+            let output = if i % 2 == 0 { 0x4000 } else { 0x8000 };
+            assert!(hardware.display_transfer(&mut memory, &original_transfer(input, output, true)).unwrap());
+            input = output;
+            assert_eq!(hardware.textures.len(), usize::from(i + 1 < DEFERRED_TILED_LIMIT));
+        }
+        assert_eq!(hardware.diagnostics.deferred_transfer_flushes, 1);
+        hardware.flush(&mut memory).unwrap();
+    }
+
+    // CodexAstraUlt: Optional same-binary comparison includes final linear
+    // consumption AND every dirty-buffer readback in both routes. Alternating
+    // order limits warm-up bias; exact bytes/counts are gates, timings are not.
+    #[test]
+    #[ignore = "manual same-binary authored transfer measurement"]
+    fn measure_deferred_tiled_transfers_against_eager() {
+        for count in [64, 256] {
+            for round in 0..3 {
+                let mut outputs = Vec::new();
+                for eager in if round % 2 == 0 { [true, false] } else { [false, true] } {
+                    let mut memory = TransferMemory::original();
+                    let mut hardware = transfer_hardware(&mut memory, 1);
+                    hardware.transfer_pipeline().unwrap();
+                    hardware.upright_pipeline().unwrap();
+                    hardware.eager_tiled_transfers = eager;
+                    let started = std::time::Instant::now();
+                    let mut input = 0x1000;
+                    for i in 0..count {
+                        let output = if i % 2 == 0 { 0x4000 } else { 0x8000 };
+                        assert!(hardware.display_transfer(&mut memory, &original_transfer(input, output, true)).unwrap());
+                        input = output;
+                    }
+                    assert!(hardware.display_transfer(&mut memory, &original_transfer(input, 0xc000, false)).unwrap());
+                    hardware.flush(&mut memory).unwrap();
+                    let elapsed = started.elapsed();
+                    let screens = hardware.surfaces.iter().filter(|surface| surface.screen.is_some()).count();
+                    let captures = hardware.surfaces.iter().filter(|surface| surface.capture.is_some()).count();
+                    assert_eq!(screens, if eager { 3 } else { 1 });
+                    assert_eq!(captures, if eager { 3 } else { 1 });
+                    let expected_submissions = if eager { count + 1 } else { count / DEFERRED_TILED_LIMIT + 2 };
+                    assert_eq!(hardware.diagnostics.submissions, expected_submissions as u64);
+                    eprintln!("authored tiled chain: count={count}; round={round}; eager={eager}; ns={}; submissions={}; retained_capture_buffers={captures}; retained_screen_buffers={screens}", elapsed.as_nanos(), hardware.diagnostics.submissions);
+                    outputs.push(memory.0);
+                }
+                assert_eq!(outputs[0], outputs[1]);
+            }
+        }
+    }
 
     // CodexAstraUlt: Two tiny original surfaces distinguish retained entries
     // from lookups and active contents, preserving the count after invalidation.

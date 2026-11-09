@@ -5805,6 +5805,215 @@ mod tests {
         }
     }
 
+    // CodexAstraUlt: The CPU oracle consumes the real transfer register form,
+    // independently of Hardware's decoded request and deferred command batch.
+    #[cfg(feature = "vulkan")]
+    fn deferred_transfer_cpu(memory: &mut ConsoleMemory, transfer: &hardware::Transfer, input_height: u32) {
+        let downscale = match transfer.scale { (2, 1) => 1, (2, 2) => 2, (1, 1) => 0, _ => unreachable!() };
+        let flags = transfer.flip as u32
+            | (transfer.input_linear as u32) << 1
+            | ((transfer.input_linear != transfer.output_tiled) as u32) << 5
+            | (hardware::format_index(transfer.input_format) as u32) << 8
+            | (hardware::format_index(transfer.output_format) as u32) << 12
+            | downscale << 24;
+        let input = transfer.input_width | input_height << 16;
+        let output = transfer.output_width * transfer.scale.0 | (transfer.output_height * transfer.scale.1) << 16;
+        crate::Gpu::new().display_transfer(memory, transfer.input, transfer.output, input, output, flags);
+    }
+
+    // CodexAstraUlt: One original gradient provides many distinct pixels. Its
+    // initial readback supplies the CPU transfer oracle; intermediate transfers
+    // below are deliberately left pending on the live Vulkan renderer.
+    #[cfg(feature = "vulkan")]
+    fn deferred_transfer_source() -> (Resources, ConsoleMemory) {
+        let hardware = hardware::Hardware::new().expect("Vulkan renderer for deferred transfer oracle");
+        let mut resources = Resources { hardware: Some(hardware), ..Default::default() };
+        let mut memory = ConsoleMemory::default();
+        let mut registers = target_registers();
+        registers[REG_VIEWPORT_WIDTH] = float24(16.0);
+        registers[REG_VIEWPORT_HEIGHT] = float24(16.0);
+        registers[REG_FRAMEBUFFER_DIMENSIONS] = 32 | (31 << 12);
+        let mut triangle = cover(0.0, RED);
+        triangle[1].color = GREEN;
+        triangle[2].color = BLUE;
+        rasterize_shaded(&registers, &mut memory, &mut resources, &triangle);
+        resources.hardware.as_mut().unwrap().flush(&mut memory).unwrap();
+        assert!(!resources.hardware.as_ref().unwrap().draw_failed());
+        (resources, memory)
+    }
+
+    // CodexAstraUlt: Two unsubmitted tiled intermediates must retain conversion,
+    // flip/downscale and unwritten rows before a linear consumer. Comparing all
+    // three outputs also catches corruption hidden by a later conversion.
+    #[cfg(feature = "vulkan")]
+    #[test]
+    fn deferred_tiled_transfer_chains_match_cpu_with_partial_rows_and_formats() {
+        use crate::format::ColorFormat::*;
+        const FIRST: u32 = 0x10_0000;
+        const SECOND: u32 = 0x18_0000;
+        const SCREEN: u32 = 0x20_0000;
+        let (mut resources, drawn) = deferred_transfer_source();
+        for (format, scale, flip, height) in [(Rgb565, (2, 2), true, 16), (Rgba4, (2, 2), false, 24), (Rgb8, (1, 1), true, 32)] {
+            let (mut gpu, mut cpu) = (drawn.clone(), drawn.clone());
+            for addr in [FIRST, SECOND, SCREEN] {
+                gpu.write(addr, &vec![0x93; 32 * 32 * 4]);
+                cpu.write(addr, &vec![0x93; 32 * 32 * 4]);
+            }
+            let width = 32 / scale.0;
+            let first = hardware::Transfer {
+                input: COLOR, output: FIRST, input_width: 32,
+                output_width: width, output_height: height, copy: (width, 32 / scale.1), scale, flip,
+                input_linear: false, output_tiled: true, input_format: Rgba8, output_format: format,
+            };
+            let second = hardware::Transfer {
+                input: FIRST, output: SECOND, input_width: width,
+                output_width: width, output_height: height, copy: (width, height), scale: (1, 1), flip: true,
+                input_linear: false, output_tiled: true, input_format: format, output_format: Rgba4,
+            };
+            let screen = hardware::Transfer {
+                input: SECOND, output: SCREEN, input_width: width,
+                output_width: width, output_height: height, copy: (width, height), scale: (1, 1), flip: false,
+                input_linear: false, output_tiled: false, input_format: Rgba4, output_format: Rgba8,
+            };
+            let hardware = resources.hardware.as_mut().unwrap();
+            let before = hardware.diagnostics();
+            assert!(hardware.display_transfer(&mut gpu, &first).unwrap());
+            assert!(hardware.display_transfer(&mut gpu, &second).unwrap());
+            let pending = hardware.diagnostics();
+            assert_eq!(pending.submissions, before.submissions, "intermediates should share the pending batch");
+            assert_eq!(pending.deferred_tiled_transfers, before.deferred_tiled_transfers + 2);
+            assert!(hardware.display_transfer(&mut gpu, &screen).unwrap());
+            assert_eq!(hardware.diagnostics().submissions, before.submissions + 1, "linear output submits its screen");
+            let shown = hardware.screen(SCREEN, (width, height), width, Rgba8, &[]).expect("linear consumer has a screen capture");
+            let picture = hardware.picture(shown).unwrap().expect("pending tiled work reaches presentation");
+            assert_eq!(picture.0.len(), (width * height * 4) as usize);
+            hardware.flush(&mut gpu).unwrap();
+            deferred_transfer_cpu(&mut cpu, &first, 32);
+            deferred_transfer_cpu(&mut cpu, &second, height);
+            deferred_transfer_cpu(&mut cpu, &screen, height);
+            for (addr, bpp) in [(FIRST, format.bytes_per_pixel()), (SECOND, 2), (SCREEN, 4)] {
+                let len = width as usize * height as usize * bpp;
+                let (mut expected, mut actual) = (vec![0; len], vec![0; len]);
+                cpu.read(addr, &mut expected);
+                gpu.read(addr, &mut actual);
+                assert_eq!(actual, expected, "{format:?}, {scale:?}, flip {flip}, height {height}, at {addr:#x}");
+                assert!(expected.chunks(bpp).collect::<std::collections::HashSet<_>>().len() > 8);
+            }
+            if height == 24 {
+                let preserved = (FIRST + 16 * width * format.bytes_per_pixel() as u32) as usize;
+                assert!(gpu.flat[preserved..preserved + (8 * width) as usize * format.bytes_per_pixel()].iter().all(|&byte| byte == 0x93));
+            }
+        }
+    }
+
+    // CodexAstraUlt: Guarded CPU writes and partial fills must make pending
+    // tiled output visible, preserve neighboring pixels, and invalidate the
+    // next transfer's source checks without a caller's blanket flush.
+    #[cfg(feature = "vulkan")]
+    #[test]
+    fn deferred_tiled_transfers_observe_cpu_writes_and_partial_fills() {
+        use crate::format::ColorFormat::Rgba8;
+        const FIRST: u32 = 0x10_0000;
+        const SECOND: u32 = 0x18_0000;
+        const SCREEN: u32 = 0x20_0000;
+        let (mut resources, mut gpu) = deferred_transfer_source();
+        let mut cpu = gpu.clone();
+        let first = hardware::Transfer {
+            input: COLOR, output: FIRST, input_width: 32,
+            output_width: 32, output_height: 32, copy: (32, 32), scale: (1, 1), flip: false,
+            input_linear: false, output_tiled: true, input_format: Rgba8, output_format: Rgba8,
+        };
+        let second = hardware::Transfer { input: FIRST, output: SECOND, ..first };
+        let screen = hardware::Transfer { input: SECOND, output: SCREEN, output_tiled: false, ..first };
+        let hardware = resources.hardware.as_mut().unwrap();
+        let before = hardware.diagnostics().submissions;
+        assert!(hardware.display_transfer(&mut gpu, &first).unwrap());
+        assert_eq!(hardware.diagnostics().submissions, before);
+        deferred_transfer_cpu(&mut cpu, &first, 32);
+        let pixel = FIRST + crate::format::morton_offset(11, 21, 32, 4);
+        hardware.sync(&mut gpu, pixel, 4).unwrap();
+        let replacement = [0x31, 0x73, 0xB9, 0xF1];
+        gpu.write(pixel, &replacement);
+        cpu.write(pixel, &replacement);
+        assert!(hardware.display_transfer(&mut gpu, &second).unwrap());
+        deferred_transfer_cpu(&mut cpu, &second, 32);
+        let fill_at = SECOND + 8 * 32 * 4;
+        let pattern = [0xFF, 0x20, 0x80, 0xE0].repeat(8 * 32);
+        hardware.before_fill(&mut gpu, fill_at, pattern.len() as u32, 4).unwrap();
+        gpu.write(fill_at, &pattern);
+        hardware.filled(fill_at, &pattern).unwrap();
+        cpu.write(fill_at, &pattern);
+        assert!(hardware.display_transfer(&mut gpu, &screen).unwrap());
+        deferred_transfer_cpu(&mut cpu, &screen, 32);
+        hardware.flush(&mut gpu).unwrap();
+        for addr in [FIRST, SECOND, SCREEN] {
+            let (mut actual, mut expected) = (vec![0; 32 * 32 * 4], vec![0; 32 * 32 * 4]);
+            gpu.read(addr, &mut actual);
+            cpu.read(addr, &mut expected);
+            assert_eq!(actual, expected, "CPU write/fill preserved at {addr:#x}");
+        }
+    }
+
+    // CodexAstraUlt: Direct 1x/3x presentation of both interpolation surfaces
+    // must survive two deferred intermediates exactly as the original direct
+    // transfer does. Different own/twin images prevent vacuous twin coverage.
+    #[cfg(feature = "vulkan")]
+    #[test]
+    fn deferred_tiled_chains_preserve_scaled_direct_and_twin_screens() {
+        use crate::format::ColorFormat::Rgba8;
+        const FIRST: u32 = 0x10_0000;
+        const SECOND: u32 = 0x18_0000;
+        const SCREEN: u32 = 0x20_0000;
+        let band = |left: f32, color: Vec4| -> Vec<Vertex> {
+            [[left, -1.0], [left + 1.0, -1.0], [left, 1.0], [left + 1.0, -1.0], [left + 1.0, 1.0], [left, 1.0]]
+                .into_iter()
+                .map(|[x, y]| Vertex { clip: [x, y, 0.0, 1.0], color, texcoords: [[0.0; 2]; 3], quaternion: [0.0, 0.0, 0.0, 1.0], view: [0.0; 3] })
+                .collect()
+        };
+        for scale in [1, 3] {
+            let device = hardware::own_device().expect("Vulkan device for deferred direct/twin oracle");
+            let mut hardware = hardware::Hardware::with_device(std::sync::Arc::new(device), true, None).unwrap();
+            assert_eq!(hardware.set_scale(scale), scale);
+            hardware.set_twins(true);
+            let mut resources = Resources { hardware: Some(hardware), ..Default::default() };
+            let mut memory = ConsoleMemory::default();
+            let mut registers = target_registers();
+            registers[REG_VIEWPORT_WIDTH] = float24(16.0);
+            registers[REG_VIEWPORT_HEIGHT] = float24(16.0);
+            registers[REG_FRAMEBUFFER_DIMENSIONS] = 32 | (31 << 12);
+            rasterize_shaded(&registers, &mut memory, &mut resources, &cover(0.0, BLUE));
+            resources.hardware.as_mut().unwrap().pass = Pass::Twinned;
+            rasterize_shaded(&registers, &mut memory, &mut resources, &band(-1.0, RED));
+            resources.hardware.as_mut().unwrap().pass = Pass::Twin;
+            rasterize_shaded(&registers, &mut memory, &mut resources, &band(-0.5, RED));
+            resources.hardware.as_mut().unwrap().pass = Pass::Real;
+            rasterize_shaded(&registers, &mut memory, &mut resources, &band(0.5, GREEN));
+            let hardware = resources.hardware.as_mut().unwrap();
+            let linear = hardware::Transfer {
+                input: COLOR, output: SCREEN, input_width: 32,
+                output_width: 32, output_height: 32, copy: (32, 32), scale: (1, 1), flip: false,
+                input_linear: false, output_tiled: false, input_format: Rgba8, output_format: Rgba8,
+            };
+            assert!(hardware.display_transfer(&mut memory, &linear).unwrap());
+            let shown = hardware.screen(SCREEN, (32, 32), 32, Rgba8, &[]).unwrap();
+            let expected_own = hardware.upright_pixels(shown, false).unwrap().0;
+            let expected_twin = hardware.upright_pixels(shown, true).unwrap().0;
+            assert_ne!(expected_own, expected_twin, "the original interpolation fixture differs");
+            let first = hardware::Transfer { output: FIRST, output_tiled: true, ..linear };
+            let second = hardware::Transfer { input: FIRST, output: SECOND, output_tiled: true, ..linear };
+            let final_screen = hardware::Transfer { input: SECOND, ..linear };
+            let before = hardware.diagnostics().submissions;
+            assert!(hardware.display_transfer(&mut memory, &first).unwrap());
+            assert!(hardware.display_transfer(&mut memory, &second).unwrap());
+            assert_eq!(hardware.diagnostics().submissions, before);
+            assert!(hardware.display_transfer(&mut memory, &final_screen).unwrap());
+            let shown = hardware.screen(SCREEN, (32, 32), 32, Rgba8, &[]).unwrap();
+            assert_eq!(hardware.upright_pixels(shown, false).unwrap().0, expected_own, "own at {scale}x");
+            assert_eq!(hardware.upright_pixels(shown, true).unwrap().0, expected_twin, "twin at {scale}x");
+            assert!(!hardware.draw_failed());
+        }
+    }
+
     /// the triangles assemble_into puts down are assemble's, for a list,
     /// a strip and a fan of any length, each through the vertex it names.
     #[test]

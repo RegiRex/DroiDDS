@@ -289,6 +289,18 @@ fn explicit_vertex_policies_require_hardware_before_title_admission() {
     assert_eq!(session.report()["vertex_shading_policy"], "automatic");
     assert_eq!(session.report()["renderer"], "software");
     assert!(session.report()["gpu"]["hardware"].is_null());
+    // CodexAstraUlt: No transfer has run; fixed host evidence starts at zero
+    // rather than being omitted or inherited from an earlier title session.
+    let report = session.report();
+    let transfers = report["gpu"]["transfer_processing"].as_object().unwrap();
+    assert_eq!(transfers.len(), 2);
+    for row in transfers.values() {
+        assert!(row
+            .as_object()
+            .unwrap()
+            .values()
+            .all(|value| value.as_u64() == Some(0)));
+    }
     // CodexAstraUlt: No CPU dispatch occurred, so new scope evidence must be
     // present and zero rather than missing or inherited from another session.
     for name in ["svc", "frame", "audio"] {
@@ -761,6 +773,62 @@ fn assert_core_work_report(report: &Value) {
             .sum::<u64>(),
         gsp["calls"].as_u64().unwrap()
     );
+    assert_transfer_work_report(report);
+}
+
+// CodexAstraUlt: The authored guest really transfers both panels. Require
+// observed route partitions and disjoint phase bounds in both software and
+// Vulkan oracles, without adding these nested durations to their parents.
+fn assert_transfer_work_report(report: &Value) {
+    let transfers = report["gpu"]["transfer_processing"].as_object().unwrap();
+    assert_eq!(transfers.len(), 2);
+    let display = transfers["display"].as_object().unwrap();
+    let texture = transfers["texture"].as_object().unwrap();
+    assert_eq!(display.len(), 14);
+    assert_eq!(texture.len(), 7);
+    let value = |key: &str| display[key].as_u64().unwrap();
+    assert!(value("calls") > 0);
+    assert_eq!(
+        value("calls"),
+        value("hardware_accepted") + value("software_calls")
+    );
+    assert_eq!(
+        value("hardware_attempts"),
+        value("hardware_accepted") + value("hardware_fallbacks")
+    );
+    assert_eq!(
+        value("hardware_accepted"),
+        value("hardware_tiled") + value("hardware_linear")
+    );
+    assert!(value("hardware_errors") <= value("hardware_fallbacks"));
+    assert!(value("software_empty") <= value("software_calls"));
+    let phases = value("hardware_wall_nanoseconds")
+        + value("input_sync_wall_nanoseconds")
+        + value("output_sync_wall_nanoseconds")
+        + value("software_copy_wall_nanoseconds");
+    assert!(phases > 0 && phases <= value("wall_nanoseconds"));
+    // This guest performs tiled-to-linear transfers for the displayed panels.
+    assert_eq!(value("hardware_tiled"), 0);
+    if report["gpu"]["hardware"].is_null() {
+        assert_eq!(value("hardware_attempts"), 0);
+        assert_eq!(value("hardware_wall_nanoseconds"), 0);
+        assert_eq!(value("software_calls"), value("calls"));
+        assert!(value("software_copy_wall_nanoseconds") > 0);
+    } else {
+        assert!(value("hardware_accepted") > 0);
+        assert!(value("hardware_wall_nanoseconds") > 0);
+    }
+    let phase = |key: &str| texture[key].as_u64().unwrap();
+    assert_eq!(
+        phase("calls"),
+        phase("contiguous_calls") + phase("strided_calls")
+    );
+    assert!(
+        phase("input_sync_wall_nanoseconds")
+            + phase("output_sync_wall_nanoseconds")
+            + phase("copy_wall_nanoseconds")
+            <= phase("wall_nanoseconds")
+    );
 }
 
 #[test]
@@ -926,6 +994,10 @@ fn native_vulkan_oracle(fixture: &Fixture, vertex_shading: VertexShading) {
     // CodexAstraUlt: Both authored guest panels use actual cached targets; the
     // report must expose the numeric retained-entry snapshot for hardware.
     assert!(gpu["retained_surfaces"].as_u64().unwrap() >= 2);
+    // CodexAstraUlt: This guest presents linear outputs; deferred tiled counts
+    // need a numeric schema but are not required to be positive here.
+    assert!(gpu["deferred_tiled_transfers"].as_u64().is_some());
+    assert!(gpu["deferred_transfer_flushes"].as_u64().is_some());
     assert!(gpu["retained_pipelines"].as_u64().is_some());
     // CodexAstraUlt: Successful authored routes must expose the complete
     // pipeline-failure schema with no failed foreground, worker or cache attempt.

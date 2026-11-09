@@ -49,6 +49,21 @@ GPU_REQUIRED_TESTS = {
     "shader::tests::projected_batches_preserve_scalar_bits_and_lane_order",
     "raster::tests::projected_raster_outputs_match_scalar_for_masks_and_parallel_tails",
     "raster::hardware::tests::surface_diagnostics_count_retained_entries_without_changing_draw_guard",
+    # CodexAstraUlt: Transfer attribution must preserve actual copy effects and
+    # count hardware decline separately from accepted rendering work.
+    "tests::transfer_diagnostics_preserve_software_aliases_empty_and_halving",
+    "tests::texture_copy_diagnostics_preserve_strides_aliases_and_empty_requests",
+    "tests::transfer_diagnostics_count_real_hardware_fallback",
+    # CodexAstraUlt: Deferred transfers must retain exact pixels, CPU coherence,
+    # linear history and fence-safe cache retirement in both Vulkan policies.
+    "raster::hardware::tests::deferred_tiled_transfers_revalidate_cpu_writes_and_sync_dirty_outputs",
+    "raster::hardware::tests::deferred_tiled_chains_are_bounded_and_preserve_linear_screen_history",
+    "raster::hardware::tests::logical_cache_expiry_preserves_recording_and_inflight_images",
+    "raster::hardware::tests::waiting_pack_pictures_expire_by_logical_epoch",
+    "raster::hardware::tests::deferred_transfer_cap_bounds_logical_cache_sweep_delay",
+    "raster::tests::deferred_tiled_transfer_chains_match_cpu_with_partial_rows_and_formats",
+    "raster::tests::deferred_tiled_transfers_observe_cpu_writes_and_partial_fills",
+    "raster::tests::deferred_tiled_chains_preserve_scaled_direct_and_twin_screens",
 }
 # CodexAstraUlt: Performance comparisons run separately in release mode; their
 # exact output controls remain mandatory ordinary tests, never ignored gates.
@@ -57,7 +72,8 @@ GPU_IGNORED_BENCHMARKS = {"shader::tests::batch_speed", "shader::tests::compiled
                           "raster::tests::benchmark_vertex_output_plan_against_packing",
                           "raster::tests::benchmark_specialized_input_fetch_against_componentwise",
                           "raster::hardware::tests::measure_draw_guard_against_snapshot",
-                          "raster::tests::benchmark_projected_raster_against_register_rows"}
+                          "raster::tests::benchmark_projected_raster_against_register_rows",
+                          "raster::hardware::tests::measure_deferred_tiled_transfers_against_eager"}
 LOADER_REQUIRED_TESTS = {
     "droidds_real_loader_reports_geometry_and_executes_every_supported_mode",
     "droidds_real_kernel_resource_limit_heap_linear_and_hid_base_allocation",

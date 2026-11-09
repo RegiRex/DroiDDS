@@ -1,35 +1,36 @@
 # Local Dark Moon Native/CPU performance handoff
 
-<!-- CodexAstraUlt: Hand off verified cloud work for compatible repackaging;
-publication does not authorize the new Thor connection or qualify performance. -->
-Current candidate: **[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**, published.
-CPU shader-output projection and fixed SVC/service/GSP attribution are implemented.
-Local correctness/runtime, retained-library APK, independent bundle and hosted
-main checks pass at `64f1404`; tag publication and independent
-public-download verification pass at `2354ed0`. See the
-[build record](builds/0.0.8-service-projection-followup.md) for exact identities.
-Authored x86-64 component benchmarks improve; the new Thor test is **unperformed**,
-and no handheld speed gain is established. Prepare the compatible update using
-existing records, then signal the owner and **STOP until explicit approval**
-before any Thor/ADB connection or device-work batch. Do not repeat code 15.
-Read [AGENTS.md](../AGENTS.md) and
+<!-- CodexAstraUlt: Replace the completed code 16 test with pending cloud work;
+finish a reviewable package before requesting the next explicit device approval. -->
+Next candidate: **0.0.8-preview.7/code 17**, under cloud development. The transfer
+prototype defers tiled captures/submissions with a 32-transfer batch cap and
+surface revalidation at each transfer boundary. The previous linear route stays
+unchanged. Fixed route/subphase metrics are being evaluated. Correctness, benchmark, package and
+publication gates remain pending. Do not repeat code 16 or begin a new Thor
+batch now. Read [AGENTS.md](../AGENTS.md) and
 [the current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
 
-Published [preview.5/code 15](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.5)
-passed local/runtime/package and hosted main checks at `f687911`, with publication
-and independent public-download verification at `365c1a0`. Its
-[build record](builds/0.0.8-cpu-decode-followup.md) retains those identities.
+Published **[preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**
+passed local correctness/runtime, retained-library APK, independent bundle and
+hosted main checks at `64f1404`; tag publication and independent public-download
+verification pass at `2354ed0`. Its
+[build record](builds/0.0.8-service-projection-followup.md) preserves those identities.
+Historical [code 15](builds/0.0.8-cpu-decode-followup.md) preserves its separate
+implementation `f687911` and release `365c1a0` identities.
 
 ## Completed evidence
 
-<!-- CodexAstraUlt: Keep the measured system-call scope precise and preserve
-scene state instead of requesting another unchanged or artificially reset run. -->
-The [code 15 report](device-tests/0.0.8-preview5-dark-moon-thor.md) reached file
-selection at **16.70% speed**, with no reported runtime/rendering errors. No gain
-is established. It attributes **33.975 seconds to SVC handling outside the PICA
-command-list timer**; transfers and GPU synchronization can still occur there.
-The remaining 6.779 seconds is unclassified. The populated File 1 panel differs
-from the earlier empty menu, and no new audio observation was supplied.
+<!-- CodexAstraUlt: Preserve the single faster sample and unresolved subphases;
+transfer wall time and endpoint retention do not prove a particular cause. -->
+The [code 16 report](device-tests/0.0.8-preview6-dark-moon-thor.md) reached file
+selection at **18.70% speed**, versus code 15's 16.70%, with no reported runtime/
+rendering errors or visible corruption. A/Stop occurred at 91.056/110.111 seconds.
+A sustained or causal improvement remains unproven. Display transfers
+(**26.917 s**) and texture copies (**6.061 s**) account for 97.82% of SVC time
+outside PICA lists; their wait/readback versus conversion/copy costs remain
+unseparated. Retain 1,532 underruns and 160 discarded input frames, without a
+fresh listening assessment. Nine retained surfaces is an entry count, not bytes
+or a leak test. File 1/save state remains preserved.
 
 The preparation, **521 Linux objects/library**, **521 ARM64 objects/library**,
 imports, saves, signer and prior reports remain reusable. Native/CPU performance
@@ -47,18 +48,18 @@ authorize access. Cloud coding/building and review of already uploaded reports
 may continue. Prepare the compatible package first when possible, using existing
 build/installation records without querying the device in advance.
 
-## Suggested task for local Codex
+## Suggested task for local Codex after cloud gates pass
 
 <!-- CodexAstraUlt: Make the package reviewable before asking for access; the
 remaining device procedure is conditional on the owner's actual answer. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Confirm preview.6 cloud route/package/publication gates passed before packaging.
-Preserve code 15 and all previous reports. Reuse working tools, preparation,
+Confirm preview.7 cloud route/package/publication gates passed before packaging.
+Preserve code 16 and all previous reports. Reuse recorded tools, preparation,
 completed ARM64 compilation and the same owner signing profile. Repackage only
 with the same package/certificate and a code above the last verified installed
-code, at least 16. Use prior build/installation records; do not query the Thor.
+code, at least 17. Use prior build/installation records; do not query the Thor.
 Preserve imports, saves and both completed title builds.
 
 Finish package verification, then signal me and STOP for explicit approval before

@@ -85,8 +85,8 @@ See the [build record](docs/builds/0.0.8-cpu-decode-followup.md). The previous
 [code 14 build record](docs/builds/0.0.8-cpu-work-followup.md) preserves its own
 source and artifact identities.
 
-<!-- CodexAstraUlt: Preserve the completed code 15 measurement while separating
-verified preview.6 cloud publication from its unperformed Thor check. -->
+<!-- CodexAstraUlt: Preserve the earlier code 15 measurement and published
+code 16 identities while recording its completed device evidence separately. -->
 The [code 15 Thor test](docs/device-tests/0.0.8-preview5-dark-moon-thor.md) reaches
 file selection at **16.70% speed**, with no reported runtime/rendering errors.
 No improvement is established; the saved File 1 panel changes the post-A workload.
@@ -100,10 +100,23 @@ for the previously unclassified nested work. Local correctness/runtime,
 retained-library APK, independent bundle and hosted main checks pass at
 `64f1404`; tag publication and independent public-download
 verification pass at `2354ed0`.
-Authored x86-64 component benchmarks improve; **the new Thor test is unperformed,
-and no handheld speed gain is established**. Native execution, CPU vertex
-shaders and Vulkan 1× remain the priority. No unchanged code 15 run is needed.
-Gameplay, reliable audio, save/resume and sustained speed remain unqualified.
+The [code 16 Thor test](docs/device-tests/0.0.8-preview6-dark-moon-thor.md) is now
+complete: file selection at **18.70% speed**, no reported runtime/rendering
+errors or visible corruption, A at 91.056 seconds and Stop at 110.111 seconds.
+The single comparison with code 15's 16.70% does not establish a sustained or
+causal gain. Display transfers (**26.917 s**) and texture copies (**6.061 s**)
+account for 97.82% of SVC time outside PICA lists. Audio retains 1,532 underruns
+and 160 discarded input frames, without a fresh listening assessment.
+
+<!-- CodexAstraUlt: Keep the transfer follow-up a pending cloud candidate;
+prototype work and one faster sample do not qualify handheld performance. -->
+**Preview.7/code 17 is under cloud development.** The prototype defers tiled
+transfer captures/submissions in batches capped at 32, revalidates cached surfaces between
+transfers, and retains the previous linear route. Fixed route/subphase
+metrics are being evaluated. Correctness, benchmarks, packaging and publication
+remain pending. Native execution, CPU vertex shaders and Vulkan 1× remain the
+priority. No unchanged code 16 run is needed. Gameplay, reliable audio,
+save/resume and sustained speed remain unqualified.
 
 <!-- CodexAstraUlt: The owner's connection instruction requires an actual pause,
 while cloud development and preparation of a reviewable package may continue. -->

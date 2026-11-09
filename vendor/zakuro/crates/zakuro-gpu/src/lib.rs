@@ -18,6 +18,8 @@ pub mod shader;
 pub mod state;
 pub mod tev;
 pub mod texture;
+// CodexAstraUlt: Fixed transfer attribution is independent of raster backend.
+mod transfer_work;
 
 use format::ColorFormat;
 pub use interpolation::Matches;
@@ -33,6 +35,8 @@ pub use raster::hardware::HardwareDiagnostics;
 // CodexAstraUlt: Fixed CPU vertex-processing aggregates are available with
 // either raster backend and do not expose per-draw inputs or growing history.
 pub use raster::VertexProcessingDiagnostics;
+// CodexAstraUlt: Expose read-only host totals without changing transfer inputs.
+pub use transfer_work::{DisplayTransferDiagnostics, TextureCopyDiagnostics, TransferProcessingDiagnostics};
 
 /// CodexAstraUlt: Select vertex processing per renderer before pipelines start;
 /// Automatic preserves the existing environment/device heuristic. This does not
@@ -201,6 +205,8 @@ pub struct Gpu {
     // CodexAstraUlt: Host wall time inside process_command_list only, including
     // CPU work and waits; standalone transfers and screen readback are excluded.
     pub busy: std::time::Duration,
+    // CodexAstraUlt: Bounded host-only transfer observations are not GPU state.
+    transfer_work: TransferProcessingDiagnostics,
     /// decoded textures and the lighting tables, kept across draws.
     resources: raster::Resources,
     /// frame interpolation's record of the draws, none while it is off.
@@ -237,6 +243,7 @@ impl Gpu {
             transfers: 0,
             vertices_drawn: 0,
             busy: std::time::Duration::ZERO,
+            transfer_work: TransferProcessingDiagnostics::default(),
             resources: raster::Resources::default(),
             interpolation: None,
         }
@@ -385,6 +392,26 @@ impl Gpu {
         output_dimensions: u32,
         flags: u32,
     ) {
+        // CodexAstraUlt: Time one natural request, including empty/fallback
+        // returns. The unchanged inner path retains all memory and GPU effects.
+        let started = std::time::Instant::now();
+        self.display_transfer_inner(memory, input_paddr, output_paddr, input_dimensions, output_dimensions, flags);
+        let work = &mut self.transfer_work.display;
+        work.calls = work.calls.saturating_add(1);
+        work.wall = work.wall.saturating_add(started.elapsed());
+    }
+
+    // CodexAstraUlt: The wrapper records total time even when the original
+    // implementation returns early; phase timers remain inside their branches.
+    fn display_transfer_inner<M: GpuMemory>(
+        &mut self,
+        memory: &mut M,
+        input_paddr: u32,
+        output_paddr: u32,
+        input_dimensions: u32,
+        output_dimensions: u32,
+        flags: u32,
+    ) {
         let input_width = input_dimensions & 0xFFFF;
         let input_height = input_dimensions >> 16;
 
@@ -457,22 +484,45 @@ impl Gpu {
                 input_format,
                 output_format,
             };
-            match hardware.display_transfer(memory, &transfer) {
+            // CodexAstraUlt: A hardware attempt is not acceptance; failed and
+            // declined attempts retain the existing software fallback behavior.
+            let started = std::time::Instant::now();
+            let result = hardware.display_transfer(memory, &transfer);
+            let work = &mut self.transfer_work.display;
+            work.hardware_attempts = work.hardware_attempts.saturating_add(1);
+            work.hardware_wall = work.hardware_wall.saturating_add(started.elapsed());
+            match result {
                 Ok(true) => {
+                    work.hardware_accepted = work.hardware_accepted.saturating_add(1);
+                    let accepted = if output_tiled { &mut work.hardware_tiled } else { &mut work.hardware_linear };
+                    *accepted = accepted.saturating_add(1);
                     self.transfers += 1;
                     return;
                 }
-                Ok(false) => {}
-                Err(error) => log::error!("the GPU could not transfer a buffer, {error}"),
+                Ok(false) => work.hardware_fallbacks = work.hardware_fallbacks.saturating_add(1),
+                Err(error) => {
+                    work.hardware_fallbacks = work.hardware_fallbacks.saturating_add(1);
+                    work.hardware_errors = work.hardware_errors.saturating_add(1);
+                    log::error!("the GPU could not transfer a buffer, {error}");
+                }
             }
         }
+        // CodexAstraUlt: Separate synchronization from software buffer reads,
+        // conversion and writes. These clocks are per request, never per pixel.
+        self.transfer_work.display.software_calls = self.transfer_work.display.software_calls.saturating_add(1);
         // four bytes a pixel covers every format either side uses
+        let started = std::time::Instant::now();
         self.sync_memory(memory, input_base, input_width * input_height * 4);
+        self.transfer_work.display.input_sync_wall = self.transfer_work.display.input_sync_wall.saturating_add(started.elapsed());
+        let started = std::time::Instant::now();
         self.sync_memory(memory, output_base, output_width * output_height * 4);
+        self.transfer_work.display.output_sync_wall = self.transfer_work.display.output_sync_wall.saturating_add(started.elapsed());
         if copy_width == 0 || copy_height == 0 {
+            self.transfer_work.display.software_empty = self.transfer_work.display.software_empty.saturating_add(1);
             return;
         }
 
+        let started = std::time::Instant::now();
         let mut input = vec![0u8; (input_width * input_height) as usize * input_bpp];
         memory.read(input_base, &mut input);
         let mut output = vec![0u8; (output_width * output_height) as usize * output_bpp];
@@ -495,6 +545,7 @@ impl Gpu {
             halve_tiles(&input, input_width, &mut output, output_width, (copy_width, copy_height));
             memory.write(output_base, &output);
             self.transfers += 1;
+            self.transfer_work.display.software_copy_wall = self.transfer_work.display.software_copy_wall.saturating_add(started.elapsed());
             return;
         }
 
@@ -557,10 +608,31 @@ impl Gpu {
 
         memory.write(output_base, &output);
         self.transfers += 1;
+        self.transfer_work.display.software_copy_wall = self.transfer_work.display.software_copy_wall.saturating_add(started.elapsed());
     }
 
     /// TextureCopy, a raw byte copy with a stride, no format conversion.
     pub fn texture_copy<M: GpuMemory>(
+        &mut self,
+        memory: &mut M,
+        input_paddr: u32,
+        output_paddr: u32,
+        size: u32,
+        input_gap: u32,
+        output_gap: u32,
+    ) {
+        // CodexAstraUlt: Keep every byte-copy branch inside the timed wrapper;
+        // zero-length and contiguous early returns remain actual counted calls.
+        let started = std::time::Instant::now();
+        self.texture_copy_inner(memory, input_paddr, output_paddr, size, input_gap, output_gap);
+        let work = &mut self.transfer_work.texture;
+        work.calls = work.calls.saturating_add(1);
+        work.wall = work.wall.saturating_add(started.elapsed());
+    }
+
+    // CodexAstraUlt: Preserve the existing stride, overlap and short-tail
+    // behavior; attribution is not a copy-engine semantic correction.
+    fn texture_copy_inner<M: GpuMemory>(
         &mut self,
         memory: &mut M,
         input_paddr: u32,
@@ -574,10 +646,16 @@ impl Gpu {
         // every line and the gaps between them
         let span = |width: u32, skip: u32| if width == 0 { size } else { size + size.div_ceil(width) * skip };
         let (input, output) = (memory.translate(input_paddr), memory.translate(output_paddr));
+        // CodexAstraUlt: Keep source/destination synchronization separate from
+        // byte movement, including any GPU readback needed for either range.
+        let started = std::time::Instant::now();
         self.sync_memory(memory, input, span(input_width, input_skip));
+        self.transfer_work.texture.input_sync_wall = self.transfer_work.texture.input_sync_wall.saturating_add(started.elapsed());
         let output_width = (output_gap & 0xFFFF) * 16;
         let output_skip = (output_gap >> 16) * 16;
+        let started = std::time::Instant::now();
         self.sync_memory(memory, output, span(output_width, output_skip));
+        self.transfer_work.texture.output_sync_wall = self.transfer_work.texture.output_sync_wall.saturating_add(started.elapsed());
 
         log::debug!(
             "texture copy: 0x{input_paddr:08X} -> 0x{output_paddr:08X} size 0x{size:X}"
@@ -585,15 +663,21 @@ impl Gpu {
 
         let (mut src, mut dst) = (input, output);
 
+        let started = std::time::Instant::now();
         // a zero width means one contiguous run.
         if input_width == 0 || output_width == 0 {
+            // CodexAstraUlt: Classify the actual existing route, including an
+            // empty request, without treating a zero gap as a zero width.
+            self.transfer_work.texture.contiguous_calls = self.transfer_work.texture.contiguous_calls.saturating_add(1);
             let mut buffer = vec![0u8; size as usize];
             memory.read(src, &mut buffer);
             memory.write(dst, &buffer);
             self.transfers += 1;
+            self.transfer_work.texture.copy_wall = self.transfer_work.texture.copy_wall.saturating_add(started.elapsed());
             return;
         }
 
+        self.transfer_work.texture.strided_calls = self.transfer_work.texture.strided_calls.saturating_add(1);
         let mut remaining = size;
         let chunk = input_width.min(output_width);
         let mut buffer = vec![0u8; chunk as usize];
@@ -605,6 +689,13 @@ impl Gpu {
             remaining -= chunk;
         }
         self.transfers += 1;
+        self.transfer_work.texture.copy_wall = self.transfer_work.texture.copy_wall.saturating_add(started.elapsed());
+    }
+
+    /// CodexAstraUlt: Export fixed lifetime totals only when reporting; callers
+    /// must not add these nested transfer scopes to their enclosing GSP time.
+    pub fn transfer_processing_diagnostics(&self) -> &TransferProcessingDiagnostics {
+        &self.transfer_work
     }
 
     // -- command lists ------------------------------------------------------
@@ -2432,6 +2523,89 @@ mod tests {
         gpu.display_transfer(&mut memory, 0x100, 0x180, 4 | (2 << 16), 4 | (2 << 16), flags);
         let red_at = |i: usize| ColorFormat::Rgba8.decode(&memory.0[0x180 + i * 4..0x184 + i * 4])[0];
         assert_eq!([red_at(0), red_at(1)], [50, 100]);
+    }
+
+    // CodexAstraUlt: Actual overlapping output, a zero rectangle and the tiled
+    // halving shortcut preserve bytes and completed-transfer counts while all
+    // three requests contribute to fixed software attribution.
+    #[test]
+    fn transfer_diagnostics_preserve_software_aliases_empty_and_halving() {
+        use std::time::Duration;
+        let mut memory = FlatMemory((0..4096).map(|i| (i * 37) as u8).collect());
+        let mut gpu = Gpu::new();
+        let original = memory.0[0x100..0x110].to_vec();
+        let linear = (1 << 1) | (1 << 5);
+        gpu.display_transfer(&mut memory, 0x100, 0x104, 2 | (2 << 16), 2 | (2 << 16), linear);
+        assert_eq!(&memory.0[0x104..0x114], original.as_slice());
+        let unchanged = memory.0.clone();
+        gpu.display_transfer(&mut memory, 0x100, 0x800, 0, 0, linear);
+        assert_eq!(memory.0, unchanged, "empty transfer changes no memory");
+
+        let mut pixel = [0; 4];
+        ColorFormat::Rgba8.encode([200, 40, 2, 255], &mut pixel);
+        memory.0[0x100..0x500].copy_from_slice(&pixel.repeat(256));
+        gpu.display_transfer(&mut memory, 0x100, 0x800, 16 | (16 << 16), 16 | (16 << 16),
+            (1 << 5) | (2 << 24));
+        assert_eq!(&memory.0[0x800..0x900], pixel.repeat(64));
+        let work = gpu.transfer_processing_diagnostics();
+        assert_eq!((work.display.calls, work.display.software_calls, work.display.software_empty), (3, 3, 1));
+        assert_eq!(gpu.transfers, 2, "empty display requests were not completed transfers before attribution");
+        assert_eq!(work.display.hardware_attempts, 0);
+        assert_eq!(work.display.hardware_wall, Duration::ZERO);
+        assert_eq!(work.texture, TextureCopyDiagnostics::default());
+        let phases = work.display.input_sync_wall + work.display.output_sync_wall + work.display.software_copy_wall;
+        assert!(phases <= work.display.wall);
+        assert!(work.display.software_copy_wall > Duration::ZERO);
+    }
+
+    // CodexAstraUlt: Real byte copies cover contiguous snapshot overlap,
+    // progressive strided overlap, gaps, the existing short-tail behavior and
+    // the zero-size early branch. Timers never reinterpret these copy rules.
+    #[test]
+    fn texture_copy_diagnostics_preserve_strides_aliases_and_empty_requests() {
+        let mut memory = FlatMemory((0..4096).map(|i| (i * 37) as u8).collect());
+        let mut gpu = Gpu::new();
+        let original = memory.0[0x100..0x130].to_vec();
+        gpu.texture_copy(&mut memory, 0x100, 0x108, 48, 0, 0);
+        assert_eq!(&memory.0[0x108..0x138], original.as_slice());
+
+        let before = memory.0.clone();
+        gpu.texture_copy(&mut memory, 0x200, 0x800, 40, 2 | (1 << 16), 1 | (1 << 16));
+        let mut expected = before.clone();
+        expected[0x800..0x810].copy_from_slice(&before[0x200..0x210]);
+        expected[0x820..0x830].copy_from_slice(&before[0x230..0x240]);
+        assert_eq!(memory.0, expected, "gaps and the original short tail remain untouched");
+
+        let first = memory.0[0x100..0x110].to_vec();
+        gpu.texture_copy(&mut memory, 0x100, 0x110, 32, 1, 1);
+        assert_eq!(&memory.0[0x110..0x130], first.repeat(2), "strided chunks preserve their existing read-after-write order");
+        let unchanged = memory.0.clone();
+        gpu.texture_copy(&mut memory, 0x100, 0x800, 0, 0, 0);
+        assert_eq!(memory.0, unchanged);
+        let work = gpu.transfer_processing_diagnostics();
+        assert_eq!((work.texture.calls, work.texture.contiguous_calls, work.texture.strided_calls), (4, 2, 2));
+        assert_eq!(gpu.transfers, 4, "zero-size texture requests retain their original counter behavior");
+        assert_eq!(work.display, DisplayTransferDiagnostics::default());
+        assert!(work.texture.input_sync_wall + work.texture.output_sync_wall + work.texture.copy_wall <= work.texture.wall);
+    }
+
+    // CodexAstraUlt: A real Vulkan renderer with no matching cached source
+    // declines the request; report that fallback while the software copy still
+    // produces the original bytes. Hardware acceptance is tested by the title
+    // runtime's mandatory original image/audio oracle.
+    #[cfg(feature = "vulkan")]
+    #[test]
+    fn transfer_diagnostics_count_real_hardware_fallback() {
+        let mut gpu = Gpu::new();
+        gpu.resources.hardware = Some(raster::hardware::Hardware::new().expect("Vulkan transfer attribution fixture"));
+        let mut memory = FlatMemory((0..4096).map(|i| (i * 29) as u8).collect());
+        let original = memory.0[0x100..0x200].to_vec();
+        gpu.display_transfer(&mut memory, 0x100, 0x400, 8 | (8 << 16), 8 | (8 << 16), (1 << 1) | (1 << 5));
+        assert_eq!(&memory.0[0x400..0x500], original.as_slice());
+        let work = gpu.transfer_processing_diagnostics().display;
+        assert_eq!((work.calls, work.hardware_attempts, work.hardware_fallbacks, work.software_calls), (1, 1, 1, 1));
+        assert_eq!((work.hardware_accepted, work.hardware_errors, work.hardware_tiled, work.hardware_linear), (0, 0, 0, 0));
+        assert!(work.hardware_wall + work.input_sync_wall + work.output_sync_wall + work.software_copy_wall <= work.wall);
     }
 
     /// a flipped transfer cropping its input's lines writes its output as

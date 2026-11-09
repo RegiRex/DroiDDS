@@ -111,31 +111,45 @@ scope, while preserving the published artifact history and new access boundary. 
   synchronization can occur in that scope. The remaining unclassified core time
   is 6.779 seconds; do not label it native execution time alone.
 
-<!-- CodexAstraUlt: Publish only after source-bound cloud and download gates;
-keep host component measurements separate from the unperformed Thor check. -->
-
+<!-- CodexAstraUlt: Preserve published code 16 identities and its completed
+Thor result while advancing only the next candidate's pending cloud work. -->
 - Published 0.0.8-preview.6/code 16 passed local correctness/runtime,
   retained-library APK and independent bundle checks at implementation
   64f1404ed0a357cf9325568a2376137079b120ad. Hosted main checks passed there;
   tag build/publication and independent public-download verification passed at
-  release source 2354ed0f516926ff11fd613d95333141040cc3af. Read
-  docs/builds/0.0.8-service-projection-followup.md for exact gates and identities.
-  The ordinary CPU vertex route projects completed shader outputs directly into
-  compact raster vertices; fixed SVC/service/GSP tables identify nested work.
-  Authored x86-64 component benchmarks improve, but no new Thor result or
-  handheld speed gain is established. Do not repeat the unchanged code 15 run.
-  Reuse working tools, preparation, both completed 521-object builds/libraries
-  and the owner signer. Prepare a compatible update with a code above the last
-  verified installation and at least 16, using existing records before
-  connection approval. Then signal the owner and STOP until explicit approval
-  before any Thor/ADB connection, discovery, export, install or test. Preserve
-  imports, saves and previous reports.
-  The eventual approved test keeps Native execution, CPU vertex shaders and
-  Vulkan 1×, with A around 91 seconds if ready and normal Stop around 110 seconds,
-  bounded by 120 wall seconds. Export the full JSON before restart and upload
-  reviewed evidence with verified links. Further Thor GPU tests and
-  audio-perfection work remain deferred. Do not add shader dumps, growing logs
-  or optional JIT; no separate public diagnostic APK installation is required.
+  release source 2354ed0f516926ff11fd613d95333141040cc3af. Preserve
+  docs/builds/0.0.8-service-projection-followup.md and those exact identities.
+- Read docs/device-tests/0.0.8-preview6-dark-moon-thor.md and report commit
+  780a7b2. The single code 16 Native/CPU/Vulkan 1× run reached file selection,
+  with A at 91.056 seconds and Stop at 110.111 seconds, no reported runtime/
+  rendering errors and no visible corruption. It measured 18.70% speed versus
+  code 15's 16.70%; a sustained or causal gain is unproven. Counted vertex inputs
+  grew 16.19% while shader time per input fell 19.73%, with changing scene mix
+  and uncontrolled thermal/load conditions. Preserve 1,532 underruns and 160
+  discarded input frames; no fresh listening assessment was supplied.
+  Display transfers (26.917 seconds) and texture copies (6.061 seconds) account
+  for 97.82% of SVC time outside PICA lists. Nested tables must not be summed.
+  Nine retained surfaces is an end-of-run entry count, not bytes or a leak test;
+  64 MiB is guest allocation, not process/driver memory.
+- Preview.7/code 17 is under cloud development. The transfer prototype defers
+  tiled captures/submissions with a 32-transfer batch cap and surface
+  revalidation at each transfer boundary, retaining the previous linear route. Fixed route/subphase
+  metrics are also being evaluated. Correctness, benchmarks, packaging and
+  publication remain pending; do not claim a completed fix or handheld gain.
+  Finish those cloud gates before the next local packaging batch; do not repeat
+  the unchanged code 16 run. Reuse recorded working tools, preparation, both
+  completed 521-object builds/libraries and the owner signer. Prepare a
+  compatible update with a code above the last verified installation and at
+  least 17, using existing records before requesting connection approval.
+  Then signal the owner and STOP until explicit approval before any Thor/ADB
+  connection, discovery, export, install or test. Preserve imports, saves and
+  previous reports. The eventual approved test keeps Native execution, CPU
+  vertex shaders and Vulkan 1×, with A around 91 seconds if ready and normal
+  Stop around 110 seconds, bounded by 120 wall seconds. Export the full JSON
+  before restart and upload reviewed evidence with verified links. Further
+  Thor GPU tests and audio-perfection work remain deferred. Do not add shader
+  dumps, growing logs or optional JIT; no separate public diagnostic APK
+  installation is required.
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->
