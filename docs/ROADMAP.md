@@ -3,14 +3,14 @@
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
 The public title-player candidate is
-**[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**;
+**[0.0.8-preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. The published candidate implements the generic per-title
 Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
-The [candidate build record](builds/0.0.8-service-projection-followup.md) records
-implementation `64f1404`, release source `2354ed0`,
+The [candidate build record](builds/0.0.8-transfer-followup.md) records
+implementation `9296010`, release source `1c7fffa`,
 exact public artifact identities and executed gates. The
 [code 14 Thor reports](device-tests/0.0.8-preview4-dark-moon-thor.md) now record a
 bounded menu run at **17.31% emulated speed** with choppy audio, and a separate
@@ -51,14 +51,20 @@ assessment was supplied. Display transfers (**26.917 s**) and texture copies
 synchronization/conversion costs remain unseparated. Nine retained surfaces is
 an entry count, not a byte or leak measurement.
 
-**Preview.7/code 17 is under cloud development.** The transfer prototype defers
-captures/submissions for tiled transfers, bounded to 32 transfers per batch,
-revalidates cached surfaces at each transfer boundary and retains the previous linear route.
-Fixed route/subphase metrics are also being evaluated. Correctness, benchmark,
-package and publication gates remain pending; no new fix or gain is qualified.
-Native execution, CPU vertex shaders and Vulkan 1× remain the priority. Further
-Thor GPU tests and audio-perfection work remain deferred. No unchanged code 16
-run is needed, and the 0.0.8 playability gate remains open.
+<!-- CodexAstraUlt: Distinguish verified cloud transfer work from the new
+unperformed Thor test and the still-open playability milestone. -->
+**Preview.7/code 17 is published.** Accepted tiled-output hardware transfers
+now defer capture/presentation/submission, bounded to 32 transfers per batch.
+Surface revalidation and separate logical cache idleness preserve coherence and
+eviction cadence; actual batch stamps/fences retain resource-lifetime authority.
+The previous linear route and texture-copy visibility remain unchanged. Fixed
+route/phase metrics identify the work. Local correctness/runtime, retained-library
+APK, independent bundle and hosted main checks pass at `9296010`;
+tag publication and independent public-download verification pass at
+`1c7fffa`. The new Thor test is **unperformed**; no handheld gain is
+established. Native/CPU/Vulkan 1× remains the priority. Further Thor GPU tests
+and audio-perfection work remain deferred. No unchanged code 16 run is needed;
+the 0.0.8 playability gate remains open.
 
 <!-- CodexAstraUlt: Record actual private interactive boot as progress into the
 next alpha stage; a menu and an underrun total do not establish playable speed. -->
@@ -136,8 +142,8 @@ prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
 preserving the owner signing identity and existing reports. The code 16 run is
-complete; do not repeat it unchanged. Finish preview.7's pending cloud gates
-before the next local package. Reuse the completed title library and recorded
+complete; do not repeat it unchanged. Preview.7's cloud and publication gates
+are verified. Reuse the completed title library and recorded
 tools/signer; prepare a compatible package with a code above the last verified
 installation and at least 17 before requesting device access when possible.
 
@@ -438,8 +444,9 @@ gates; public fixture progress must not silently close the private baseline. -->
    erase its eleven underruns. Keep scheduler/CRO, first-use pipeline-stall and
    sustained-memory work.
 3. Preserve both completed Dark Moon target builds and all separate code 11–16
-   reports. Code 16 testing is complete; finish preview.7's pending cloud
-   correctness/runtime/APK/bundle and publication gates before another package.
+   reports. Code 16 testing is complete. Preview.7's cloud correctness/runtime/
+   APK/bundle, hosted publication and independent public-download gates pass;
+   its new Thor test is unperformed.
    Repackage the retained library with recorded tools and the existing signer,
    with a code above the last verified installation and at least 17. Use prior
    build records, then **signal the owner and STOP until explicit approval** before

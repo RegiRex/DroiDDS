@@ -1,8 +1,8 @@
 # DroidDS implementation queue
 
-<!-- CodexAstraUlt: Preserve published code 16 identities while advancing
-from its completed test into the pending transfer follow-up and approval gate. -->
-The published candidate is **[0.0.8-preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**.
+<!-- CodexAstraUlt: Publish verified preview.7 cloud work while preserving
+code 16 evidence and the owner's explicit new-device approval boundary. -->
+The published candidate is **[0.0.8-preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**.
 DDS-012/013's generic title session, matching import, durable runtime storage,
 controls/audio/lifecycle and per-title ARM64 packaging are implemented. Published
 code 15 passes local/runtime/package and hosted main checks at `f687911`, with
@@ -33,18 +33,23 @@ texture copies (**6.061 s**) account for 97.82% of SVC time outside PICA lists.
 Retain 1,532 underruns and 160 discarded frames; no fresh listening assessment
 was supplied. Nine retained surfaces is an entry count, not a leak measurement.
 
-**Preview.7/code 17 is under cloud development.** Evaluate deferred tiled
-transfer captures/submissions with a 32-transfer batch cap, surface
-revalidation at each transfer boundary and the previous linear route retained. Fixed route/subphase
-metrics are also being evaluated. Correctness, benchmark, package and publication
-gates remain pending; no completed fix or handheld gain is claimed. Native
-execution, CPU vertex shaders and Vulkan 1× remain the priority. Further Thor
-GPU tests and audio-perfection work are deferred. No unchanged code 16 test,
-title regeneration or setup repeat is needed.
+**Preview.7/code 17 is published.** Accepted tiled-output hardware transfers
+now defer capture/presentation/submission with a 32-transfer batch cap, surface
+revalidation and separate logical cache idleness. Actual batch stamps/fences
+still protect resource lifetime. The previous linear route and texture-copy
+visibility remain unchanged. Fixed route/phase counters distinguish the work.
+Local correctness/runtime, retained-library APK, independent bundle and hosted
+main checks pass at `9296010`; tag publication and independent
+public-download verification pass at `1c7fffa`. See the
+[build record](builds/0.0.8-transfer-followup.md) for exact identities and gates.
+The new Thor test is **unperformed**, and no handheld gain is established.
+Native/CPU/Vulkan 1× remains the priority. Further Thor GPU tests and
+audio-perfection work remain deferred. No unchanged code 16 test, title
+regeneration or setup repeat is needed.
 
 <!-- CodexAstraUlt: Prepare a concrete compatible package while preserving the
 owner's stop-and-wait requirement before any new device access. -->
-After preview.7's cloud gates pass, reuse recorded tools, both completed
+With preview.7's cloud gates verified, reuse recorded tools, both completed
 521-object target builds/libraries, preparation and owner signer to prepare a
 compatible package with a code above the last verified installation and at
 least 17. Preserve imports, saves and reports. Before any new Thor/ADB connection

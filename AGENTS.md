@@ -131,25 +131,32 @@ Thor result while advancing only the next candidate's pending cloud work. -->
   for 97.82% of SVC time outside PICA lists. Nested tables must not be summed.
   Nine retained surfaces is an end-of-run entry count, not bytes or a leak test;
   64 MiB is guest allocation, not process/driver memory.
-- Preview.7/code 17 is under cloud development. The transfer prototype defers
-  tiled captures/submissions with a 32-transfer batch cap and surface
-  revalidation at each transfer boundary, retaining the previous linear route. Fixed route/subphase
-  metrics are also being evaluated. Correctness, benchmarks, packaging and
-  publication remain pending; do not claim a completed fix or handheld gain.
-  Finish those cloud gates before the next local packaging batch; do not repeat
-  the unchanged code 16 run. Reuse recorded working tools, preparation, both
-  completed 521-object builds/libraries and the owner signer. Prepare a
-  compatible update with a code above the last verified installation and at
-  least 17, using existing records before requesting connection approval.
-  Then signal the owner and STOP until explicit approval before any Thor/ADB
+<!-- CodexAstraUlt: Record verified preview.7 publication separately from the
+completed code 16 evidence and the still-unperformed new private Thor check. -->
+- Published 0.0.8-preview.7/code 17 passed local correctness/runtime,
+  retained-library APK, independent bundle and hosted main checks at implementation
+  92960106becc70913434f7d90ec75b89c492c528. Tag publication and independent
+  public-download verification passed at release source
+  1c7fffa2a0b4ee210dc78db55bc88188d6d41857. Read
+  docs/builds/0.0.8-transfer-followup.md for executed gates and exact identities.
+  Accepted tiled-output hardware transfers defer capture/presentation/submission,
+  bounded to 32 transfers per batch, while revalidating surfaces between transfers.
+  Linear output and texture-copy visibility remain unchanged. Separate logical
+  cache idleness preserves eviction cadence; actual batch stamps and completed
+  fences still protect resource lifetime. Fixed route/phase counters identify
+  the work. The new Thor test is unperformed; no handheld gain is established.
+  Do not repeat unchanged code 16. Reuse recorded tools, preparation, both
+  completed 521-object builds/libraries and the owner signer. Repackage only,
+  keeping the same package/certificate and a code above the last verified
+  installation and at least 17. Prepare and verify using existing records,
+  then signal the owner and STOP until explicit approval before any Thor/ADB
   connection, discovery, export, install or test. Preserve imports, saves and
-  previous reports. The eventual approved test keeps Native execution, CPU
-  vertex shaders and Vulkan 1×, with A around 91 seconds if ready and normal
-  Stop around 110 seconds, bounded by 120 wall seconds. Export the full JSON
-  before restart and upload reviewed evidence with verified links. Further
-  Thor GPU tests and audio-perfection work remain deferred. Do not add shader
-  dumps, growing logs or optional JIT; no separate public diagnostic APK
-  installation is required.
+  previous reports. After approval, use one Native/CPU/Vulkan 1× menu run:
+  A near 91 seconds if ready, normal Stop near 110, at most 120 wall seconds.
+  Export the full JSON before restart and upload reviewed evidence with verified
+  links. Further Thor GPU tests and audio-perfection work remain deferred.
+  Do not add shader dumps, growing logs or optional JIT. No separate public
+  diagnostic APK installation is required.
 
 <!-- CodexAstraUlt: Continue the owner's requested cloud product development
 before another isolated local trace; candidate publication does not close boot. -->

@@ -10,19 +10,19 @@ a shared runtime will retain 3DS services, graphics, audio and interpreter fallb
 
 <!-- CodexAstraUlt: Lead with the verified current candidate and downloads;
 retain private performance evidence separately from passed cloud gates. -->
-**[0.0.8-preview.6/code 16 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6), the current generic Android title player candidate.**
+**[0.0.8-preview.7/code 17 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7), the current generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest.
 Host, main and release CI pass for that published candidate; the four public
 downloads are independently verified.
-[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.6/DroiDDS-0.0.8-preview.6-original-android-arm64.apk).
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.7/DroiDDS-0.0.8-preview.7-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
-The [candidate build record](docs/builds/0.0.8-service-projection-followup.md)
-records implementation `64f1404`, release source
-`2354ed0`, exact public artifact identities and executed gates.
+The [candidate build record](docs/builds/0.0.8-transfer-followup.md)
+records implementation `9296010`, release source
+`1c7fffa`, exact public artifact identities and executed gates.
 
 <!-- CodexAstraUlt: Credit private menu boot separately from the new public
 original-fixture release; neither establishes a qualified playable segment. -->
@@ -108,14 +108,18 @@ causal gain. Display transfers (**26.917 s**) and texture copies (**6.061 s**)
 account for 97.82% of SVC time outside PICA lists. Audio retains 1,532 underruns
 and 160 discarded input frames, without a fresh listening assessment.
 
-<!-- CodexAstraUlt: Keep the transfer follow-up a pending cloud candidate;
-prototype work and one faster sample do not qualify handheld performance. -->
-**Preview.7/code 17 is under cloud development.** The prototype defers tiled
-transfer captures/submissions in batches capped at 32, revalidates cached surfaces between
-transfers, and retains the previous linear route. Fixed route/subphase
-metrics are being evaluated. Correctness, benchmarks, packaging and publication
-remain pending. Native execution, CPU vertex shaders and Vulkan 1× remain the
-priority. No unchanged code 16 run is needed. Gameplay, reliable audio,
+<!-- CodexAstraUlt: Publish verified transfer work without treating cloud
+correctness or component measurements as a new private handheld speed result. -->
+**Preview.7/code 17 is published.** Accepted tiled-output hardware transfers
+now defer capture/presentation/submission, bounded to 32 transfers per batch,
+with surface revalidation and separate logical cache idleness. The previous
+linear route and texture-copy visibility remain unchanged. Fixed route/phase
+metrics distinguish the work. Local correctness/runtime, retained-library APK,
+independent bundle and hosted main checks pass at `9296010`;
+tag publication and independent public-download verification pass at
+`1c7fffa`. The new Thor test is **unperformed**, and no handheld speed
+gain is established. Native execution, CPU vertex shaders and Vulkan 1× remain
+the priority. No unchanged code 16 run is needed. Gameplay, reliable audio,
 save/resume and sustained speed remain unqualified.
 
 <!-- CodexAstraUlt: The owner's connection instruction requires an actual pause,

@@ -1,13 +1,18 @@
 # Local Dark Moon Native/CPU performance handoff
 
-<!-- CodexAstraUlt: Replace the completed code 16 test with pending cloud work;
-finish a reviewable package before requesting the next explicit device approval. -->
-Next candidate: **0.0.8-preview.7/code 17**, under cloud development. The transfer
-prototype defers tiled captures/submissions with a 32-transfer batch cap and
-surface revalidation at each transfer boundary. The previous linear route stays
-unchanged. Fixed route/subphase metrics are being evaluated. Correctness, benchmark, package and
-publication gates remain pending. Do not repeat code 16 or begin a new Thor
-batch now. Read [AGENTS.md](../AGENTS.md) and
+<!-- CodexAstraUlt: Hand off verified cloud work for compatible repackaging;
+publication does not authorize the new Thor connection or qualify performance. -->
+Current candidate: **[0.0.8-preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**, published.
+Bounded tiled-transfer deferral and fixed route/phase diagnostics are implemented.
+Local correctness/runtime, retained-library APK, independent bundle and hosted
+main checks pass at `9296010`; tag publication and independent
+public-download verification pass at `1c7fffa`. The
+[build record](builds/0.0.8-transfer-followup.md) records exact identities and gates.
+The new Thor test is **unperformed**; no handheld gain is established. Repackage
+the retained ARM64 library with recorded tools and the same owner signer, then
+signal the owner and **STOP until explicit approval** before any Thor/ADB
+connection or device-work batch. Do not repeat unchanged code 16. Read
+[AGENTS.md](../AGENTS.md) and
 [the current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
 
 Published **[preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**
@@ -48,14 +53,14 @@ authorize access. Cloud coding/building and review of already uploaded reports
 may continue. Prepare the compatible package first when possible, using existing
 build/installation records without querying the device in advance.
 
-## Suggested task for local Codex after cloud gates pass
+## Suggested task for local Codex
 
 <!-- CodexAstraUlt: Make the package reviewable before asking for access; the
 remaining device procedure is conditional on the owner's actual answer. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Confirm preview.7 cloud route/package/publication gates passed before packaging.
+Read the verified preview.7 build record before repackaging.
 Preserve code 16 and all previous reports. Reuse recorded tools, preparation,
 completed ARM64 compilation and the same owner signing profile. Repackage only
 with the same package/certificate and a code above the last verified installed
