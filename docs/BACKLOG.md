@@ -1,8 +1,8 @@
 # DroidDS implementation queue
 
-<!-- CodexAstraUlt: Publish verified preview.7 cloud work while preserving
-code 16 evidence and the owner's explicit new-device approval boundary. -->
-The published candidate is **[0.0.8-preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**.
+<!-- CodexAstraUlt: Publish verified preview.8 cloud work while preserving
+completed device evidence and the owner's explicit new-device approval boundary. -->
+The published candidate is **[0.0.8-preview.8/code 18](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.8)**.
 DDS-012/013's generic title session, matching import, durable runtime storage,
 controls/audio/lifecycle and per-title ARM64 packaging are implemented. Published
 code 15 passes local/runtime/package and hosted main checks at `f687911`, with
@@ -45,14 +45,17 @@ Hardware-transfer attempts take **23.980 s** and texture synchronization
 **5.906 s**. Retain 1,531 underruns, 480 discarded input frames and the owner's
 fresh severe-clipping observation; no waveform mechanism is established.
 
-**Next: preview.8/code 18, pending.** Implement and qualify an immutable
-NativeReadback instance mode for the title frontend's `System::read_screen`
-native-byte consumer. Remove otherwise unused upright/screen captures from
-accepted linear transfers, retaining native capture, synchronization and
-submission. Default scaled/direct modes retain their behavior. Qualify fixed
-phase/readback attribution and authored equivalence/coherence controls before
-claiming a gain. Correctness, benchmarks, package and publication gates remain
-pending; see [the build draft](builds/0.0.8-native-readback-followup.md).
+**Preview.8/code 18 is published.** Its immutable NativeReadback instance mode
+matches the title frontend's `System::read_screen` native-byte consumer. It
+removes unused upright/screen captures from accepted linear transfers while
+retaining native capture, synchronization and submission; default scaled/direct
+modes retain their behavior. Fixed phase/readback attribution and authored
+coherence/output controls are implemented and qualified. Local correctness/
+runtime, retained-library APK, independent bundle and hosted main checks pass at
+`0e3f211`; tag publication and independent public-download verification
+pass at `d1d70ac`. See the
+[build record](builds/0.0.8-native-readback-followup.md). The new Thor test is
+unperformed and no handheld speed improvement is established.
 
 The owner resumed cloud work and requested the
 [native Android direction review](NATIVE_ANDROID_DIRECTION.md). Preserve existing
@@ -63,7 +66,7 @@ that cost. No unchanged code 17 test or GPU-vertex retry is justified.
 
 <!-- CodexAstraUlt: Complete cloud gates and a compatible package before the
 owner's explicit stop-and-wait decision for each new device batch. -->
-After preview.8's cloud gates pass, reuse recorded tools, both completed
+With preview.8's cloud gates verified, reuse recorded tools, both completed
 521-object target builds/libraries, preparation and owner signer. Repackage with
 the same package/certificate and a code above the last verified installation and
 at least 18, preserving imports, saves, local continuation data and reports.

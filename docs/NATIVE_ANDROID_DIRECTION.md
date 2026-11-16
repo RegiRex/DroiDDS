@@ -129,8 +129,13 @@ later stages are architectural proposals, not completed or approved device tests
 
 ### Current candidate: specialize presentation for the native readback consumer
 
-**Implemented; local correctness, benchmark and Android package checks pass.**
-Hosted publication and a new private device result remain pending. Code 17's
+**Published as [0.0.8-preview.8/code 18](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.8).**
+Local correctness, benchmark and Android package checks, implementation main
+workflows, tag build/publication and independent public-download verification
+pass. Implementation is `0e3f211bfab603e05cf881315a6bffa75829fd96` and release
+source is `d1d70ac7e571ccfde9b82fa9a3d3696942d34093`; see the
+[build record](builds/0.0.8-native-readback-followup.md) for exact evidence.
+A new private device result remains unperformed. Code 17's
 tiled-output optimization did not engage: all 7,674 accepted hardware transfers
 had linear output. Treating every linear transfer as immediate presentation work
 is a poor fit for a player that consumes guest framebuffer readback itself.
@@ -141,8 +146,8 @@ retaining guest transfer results, visibility, ordering and correct screen
 selection. This is a focused renderer/runtime change, not GPU-only guest memory
 or a new direct Android swapchain. Historical presentation consumers must retain
 their existing behavior. Cloud correctness, retained-library packaging and
-independent review must pass before claiming readiness; a measured Thor gain
-remains a separate gate.
+independent review pass for this release; a measured Thor gain remains a
+separate gate.
 
 This candidate must reuse the existing preparation, all 521 Android objects and
 the completed private native library, with the same package and signing

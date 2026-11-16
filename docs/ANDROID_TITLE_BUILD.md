@@ -1,12 +1,14 @@
 # Build an Android title candidate
 
-<!-- CodexAstraUlt: Publish verified preview.7 cloud gates while preserving
-code 16 identities and the owner's explicit new-device approval boundary. -->
-The published candidate is **[0.0.8-preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**.
+<!-- CodexAstraUlt: Publish verified preview.8 cloud gates while preserving
+published history and the owner's explicit new-device approval boundary. -->
+The published candidate is **[0.0.8-preview.8/code 18](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.8)**.
 Local correctness/runtime, retained-library APK, independent bundle and hosted
-main checks pass at `9296010`; tag publication and independent
-public-download verification pass at `1c7fffa`. The
-[build record](builds/0.0.8-transfer-followup.md) retains exact gates and identities.
+main checks pass at `0e3f211`; tag publication and independent
+public-download verification pass at `d1d70ac`. The
+[build record](builds/0.0.8-native-readback-followup.md) retains exact gates and identities.
+Historical [code 17](builds/0.0.8-transfer-followup.md) retains implementation
+`9296010` and release `1c7fffa`.
 Historical [code 16](builds/0.0.8-service-projection-followup.md) retains
 implementation `64f1404` and release `2354ed0`.
 Historical [code 15](builds/0.0.8-cpu-decode-followup.md) retains implementation
@@ -21,13 +23,14 @@ attempts take **23.980 s**, texture input/output synchronization **5.906 s**.
 Retain **1,531 underruns**, 480 discarded input frames and the owner's fresh
 severe-clipping observation; no waveform mechanism is established.
 
-**Preview.8/code 18 is under cloud development.** The proposed immutable
-NativeReadback profile matches the title frontend's `System::read_screen`
-native-byte consumer. It omits otherwise unused upright/screen captures for
-accepted linear transfers, retaining native capture, synchronization and
-submission; default scaled/direct modes remain unchanged. Fixed phase/readback
-metrics are implemented for qualification. Correctness, benchmarks, packaging
-and publication remain **pending**; see [the draft](builds/0.0.8-native-readback-followup.md) and the
+Preview.8 implements an immutable NativeReadback profile for the title
+frontend's `System::read_screen` native-byte consumer. It omits unused
+upright/screen captures for accepted linear transfers while retaining native
+capture, synchronization and submission; default scaled/direct modes remain
+unchanged. Fixed capture/phase/readback metrics distinguish actual work. Local
+correctness/package and hosted publication/download checks pass; the new Thor
+test is **unperformed**, and no handheld gain is established. See the
+[build record](builds/0.0.8-native-readback-followup.md) and the
 [native Android architecture review](NATIVE_ANDROID_DIRECTION.md).
 
 The player retains application ID `org.droidds.title.t<program_id>` and the
@@ -37,14 +40,14 @@ the same generated-title ABI. No unchanged code 17 run is needed.
 
 ## Current Dark Moon repackaging and audio test
 
-<!-- CodexAstraUlt: Keep this established anchor but leave local work pending
-until the new cloud candidate passes its own correctness/package/publication gates. -->
-Finish preview.8's pending cloud correctness, benchmark, package and publication
-checks before the next local packaging batch. Then reuse the retained title
-library, recorded tools and owner signer. Further Thor GPU tests and
-audio-perfection work remain deferred. The eventual approved test keeps
-**Native guest execution, CPU vertex shaders and Vulkan 1×**. Automatic stays
-the ordinary default.
+<!-- CodexAstraUlt: Keep this established anchor and verified cloud status;
+prepare the compatible package before the owner's next connection decision. -->
+Preview.8's cloud correctness, benchmark, package and publication checks and
+independent public-download verification pass. Repackage the retained title
+library using recorded tools and the same owner signer. Further Thor GPU tests
+and audio-perfection work remain deferred. The new Thor test is unperformed;
+the eventual approved test keeps **Native guest execution, CPU vertex shaders
+and Vulkan 1×**. Automatic stays the ordinary default.
 
 **Before any new Thor/ADB connection or device-work batch, signal the owner and
 STOP until explicit approval.** This includes discovery, report export,
@@ -105,7 +108,7 @@ approved bounded testing and direct diagnostic delivery. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow “Current Dark Moon repackaging and audio test” in docs/ANDROID_TITLE_BUILD.md.
-Confirm preview.8 cloud correctness/package/publication gates passed.
+Read the verified preview.8 build record before repackaging.
 Reuse recorded tools, preparation, completed ARM64 compilation and owner signing
 profile. Repackage only, keeping the same package/certificate and a code above
 the last verified installation, at least 18. Use prior records before connecting.
@@ -154,7 +157,8 @@ counts and `transfer_work`. Its five display-phase wall totals are disjoint
 subsets of hardware-attempt time. Readback wait/store totals can nest inside
 those phases or command processing; do not add them to parents. Wait calls are
 completion-check/wait requests that may return immediately, not counts of GPU
-stalls. Source qualification remains pending; see the candidate build draft.
+stalls. Cloud qualification passes; see the verified build record. The new
+private device result remains unperformed.
 
 Retain the completed GPU diagnostic as deferred evidence.
 `runtime.gpu.hardware.pipeline_failures` retains first observed `foreground`,

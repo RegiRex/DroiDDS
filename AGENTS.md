@@ -154,16 +154,21 @@ inactive-transfer result while resuming the owner-authorized architecture review
   93.32% of measured core time. Preserve the existing AOT/ABI and accurate route
   while staging GPU resource ownership and native graphics work with explicit
   correctness and performance gates.
-- Preview.8/code 18 is a pending cloud candidate. Its proposed immutable
-  NativeReadback instance mode matches the title frontend's System::read_screen
-  native-byte consumer: omit otherwise unused upright/screen captures on
-  accepted linear transfers, retaining native capture, synchronization and
-  submission. Default scaled/direct modes remain unchanged. Fixed phase/readback
-  metrics are implemented for qualification. Correctness, benchmarks, package
-  checks and publication remain pending; see
-  docs/builds/0.0.8-native-readback-followup.md. Do not claim a
-  completed fix or handheld gain, or repeat unchanged code 17.
-  After cloud gates pass, reuse recorded tools, preparation, both completed
+<!-- CodexAstraUlt: Record verified code 18 cloud/publication work separately
+from completed code 17 evidence and the unperformed new Thor qualification. -->
+- Published 0.0.8-preview.8/code 18 passes local correctness/runtime,
+  retained-library APK, independent bundle and hosted main checks at implementation
+  0e3f211bfab603e05cf881315a6bffa75829fd96. Tag publication and independent
+  public-download verification pass at release source
+  d1d70ac7e571ccfde9b82fa9a3d3696942d34093. Read
+  docs/builds/0.0.8-native-readback-followup.md for exact gates and identities.
+  Its immutable NativeReadback instance mode matches System::read_screen's
+  native-byte consumer, omitting unused upright/screen captures on accepted
+  linear transfers while retaining native capture, synchronization and submission.
+  Default scaled/direct modes remain unchanged. Fixed capture/phase/readback
+  metrics distinguish actual work and nested timing. The new Thor test is
+  unperformed; no handheld gain is established. Do not repeat unchanged code 17.
+  Reuse recorded tools, preparation, both completed
   521-object builds/libraries and owner signer. Repackage with the same package/
   certificate and a code above the last verified installation and at least 18.
   Preserve the local continuation locator and existing local handoff suffix.

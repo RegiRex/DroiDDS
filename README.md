@@ -10,19 +10,19 @@ a shared runtime retains 3DS services, graphics, audio and interpreter fallback.
 
 <!-- CodexAstraUlt: Lead with the verified current candidate and downloads;
 retain private performance evidence separately from passed cloud gates. -->
-**[0.0.8-preview.7/code 17 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7), the current generic Android title player candidate.**
+**[0.0.8-preview.8/code 18 is published](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.8), the current generic Android title player candidate.**
 The new path builds a separate per-title ARM64 app, imports its matching game
 data, retains saves, and supplies native/interpreter execution, Vulkan rendering,
 controls, touch and audio. Cloud checks use an original interactive guest.
 Host, main and release CI pass for that published candidate; the four public
 downloads are independently verified.
-[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.7/DroiDDS-0.0.8-preview.7-original-android-arm64.apk).
+[Download the original-title Android APK](https://github.com/RegiRex/DroiDDS/releases/download/v0.0.8-preview.8/DroiDDS-0.0.8-preview.8-original-android-arm64.apk).
 The earlier fixture probe remains 0.0.6. See the [current roadmap](docs/ROADMAP.md),
 [title-player contract](docs/ANDROID_TITLE_CONTRACT.md) and
 [local Android builder](docs/ANDROID_TITLE_BUILD.md).
-The [candidate build record](docs/builds/0.0.8-transfer-followup.md)
-records implementation `9296010`, release source
-`1c7fffa`, exact public artifact identities and executed gates.
+The [candidate build record](docs/builds/0.0.8-native-readback-followup.md)
+records implementation `0e3f211`, release source
+`d1d70ac`, exact public artifact identities and executed gates.
 
 <!-- CodexAstraUlt: Credit private menu boot separately from the new public
 original-fixture release; neither establishes a qualified playable segment. -->
@@ -119,14 +119,17 @@ optimization never engaged. Hardware-transfer attempts take **23.980 s** and
 texture synchronization **5.906 s**. The owner reports severe audible clipping,
 with **1,531 underruns**; the report does not identify waveform clipping.
 
-**Preview.8/code 18 is under cloud development.** The proposed immutable
-NativeReadback profile matches the title frontend's native-byte screen consumer,
-omitting unused upright/screen captures for accepted linear transfers while
-retaining native capture, synchronization and submission. Default scaled/direct
-modes remain unchanged. Fixed phase/readback counters are implemented for
-qualification. Correctness, benchmarks, packaging and publication remain
-**pending**; see the
-[candidate build draft](docs/builds/0.0.8-native-readback-followup.md).
+<!-- CodexAstraUlt: Publish verified consumer-specific readback work without
+promoting authored component results into an unperformed handheld speed claim. -->
+**Preview.8/code 18 is published.** Its immutable NativeReadback profile matches
+the title frontend's native-byte screen consumer, omitting unused upright/screen
+captures on accepted linear transfers while retaining native capture,
+synchronization and submission. Default scaled/direct modes remain unchanged.
+Fixed capture/phase/readback counters distinguish the work. Local correctness/
+runtime, retained-library APK, independent bundle and hosted main checks pass at
+`0e3f211`; tag publication and independent public-download verification
+pass at `d1d70ac`. The new Thor test is **unperformed**; no handheld gain
+is established. See the [build record](docs/builds/0.0.8-native-readback-followup.md).
 
 The owner resumed work and requested the
 [native Android architecture investigation](docs/NATIVE_ANDROID_DIRECTION.md).

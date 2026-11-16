@@ -1,23 +1,27 @@
 # Local Dark Moon Native/CPU performance handoff
 
 <!-- CodexAstraUlt: Point a resumed session to the owner-requested local save locations and completed code17 evidence before the historical packaging handoff below. -->
-**Continuation update, 2026-11-09:** code 17 testing and verified report publication are complete. Start with [the saved local session locator](LOCAL_SESSION_CONTINUATION.md) for the transcript and resume-handoff paths. Do not repeat completed code 17 packaging/testing merely to resume. The pending code 18 handoff below is a separate future batch. Every new Thor/ADB batch still requires fresh explicit owner approval.
+**Continuation update, 2026-11-09:** code 17 testing and verified report publication are complete. Start with [the saved local session locator](LOCAL_SESSION_CONTINUATION.md) for the transcript and resume-handoff paths. Do not repeat completed code 17 packaging/testing merely to resume. The code 18 handoff below is a separate new batch. Every new Thor/ADB batch still requires fresh explicit owner approval.
 
-<!-- CodexAstraUlt: Resume cloud investigation from completed code 17 while
-keeping the next compatible package and device check explicitly pending. -->
+<!-- CodexAstraUlt: Hand off verified code 18 cloud work while preserving
+completed code 17 evidence and the unperformed new private device qualification. -->
 Published **[preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**
 passed local/runtime/package and hosted main checks at `9296010`, with tag
 publication and independent download verification at `1c7fffa`. Preserve its
 [build record](builds/0.0.8-transfer-followup.md) and completed device report.
 
-Next candidate: **preview.8/code 18**, under cloud development. The proposed
-immutable NativeReadback profile removes unused upright/screen captures for the
-title frontend's native-byte consumer, retaining native capture/sync/submission
-and default scaled/direct modes. Fixed phase/readback metrics are implemented
-for qualification.
-Correctness, benchmark, package and publication gates remain **pending**; read
-[the draft](builds/0.0.8-native-readback-followup.md). Do not start its local batch
-until those gates pass. The owner's resumed
+Current candidate: **[preview.8/code 18](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.8)**,
+published and independently verified. Its immutable NativeReadback profile
+removes unused upright/screen captures for the title frontend's native-byte
+consumer, retaining native capture/sync/submission and default scaled/direct
+modes. Fixed capture/phase/readback metrics are included. Local correctness/
+runtime, retained-library APK, independent bundle and hosted main checks pass at
+`0e3f211`; tag publication and independent public-download verification
+pass at `d1d70ac`. Read the
+[verified build record](builds/0.0.8-native-readback-followup.md).
+The new Thor check is **unperformed**, with no handheld gain established.
+Repackage the retained ARM64 library and prepare a compatible update before
+requesting the owner's explicit approval for any Thor/ADB access. The
 [native Android architecture investigation](NATIVE_ANDROID_DIRECTION.md) stages
 GPU resource/graphics work while preserving AOT, title ABI and completed libraries.
 
@@ -56,14 +60,14 @@ alone, an available device or an earlier batch does not authorize access.
 Prepare the compatible package first, using prior verified build/installation
 records without querying the device in advance.
 
-## Suggested task for local Codex after cloud gates pass
+## Suggested task for local Codex
 
 <!-- CodexAstraUlt: Keep the future task limited to compatible repackaging,
 approved bounded testing and direct diagnostic delivery. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
 Follow “Current Dark Moon repackaging and audio test” in docs/ANDROID_TITLE_BUILD.md.
-Confirm preview.8 cloud correctness/package/publication gates passed.
+Read the verified preview.8 build record before repackaging.
 Reuse recorded tools, preparation, completed ARM64 compilation and owner signing
 profile. Repackage only, keeping the same package/certificate and a code above
 the last verified installation, at least 18. Use prior records before connecting.

@@ -3,14 +3,14 @@
 <!-- CodexAstraUlt: The owner prioritizes completing the Android product path
 in the cloud before further isolated private traces, and targets a first beta. -->
 The public title-player candidate is
-**[0.0.8-preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**;
+**[0.0.8-preview.8/code 18](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.8)**;
 its host/main/tag checks and independently downloaded assets pass. The previous
 fixture probe remains **0.0.6**. The published candidate implements the generic per-title
 Android session, matching-data import, durable saves, full controls and an ARM64
 package builder, exercised with an original interactive guest. This candidate
 does not by itself qualify an owned title.
-The [candidate build record](builds/0.0.8-transfer-followup.md) records
-implementation `9296010`, release source `1c7fffa`,
+The [candidate build record](builds/0.0.8-native-readback-followup.md) records
+implementation `0e3f211`, release source `d1d70ac`,
 exact public artifact identities and executed gates. The
 [code 14 Thor reports](device-tests/0.0.8-preview4-dark-moon-thor.md) now record a
 bounded menu run at **17.31% emulated speed** with choppy audio, and a separate
@@ -63,14 +63,18 @@ Accepted tiled/deferred transfers are zero. Hardware-transfer attempts take
 480 discarded input frames and the owner's fresh severe-clipping observation;
 the counters do not establish waveform clipping.
 
-**Preview.8/code 18 is pending cloud validation.** An immutable NativeReadback
-instance profile is proposed for the title frontend's `System::read_screen`
-native-byte consumer. It omits unused upright/screen captures on accepted linear
-transfers while retaining native capture, synchronization and submission.
-Default scaled/direct consumers keep their existing behavior. Fixed transfer
-phase/readback metrics are implemented for qualification; correctness,
-benchmarks, package checks and publication remain pending in the
-[build draft](builds/0.0.8-native-readback-followup.md).
+<!-- CodexAstraUlt: Record completed cloud publication while preserving the
+architecture direction and the separate unperformed private performance gate. -->
+**Preview.8/code 18 is published.** The immutable NativeReadback profile matches
+the title frontend's `System::read_screen` native-byte consumer. It omits unused
+upright/screen captures on accepted linear transfers while retaining native
+capture, synchronization and submission; default scaled/direct modes keep their
+behavior. Fixed capture/phase/readback metrics identify actual work. Local
+correctness/runtime, retained-library APK, independent bundle and hosted main
+checks pass at `0e3f211`; tag publication and independent public-download
+verification pass at `d1d70ac`. See the
+[build record](builds/0.0.8-native-readback-followup.md). The new Thor test is
+**unperformed**, and no handheld speed gain is established.
 
 <!-- CodexAstraUlt: Stage architectural work behind explicit evidence rather
 than treating a native APK as removal of emulated graphics or a new beta gate. -->
@@ -162,10 +166,11 @@ prerequisite for implementing them. Follow the concrete
 [Android implementation contract](ANDROID_TITLE_CONTRACT.md). Consolidate the
 next local batch around [repackaging the completed ARM64 library](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test),
 preserving the owner signing identity and existing reports. The code 17 run is
-complete; do not repeat it unchanged. Finish preview.8's pending cloud correctness,
-package and publication gates first. Then reuse the completed title library and
-recorded tools/signer, preparing a compatible package with a code above the last
-verified installation and at least 18 before requesting device access.
+complete; do not repeat it unchanged. Preview.8's cloud correctness, package,
+publication and independent public-download gates pass. Reuse the completed
+title library and recorded tools/signer, preparing a compatible package with a
+code above the last verified installation and at least 18 before requesting
+device access.
 
 <!-- CodexAstraUlt: Preserve the explicit owner approval boundary for every new
 Thor batch without blocking independent cloud code/build/report work. -->
@@ -465,9 +470,9 @@ gates; public fixture progress must not silently close the private baseline. -->
    sustained-memory work.
 3. Preserve both completed Dark Moon target builds and all separate code 11–17
    reports. Code 17 testing is complete and shows no eligible tiled transfers or
-   speed gain. Finish preview.8's pending correctness/runtime/APK/bundle,
-   hosted publication and independent public-download gates before another test.
-   Then repackage the retained library with recorded tools and existing signer,
+   speed gain. Preview.8's correctness/runtime/APK/bundle, hosted publication
+   and independent public-download gates pass; its new Thor test is unperformed.
+   Repackage the retained library with recorded tools and existing signer,
    with a code above the last verified installation and at least 18. Use prior
    build records, then **signal the owner and STOP until explicit approval** before
    any Thor/ADB connection, discovery, export, installation or testing.
