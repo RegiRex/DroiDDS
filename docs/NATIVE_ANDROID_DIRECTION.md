@@ -129,8 +129,8 @@ later stages are architectural proposals, not completed or approved device tests
 
 ### Current candidate: specialize presentation for the native readback consumer
 
-**Implemented; local source correctness and benchmark gates pass.** Android
-package/hosted publication checks and a new private device result remain pending. Code 17's
+**Implemented; local correctness, benchmark and Android package checks pass.**
+Hosted publication and a new private device result remain pending. Code 17's
 tiled-output optimization did not engage: all 7,674 accepted hardware transfers
 had linear output. Treating every linear transfer as immediate presentation work
 is a poor fit for a player that consumes guest framebuffer readback itself.
