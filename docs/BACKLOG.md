@@ -33,31 +33,47 @@ texture copies (**6.061 s**) account for 97.82% of SVC time outside PICA lists.
 Retain 1,532 underruns and 160 discarded frames; no fresh listening assessment
 was supplied. Nine retained surfaces is an entry count, not a leak measurement.
 
-**Preview.7/code 17 is published.** Accepted tiled-output hardware transfers
-now defer capture/presentation/submission with a 32-transfer batch cap, surface
-revalidation and separate logical cache idleness. Actual batch stamps/fences
-still protect resource lifetime. The previous linear route and texture-copy
-visibility remain unchanged. Fixed route/phase counters distinguish the work.
-Local correctness/runtime, retained-library APK, independent bundle and hosted
-main checks pass at `9296010`; tag publication and independent
-public-download verification pass at `1c7fffa`. See the
-[build record](builds/0.0.8-transfer-followup.md) for exact identities and gates.
-The new Thor test is **unperformed**, and no handheld gain is established.
-Native/CPU/Vulkan 1× remains the priority. Further Thor GPU tests and
-audio-perfection work remain deferred. No unchanged code 16 test, title
-regeneration or setup repeat is needed.
+<!-- CodexAstraUlt: Keep the published baseline and its inactive optimization
+separate from the pending readback candidate and future architecture work. -->
+**Preview.7/code 17 is published and tested on Thor.** Local correctness/runtime,
+retained-library APK, independent bundle and hosted main checks pass at `9296010`;
+tag publication and independent public-download checks pass at `1c7fffa`. Its
+[build record](builds/0.0.8-transfer-followup.md) preserves exact identities.
+The [code 17 report](device-tests/0.0.8-preview7-dark-moon-thor.md) measures **18.66%
+speed**, essentially unchanged. Accepted tiled/deferred transfers are zero.
+Hardware-transfer attempts take **23.980 s** and texture synchronization
+**5.906 s**. Retain 1,531 underruns, 480 discarded input frames and the owner's
+fresh severe-clipping observation; no waveform mechanism is established.
 
-<!-- CodexAstraUlt: Prepare a concrete compatible package while preserving the
-owner's stop-and-wait requirement before any new device access. -->
-With preview.7's cloud gates verified, reuse recorded tools, both completed
-521-object target builds/libraries, preparation and owner signer to prepare a
-compatible package with a code above the last verified installation and at
-least 17. Preserve imports, saves and reports. Before any new Thor/ADB connection
-or device-work batch, including discovery, export, installation and testing,
-**signal the owner and stop until explicit approval**; notification alone is not approval. Use
-existing build/installation records for preparation and follow the
+**Next: preview.8/code 18, pending.** Implement and qualify an immutable
+NativeReadback instance mode for the title frontend's `System::read_screen`
+native-byte consumer. Remove otherwise unused upright/screen captures from
+accepted linear transfers, retaining native capture, synchronization and
+submission. Default scaled/direct modes retain their behavior. Qualify fixed
+phase/readback attribution and authored equivalence/coherence controls before
+claiming a gain. Correctness, benchmarks, package and publication gates remain
+pending; see [the build draft](builds/0.0.8-native-readback-followup.md).
+
+The owner resumed cloud work and requested the
+[native Android direction review](NATIVE_ANDROID_DIRECTION.md). Preserve existing
+AOT, generated-title ABI and per-title ARM64 packaging while staging GPU resource
+ownership and native graphics/presentation work behind measured gates. Graphics
+scopes use 93.32% of code 17's core time; native instruction counts do not measure
+that cost. No unchanged code 17 test or GPU-vertex retry is justified.
+
+<!-- CodexAstraUlt: Complete cloud gates and a compatible package before the
+owner's explicit stop-and-wait decision for each new device batch. -->
+After preview.8's cloud gates pass, reuse recorded tools, both completed
+521-object target builds/libraries, preparation and owner signer. Repackage with
+the same package/certificate and a code above the last verified installation and
+at least 18, preserving imports, saves, local continuation data and reports.
+Before any new Thor/ADB connection or device-work batch, including discovery,
+export, installation and testing, **signal the owner and stop until explicit
+approval**. Follow the
 [current local procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test)
-only after its gates and that access approval. Gameplay, reliable audio,
+after its gates and access approval: one Native/CPU/Vulkan 1× menu run, A near
+91 seconds if ready, normal Stop near 110, at most 120 wall seconds; export full
+JSON before restart and upload reviewed evidence. Gameplay, reliable audio,
 save/load and sustained speed remain unqualified.
 
 <!-- CodexAstraUlt: Reduce the supplied 119-ticket catalog to bounded work packages with explicit tests and links back to the source requirements. -->

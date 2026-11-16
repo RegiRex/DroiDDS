@@ -5,8 +5,8 @@
 <!-- CodexAstraUlt: Replace the initial placeholder with the owner's recompilation project plan, its evidence limits, and the next implementation step. -->
 
 An Android ARM64 3DS recompilation project built around **3dsrecomp + Zakuro**.
-The desktop builder will translate supported guest CPU code into native libraries;
-a shared runtime will retain 3DS services, graphics, audio and interpreter fallback.
+The desktop builder translates supported guest CPU code into native libraries;
+a shared runtime retains 3DS services, graphics, audio and interpreter fallback.
 
 <!-- CodexAstraUlt: Lead with the verified current candidate and downloads;
 retain private performance evidence separately from passed cloud gates. -->
@@ -108,19 +108,34 @@ causal gain. Display transfers (**26.917 s**) and texture copies (**6.061 s**)
 account for 97.82% of SVC time outside PICA lists. Audio retains 1,532 underruns
 and 160 discarded input frames, without a fresh listening assessment.
 
-<!-- CodexAstraUlt: Publish verified transfer work without treating cloud
-correctness or component measurements as a new private handheld speed result. -->
-**Preview.7/code 17 is published.** Accepted tiled-output hardware transfers
-now defer capture/presentation/submission, bounded to 32 transfers per batch,
-with surface revalidation and separate logical cache idleness. The previous
-linear route and texture-copy visibility remain unchanged. Fixed route/phase
-metrics distinguish the work. Local correctness/runtime, retained-library APK,
-independent bundle and hosted main checks pass at `9296010`;
-tag publication and independent public-download verification pass at
-`1c7fffa`. The new Thor test is **unperformed**, and no handheld speed
-gain is established. Native execution, CPU vertex shaders and Vulkan 1× remain
-the priority. No unchanged code 16 run is needed. Gameplay, reliable audio,
-save/resume and sustained speed remain unqualified.
+<!-- CodexAstraUlt: Retain published code 17 evidence and advance only the
+pending consumer-specific readback candidate, without promising handheld gains. -->
+**Preview.7/code 17 is published and tested on Thor.** Local correctness/runtime,
+retained-library APK, independent bundle and hosted main checks pass at `9296010`;
+tag publication and independent public-download verification pass at `1c7fffa`.
+The [code 17 report](docs/device-tests/0.0.8-preview7-dark-moon-thor.md) reaches file
+selection at **18.66% speed**, essentially unchanged from code 16. Its tiled
+optimization never engaged. Hardware-transfer attempts take **23.980 s** and
+texture synchronization **5.906 s**. The owner reports severe audible clipping,
+with **1,531 underruns**; the report does not identify waveform clipping.
+
+**Preview.8/code 18 is under cloud development.** The proposed immutable
+NativeReadback profile matches the title frontend's native-byte screen consumer,
+omitting unused upright/screen captures for accepted linear transfers while
+retaining native capture, synchronization and submission. Default scaled/direct
+modes remain unchanged. Fixed phase/readback counters are implemented for
+qualification. Correctness, benchmarks, packaging and publication remain
+**pending**; see the
+[candidate build draft](docs/builds/0.0.8-native-readback-followup.md).
+
+The owner resumed work and requested the
+[native Android architecture investigation](docs/NATIVE_ANDROID_DIRECTION.md).
+DroiDDS already produces per-title ARM64 APKs. The next architectural work targets
+GPU resource ownership and graphics translation with measured gates while
+retaining the AOT compiler, compatible title libraries and accurate fallback.
+Native instruction counts are not timing shares; graphics scopes account for
+93.32% of code 17's core time. No unchanged code 17 run is needed. Gameplay,
+reliable audio, save/resume and sustained speed remain unqualified.
 
 <!-- CodexAstraUlt: The owner's connection instruction requires an actual pause,
 while cloud development and preparation of a reviewable package may continue. -->

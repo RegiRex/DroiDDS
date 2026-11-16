@@ -54,6 +54,11 @@ GPU_REQUIRED_TESTS = {
     "tests::transfer_diagnostics_preserve_software_aliases_empty_and_halving",
     "tests::texture_copy_diagnostics_preserve_strides_aliases_and_empty_requests",
     "tests::transfer_diagnostics_count_real_hardware_fallback",
+    # CodexAstraUlt: The native-framebuffer consumer must preserve guest bytes,
+    # CPU edits and independent scaled/direct presentation contracts.
+    "tests::presentation_contract_rejects_invalid_devices_without_replacing_renderer",
+    "raster::hardware::tests::native_readback_preserves_cpu_edits_fills_and_texture_copy_bytes",
+    "raster::hardware::tests::native_readback_is_instance_scoped_and_preserves_default_screen_history",
     # CodexAstraUlt: Deferred transfers must retain exact pixels, CPU coherence,
     # linear history and fence-safe cache retirement in both Vulkan policies.
     "raster::hardware::tests::deferred_tiled_transfers_revalidate_cpu_writes_and_sync_dirty_outputs",
@@ -73,7 +78,8 @@ GPU_IGNORED_BENCHMARKS = {"shader::tests::batch_speed", "shader::tests::compiled
                           "raster::tests::benchmark_specialized_input_fetch_against_componentwise",
                           "raster::hardware::tests::measure_draw_guard_against_snapshot",
                           "raster::tests::benchmark_projected_raster_against_register_rows",
-                          "raster::hardware::tests::measure_deferred_tiled_transfers_against_eager"}
+                          "raster::hardware::tests::measure_deferred_tiled_transfers_against_eager",
+                          "raster::hardware::tests::measure_native_readback_against_scaled_capture"}
 LOADER_REQUIRED_TESTS = {
     "droidds_real_loader_reports_geometry_and_executes_every_supported_mode",
     "droidds_real_kernel_resource_limit_heap_linear_and_hid_base_allocation",

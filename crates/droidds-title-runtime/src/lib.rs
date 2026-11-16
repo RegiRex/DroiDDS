@@ -17,7 +17,7 @@ pub use zakuro_core::services::hid::{InputState, PadState};
 // CodexAstraUlt: Callers choose vertex processing per session before Vulkan
 // initializes; generated title libraries and their ABI remain unchanged.
 pub use zakuro_core::VertexShading;
-use zakuro_core::{services::hid, StepOutcome, System, CYCLES_PER_FRAME};
+use zakuro_core::{services::hid, FramebufferPresentation, StepOutcome, System, CYCLES_PER_FRAME};
 
 pub const AUDIO_SAMPLE_RATE: f64 = zakuro_core::AUDIO_SAMPLE_RATE;
 pub const MAX_PCM_FRAMES: usize = 4096;
@@ -98,11 +98,15 @@ impl Session {
             Some(
                 system
                     .gpu
-                    .enable_hardware_renderer_with_vertex_shading(
+                    // CodexAstraUlt: This player reads fixed guest-sized planes
+                    // through read_screen; remove unused upright captures while
+                    // retaining native readback, rendering and guest visibility.
+                    .enable_hardware_renderer_with_presentation(
                         1,
                         None,
                         None,
                         options.vertex_shading,
+                        FramebufferPresentation::NativeReadback,
                     )
                     .map_err(|_| "title_vulkan_initialization_failed")?,
             )
@@ -460,6 +464,14 @@ impl Session {
             // transfer; a bounded-cap flush is a submission, not skipped work.
             "deferred_tiled_transfers":gpu.deferred_tiled_transfers,
             "deferred_transfer_flushes":gpu.deferred_transfer_flushes,
+            // CodexAstraUlt: Recorded capture operations and the immutable
+            // consumer contract distinguish removed presentation work from
+            // skipped guest rendering. These counts are not GPU completions.
+            "framebuffer_presentation":gpu.framebuffer_presentation.as_str(),
+            "native_captures":gpu.native_captures,
+            "screen_captures":gpu.screen_captures,
+            "upright_image_captures":gpu.upright_image_captures,
+            "skipped_screen_captures":gpu.skipped_screen_captures,
             "vertex_shading_on_gpu":gpu.vertex_shading_on_gpu,
             "vertex_shading_policy":gpu.vertex_shading_policy.as_str(),
             "gpu_vertex_draws":gpu.gpu_vertex_draws,"placed_vertex_draws":gpu.placed_vertex_draws,
@@ -469,6 +481,22 @@ impl Session {
             // bounded context. Stage/module identities and the static state
             // survive later fallback attempts without exposing shader contents.
             hardware["pipeline_failures"] = json!(&gpu.pipeline_failures);
+            // CodexAstraUlt: Display phases are subsets of hardware-attempt
+            // time. Readback waits/stores also occur within reconciliation or
+            // draws; nested scopes must not be summed with their parents.
+            let work = &gpu.transfer_work;
+            let nanos = |wall: Duration| wall.as_nanos().min(u64::MAX as u128) as u64;
+            hardware["transfer_work"] = json!({
+                "reconciliation_wall_nanoseconds":nanos(work.reconciliation),
+                "transfer_recording_wall_nanoseconds":nanos(work.transfer_recording),
+                "native_capture_wall_nanoseconds":nanos(work.native_capture),
+                "presentation_capture_wall_nanoseconds":nanos(work.presentation_capture),
+                "submission_wall_nanoseconds":nanos(work.submission),
+                "readback_wait_wall_nanoseconds":nanos(work.readback_wait),
+                "readback_store_wall_nanoseconds":nanos(work.readback_store),
+                "readback_wait_calls":work.readback_wait_calls,
+                "readback_store_calls":work.readback_store_calls
+            });
             hardware
         });
         let mut report = json!({"schema_version":1,"kind":"droidds_title_session","program_id":self.manifest.program_id,

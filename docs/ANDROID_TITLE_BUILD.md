@@ -12,34 +12,37 @@ implementation `64f1404` and release `2354ed0`.
 Historical [code 15](builds/0.0.8-cpu-decode-followup.md) retains implementation
 `f687911` and release `365c1a0`.
 
-The [completed code 16 test](device-tests/0.0.8-preview6-dark-moon-thor.md) reached
-file selection at **18.70% speed**, versus code 15's 16.70%, with no reported
-runtime/rendering errors or visible corruption. A/Stop occurred at
-91.056/110.111 seconds. A sustained or causal improvement is unproven. Display
-transfers (**26.917 s**) and texture copies (**6.061 s**) account for 97.82% of
-SVC time outside PICA lists. Their internal subphases remain unseparated. Retain
-1,532 underruns and 160 discarded input frames; no fresh listening assessment
-was supplied. Nine retained surfaces is an entry count, not a byte/leak measure.
+<!-- CodexAstraUlt: Replace the completed code 17 handoff with its measured
+inactive route and the pending profile matched to the actual frontend consumer. -->
+The [completed code 17 test](device-tests/0.0.8-preview7-dark-moon-thor.md) reached
+file selection at **18.66% speed**, essentially unchanged from code 16's 18.70%,
+and stopped normally. Accepted tiled/deferred transfers are zero. Hardware
+attempts take **23.980 s**, texture input/output synchronization **5.906 s**.
+Retain **1,531 underruns**, 480 discarded input frames and the owner's fresh
+severe-clipping observation; no waveform mechanism is established.
 
-Preview.7 implements bounded tiled-transfer capture/presentation/submission
-deferral with surface revalidation and separate logical cache idleness. The
-previous linear route and texture-copy visibility remain unchanged. Fixed
-route/phase counters distinguish the work. The new Thor test is **unperformed**,
-and no handheld gain is established. No unchanged code 16 run is needed.
-The player retains application ID
-`org.droidds.title.t<program_id>` and the
+**Preview.8/code 18 is under cloud development.** The proposed immutable
+NativeReadback profile matches the title frontend's `System::read_screen`
+native-byte consumer. It omits otherwise unused upright/screen captures for
+accepted linear transfers, retaining native capture, synchronization and
+submission; default scaled/direct modes remain unchanged. Fixed phase/readback
+metrics are implemented for qualification. Correctness, benchmarks, packaging
+and publication remain **pending**; see [the draft](builds/0.0.8-native-readback-followup.md) and the
+[native Android architecture review](NATIVE_ANDROID_DIRECTION.md).
+
+The player retains application ID `org.droidds.title.t<program_id>` and the
 [manifest/runtime contract](ANDROID_TITLE_CONTRACT.md). Completed Linux and ARM64
-libraries remain reusable; repackaging rebuilds the shared player/frontend,
-not the 521 title objects.
+libraries remain reusable; repackaging rebuilds the shared player/frontend with
+the same generated-title ABI. No unchanged code 17 run is needed.
 
 ## Current Dark Moon repackaging and audio test
 
-<!-- CodexAstraUlt: Keep this established anchor and verified cloud status;
-prepare the compatible package before the owner's next connection decision. -->
-Preview.7's cloud correctness/package/publication gates and independent public
-download verification pass. Repackage the retained title library using recorded
-tools and the same owner signer. Further Thor GPU tests and audio-perfection
-work remain deferred. The new Thor test is unperformed; the approved test keeps
+<!-- CodexAstraUlt: Keep this established anchor but leave local work pending
+until the new cloud candidate passes its own correctness/package/publication gates. -->
+Finish preview.8's pending cloud correctness, benchmark, package and publication
+checks before the next local packaging batch. Then reuse the retained title
+library, recorded tools and owner signer. Further Thor GPU tests and
+audio-perfection work remain deferred. The eventual approved test keeps
 **Native guest execution, CPU vertex shaders and Vulkan 1×**. Automatic stays
 the ordinary default.
 
@@ -56,7 +59,7 @@ Reuse the successful tool environment, private preparation, completed ARM64
 compilation directory containing `compiled-manifest.json`, and owner signing
 profile. Source the existing environment in each build shell. Use a fresh private
 package output with a version code **above the last verified installation and at
-least 17**. The retained title needs only this packaging command:
+least 18**. The retained title needs only this packaging command:
 
 ```bash
 python3 tools/build_android_title.py \
@@ -97,38 +100,33 @@ a short summary, verify remote bytes and return links. Raw originals and private
 game/build/signing data stay local. A missing upload is not grounds for a rerun.
 No separate public diagnostic APK installation is required.
 
-<!-- CodexAstraUlt: Keep the handoff limited to preparation and the approved
-bounded test; require a real pause before device access rather than notification. -->
+<!-- CodexAstraUlt: Keep the future task limited to compatible repackaging,
+approved bounded testing and direct diagnostic delivery. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
-Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Read the verified preview.7 build record before repackaging.
-Preserve code 16 and all previous reports. Reuse recorded tools, preparation,
-completed ARM64 compilation and the same owner signing profile. Repackage only
-with the same package/certificate and a code above the last verified installed
-code, at least 17. Use prior build/installation records; do not query the Thor.
-Preserve imports, saves and both completed title builds.
+Follow “Current Dark Moon repackaging and audio test” in docs/ANDROID_TITLE_BUILD.md.
+Confirm preview.8 cloud correctness/package/publication gates passed.
+Reuse recorded tools, preparation, completed ARM64 compilation and owner signing
+profile. Repackage only, keeping the same package/certificate and a code above
+the last verified installation, at least 18. Use prior records before connecting.
+Preserve imports, saves, both completed title builds, local continuation files
+and all previous reports.
 
-Finish package verification, then signal me and STOP for explicit approval before
-any Thor/ADB connection or device work, including discovery, export, installation
-or testing. Notification alone is not approval. Do not infer approval from an
-available device or a previous session.
-
+Verify the package, then signal me and STOP for explicit approval before any
+Thor/ADB connection or device work, including discovery, export, install or test.
 After approval, confirm exclusive device operation and package compatibility.
-Preserve the latest report before installing the compatible update. Keep Native
-execution, CPU vertex shaders, Vulkan 1x and comparable menu progression/settings.
-Run once: press A around 91 seconds after Play if the title prompt is ready, then
-Stop around 110 seconds; never exceed 120 wall seconds. Stop early on failure or
-corruption and do not extend for a late prompt. Record actual input timing and
-progression. Further GPU testing is deferred.
+Preserve the latest report before installing the compatible update.
 
-Export the full JSON immediately after stop/failure and before any restart.
-Record worker time, CPU processing, scene progression, rendering paths and actual
-audio/visual observations separately. Follow docs/DEVICE_REPORT_HANDOFF.md to
-upload reviewed reports, a short summary and relevant bounded failure excerpts.
-Verify remote bytes and return commit/file links. Keep raw originals and private
-game/build/signing files local. Do not repeat setup, preparation, title compilation,
-historical traces or permission configuration, or reset saves.
+Run once with Native execution, CPU vertex shaders and Vulkan 1x. Press A around
+91 seconds after Play if ready, then normal Stop around 110 seconds; never exceed
+120 wall seconds. Stop early on failure/corruption and do not extend for a late
+prompt. Record actual input timing, progression and audible/visual observations.
+
+Export the full JSON after stop/failure and before restart. Follow
+docs/DEVICE_REPORT_HANDOFF.md to upload reviewed reports, the short summary and
+any relevant bounded failure excerpt; verify remote bytes and return links.
+Keep private game/build/signing data and raw captures local. Do not repeat
+preparation or title compilation, reset saves, or perform further GPU trials.
 ```
 
 <!-- CodexAstraUlt: Keep diagnostic timing scopes and failed-path evidence
@@ -148,6 +146,15 @@ read and cached input-plan lookup; placement stops before Vulkan draw work.
 invocations. `cpu_parallel_vertex_batches` counts batches meeting the vertex
 input threshold, not geometry-stage work or active workers. The full report
 retains these fixed totals without per-vertex histories.
+
+<!-- CodexAstraUlt: Preserve fixed capture/phase attribution with its nesting
+and wait-request semantics when exporting the complete next-run JSON. -->
+The candidate adds `runtime.gpu.hardware.framebuffer_presentation`, capture
+counts and `transfer_work`. Its five display-phase wall totals are disjoint
+subsets of hardware-attempt time. Readback wait/store totals can nest inside
+those phases or command processing; do not add them to parents. Wait calls are
+completion-check/wait requests that may return immediately, not counts of GPU
+stalls. Source qualification remains pending; see the candidate build draft.
 
 Retain the completed GPU diagnostic as deferred evidence.
 `runtime.gpu.hardware.pipeline_failures` retains first observed `foreground`,
@@ -357,7 +364,7 @@ python3 tools/prepare_private_title.py \
 
 Set `DROIDDS_PREPARATION` to that original preparation, choose fresh ARM64/package
 outputs, and run the ARM64 compilation command above. The current development
-package targets preview.7/code 17; reproducing published code 16 requires its
+package targets preview.8/code 18; reproducing published code 17 requires its
 release tag and recorded version. Package the original:
 
 ```bash
@@ -367,7 +374,7 @@ python3 tools/build_android_title.py \
   --output "$DROIDDS_PACKAGE" \
   --sdk "$DROIDDS_SDK" \
   --java-home "$DROIDDS_JAVA" \
-  --version-code 17 \
+  --version-code 18 \
   --diagnostic-signing --diagnostic-fixture homebrew
 ```
 

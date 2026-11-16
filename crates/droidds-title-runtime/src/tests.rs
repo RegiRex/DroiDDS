@@ -817,6 +817,39 @@ fn assert_transfer_work_report(report: &Value) {
     } else {
         assert!(value("hardware_accepted") > 0);
         assert!(value("hardware_wall_nanoseconds") > 0);
+        // CodexAstraUlt: The real title-session oracle must exercise the new
+        // consumer contract, preserving native framebuffer captures while
+        // avoiding every unused upright copy. Exact image/PCM checks above
+        // remain independent of these operation counts.
+        let hardware = &report["gpu"]["hardware"];
+        assert_eq!(hardware["framebuffer_presentation"], "native_readback");
+        let native = hardware["native_captures"].as_u64().unwrap();
+        assert!(native > 0);
+        assert_eq!(native, value("hardware_linear"));
+        assert_eq!(hardware["skipped_screen_captures"], native);
+        assert_eq!(hardware["screen_captures"], 0);
+        assert_eq!(hardware["upright_image_captures"], 0);
+        let work = hardware["transfer_work"].as_object().unwrap();
+        assert_eq!(work.len(), 9);
+        let measured = |key: &str| work[key].as_u64().unwrap();
+        let display_phases = [
+            "reconciliation_wall_nanoseconds",
+            "transfer_recording_wall_nanoseconds",
+            "native_capture_wall_nanoseconds",
+            "presentation_capture_wall_nanoseconds",
+            "submission_wall_nanoseconds",
+        ]
+        .iter()
+        .map(|key| measured(key))
+        .sum::<u64>();
+        assert!(display_phases > 0 && display_phases <= value("hardware_wall_nanoseconds"));
+        assert_eq!(measured("presentation_capture_wall_nanoseconds"), 0);
+        // Readback also occurs during scanout and other GPU consumers. Its
+        // scopes are deliberately not added to the transfer-only phase sum.
+        assert!(measured("readback_wait_calls") > 0);
+        assert!(measured("readback_store_calls") > 0);
+        assert!(measured("readback_wait_wall_nanoseconds") > 0);
+        assert!(measured("readback_store_wall_nanoseconds") > 0);
     }
     let phase = |key: &str| texture[key].as_u64().unwrap();
     assert_eq!(

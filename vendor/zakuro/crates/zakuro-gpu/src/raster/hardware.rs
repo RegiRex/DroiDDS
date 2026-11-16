@@ -34,7 +34,7 @@ use crate::registers::*;
 use crate::device::SharedDevice;
 use crate::shader::glsl::{self, SEMANTICS};
 use crate::shader::{Program, ShaderUnit, Vec4, DESCRIPTOR_SIZE, INPUT_REGISTERS, PROGRAM_SIZE};
-use crate::{GpuMemory, VertexShading};
+use crate::{FramebufferPresentation, GpuMemory, VertexShading};
 use hasher::{QuickMap, QuickSet};
 
 mod hasher;
@@ -1198,6 +1198,14 @@ pub struct HardwareDiagnostics {
     // and batches submitted by its bound; these are not skipped GPU operations.
     pub deferred_tiled_transfers: u64,
     pub deferred_transfer_flushes: u64,
+    // CodexAstraUlt: Native framebuffer readback and optional upright output
+    // are distinct operations. These fixed counts prove which work ran.
+    pub framebuffer_presentation: FramebufferPresentation,
+    pub native_captures: u64,
+    pub screen_captures: u64,
+    pub upright_image_captures: u64,
+    pub skipped_screen_captures: u64,
+    pub transfer_work: HardwareTransferWork,
     pub draw_errors: u64,
     pub software_raster_fallbacks: u64,
     pub compiler_outstanding: usize,
@@ -1230,6 +1238,23 @@ pub struct HardwareDiagnostics {
     // CodexAstraUlt: Failed Vulkan creation needs stage/state evidence even
     // when the asynchronous compiler-failure counter remains zero.
     pub pipeline_failures: PipelineFailures,
+}
+
+/// CodexAstraUlt: Fixed host-wall observations at transfer/readback boundaries.
+/// Display phases are subsets of the public hardware-attempt timer. Readback
+/// waits/stores can occur inside those phases or command processing; do not add
+/// them to enclosing totals or interpret them as GPU execution timestamps.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct HardwareTransferWork {
+    pub reconciliation: std::time::Duration,
+    pub transfer_recording: std::time::Duration,
+    pub native_capture: std::time::Duration,
+    pub presentation_capture: std::time::Duration,
+    pub submission: std::time::Duration,
+    pub readback_wait: std::time::Duration,
+    pub readback_store: std::time::Duration,
+    pub readback_wait_calls: u64,
+    pub readback_store_calls: u64,
 }
 
 // CodexAstraUlt: Resolve policy without mutating process environment. Automatic
@@ -1601,6 +1626,9 @@ pub struct Hardware {
     /// whether the presenter shares the device, and shows screens straight
     /// from the images the GPU turns them upright into.
     direct: bool,
+    // CodexAstraUlt: Immutable consumer selection removes unused upright work
+    // without changing native captures, dirty ranges, guards or submissions.
+    presentation: FramebufferPresentation,
     device: ash::Device,
     push: ash::khr::push_descriptor::Device,
     queue: vk::Queue,
@@ -1830,6 +1858,20 @@ impl Hardware {
         kept_pipelines: Option<std::path::PathBuf>,
         policy: VertexShading,
     ) -> Result<Hardware, String> {
+        // CodexAstraUlt: Existing constructors retain their original output.
+        let presentation = if direct { FramebufferPresentation::Direct } else { FramebufferPresentation::ScaledReadback };
+        Self::with_device_and_presentation(shared, kept_pipelines, policy, presentation)
+    }
+
+    /// CodexAstraUlt: Establish the immutable output contract before any
+    /// surface or capture exists; native-only readers never create ScreenRefs.
+    pub fn with_device_and_presentation(
+        shared: Arc<SharedDevice>,
+        kept_pipelines: Option<std::path::PathBuf>,
+        policy: VertexShading,
+        presentation: FramebufferPresentation,
+    ) -> Result<Hardware, String> {
+        let direct = presentation == FramebufferPresentation::Direct;
         let kept_pipelines: Option<Arc<std::path::Path>> = kept_pipelines.map(Into::into);
         let (instance, device, physical, family) = (shared.instance.clone(), shared.device.clone(), shared.physical, shared.family);
         let (logic_ops, statistics, dynamic) = (shared.logic_ops, shared.statistics, shared.dynamic);
@@ -1938,6 +1980,7 @@ impl Hardware {
                 blank: Image { image: vk::Image::null(), memory: vk::DeviceMemory::null(), view: vk::ImageView::null() },
                 _shared: shared,
                 direct,
+                presentation,
                 device,
                 push,
                 queue,
@@ -1971,7 +2014,7 @@ impl Hardware {
                 ].into_iter().collect(),
                 shader_bytes: 0,
                 limits: Limits::default(),
-                diagnostics: HardwareDiagnostics { vertex_shading_policy: policy, ..HardwareDiagnostics::default() },
+                diagnostics: HardwareDiagnostics { vertex_shading_policy: policy, framebuffer_presentation: presentation, ..HardwareDiagnostics::default() },
                 // to draw through the pipeline made for each draw from the
                 // first on, as the tests do
                 waits: cfg!(test) || std::env::var_os("ZAKURO_WAIT_FOR_SHADERS").is_some(),
@@ -4423,8 +4466,8 @@ impl Hardware {
 
     /// a display transfer out of a buffer the GPU holds, one it drew or an
     /// earlier transfer wrote, done on the GPU, false when the input is
-    /// anything else, for the CPU to do. Linear output retains its eager host
-    /// and screen copies; tiled output can remain in a bounded GPU batch until
+    /// anything else, for the CPU to do. Linear output retains native capture;
+    /// upright copies follow the immutable frontend contract. Tiled output can remain in a bounded GPU batch until
     /// a consumer needs it, since it cannot be a screen's linear framebuffer.
     pub(crate) fn display_transfer<M: GpuMemory>(&mut self, memory: &mut M, transfer: &Transfer) -> Result<bool, String> {
         let t = transfer;
@@ -4472,55 +4515,71 @@ impl Hardware {
         if read_start < output_end && (t.output as u64) < read_end {
             return Ok(false);
         }
-        self.begin()?;
-        // a flush looking one of them up drops what the other had checked
-        let (source, target) = loop {
-            // the rows it reads, what is drawn over the rest stays on the GPU
-            let source = self.surface_rows(memory, addr, input_size, input_kind, tiled, Some((row, row + rows)))?;
-            let target = self.surface(memory, t.output, output_size, output_kind, t.output_tiled)?;
-            if self.surfaces[source].checked && self.surfaces[target].checked {
-                break (source, target);
-            }
-        };
-        // drawn scaled, every size and row is that many times more, and the
-        // pixels averaged stay as many
-        let n = self.scale as i32;
-        let constants: [i32; 11] = [
-            t.copy.0 as i32 * n,
-            t.copy.1 as i32 * n,
-            // a flip turns the rows read over, not the whole input
-            rows as i32 * n,
-            t.output_height as i32 * n,
-            t.scale.0 as i32,
-            t.scale.1 as i32,
-            t.flip as i32,
-            format_index(t.input_format),
-            format_index(t.output_format),
-            row as i32 * n,
-            input_size.1 as i32 * n,
-        ];
-        // and in between, from the input's twin into the output's, which
-        // holds what the output did before
-        let twinned = self.twins && (self.surfaces[source].twinned || self.surfaces[target].twinned);
-        let twinned = twinned
-            && match self.make_twin(target) {
-                Ok(()) => true,
-                Err(error) => {
-                    log::error!("the GPU could not transfer the picture in between, {error}");
-                    self.set_twins(false);
-                    false
+        // CodexAstraUlt: Attribute reconciliation separately from recording
+        // and capture. Include alias writeback, shadow checks and uploads,
+        // including an error before the phase completes.
+        let started = std::time::Instant::now();
+        let reconciled = (|| {
+            self.begin()?;
+            // a flush looking one of them up drops what the other had checked
+            loop {
+                // the rows it reads, what is drawn over the rest stays on the GPU
+                let source = self.surface_rows(memory, addr, input_size, input_kind, tiled, Some((row, row + rows)))?;
+                let target = self.surface(memory, t.output, output_size, output_kind, t.output_tiled)?;
+                if self.surfaces[source].checked && self.surfaces[target].checked {
+                    break Ok::<_, String>((source, target));
                 }
-            };
-        let views = (self.surfaces[source].image.view, self.surfaces[target].image.view);
-        let size = (t.copy.0 * self.scale, t.copy.1 * self.scale);
-        self.dispatch_transfer(views, constants, size)?;
-        if twinned {
-            self.dispatch_transfer((self.surface_view(source, true), self.surface_view(target, true)), constants, size)?;
-            self.surfaces[target].twin_changed();
-        }
-        self.surfaces[target].changed();
-        self.surfaces[target].guard_writes(memory);
-        self.overdrawn(target, (0, self.surfaces[target].height), None);
+            }
+        })();
+        self.diagnostics.transfer_work.reconciliation = self.diagnostics.transfer_work.reconciliation.saturating_add(started.elapsed());
+        let (source, target) = reconciled?;
+        // CodexAstraUlt: One fixed phase covers transfer/twin recording;
+        // errors retain elapsed time and no timer runs per pixel or draw.
+        let started = std::time::Instant::now();
+        let recorded = (|| {
+            // drawn scaled, every size and row is that many times more, and the
+            // pixels averaged stay as many
+            let n = self.scale as i32;
+            let constants: [i32; 11] = [
+                t.copy.0 as i32 * n,
+                t.copy.1 as i32 * n,
+                // a flip turns the rows read over, not the whole input
+                rows as i32 * n,
+                t.output_height as i32 * n,
+                t.scale.0 as i32,
+                t.scale.1 as i32,
+                t.flip as i32,
+                format_index(t.input_format),
+                format_index(t.output_format),
+                row as i32 * n,
+                input_size.1 as i32 * n,
+            ];
+            // and in between, from the input's twin into the output's, which
+            // holds what the output did before
+            let twinned = self.twins && (self.surfaces[source].twinned || self.surfaces[target].twinned);
+            let twinned = twinned
+                && match self.make_twin(target) {
+                    Ok(()) => true,
+                    Err(error) => {
+                        log::error!("the GPU could not transfer the picture in between, {error}");
+                        self.set_twins(false);
+                        false
+                    }
+                };
+            let views = (self.surfaces[source].image.view, self.surfaces[target].image.view);
+            let size = (t.copy.0 * self.scale, t.copy.1 * self.scale);
+            self.dispatch_transfer(views, constants, size)?;
+            if twinned {
+                self.dispatch_transfer((self.surface_view(source, true), self.surface_view(target, true)), constants, size)?;
+                self.surfaces[target].twin_changed();
+            }
+            self.surfaces[target].changed();
+            self.surfaces[target].guard_writes(memory);
+            self.overdrawn(target, (0, self.surfaces[target].height), None);
+            Ok::<_, String>(twinned)
+        })();
+        self.diagnostics.transfer_work.transfer_recording = self.diagnostics.transfer_work.transfer_recording.saturating_add(started.elapsed());
+        let twinned = recorded?;
         // CodexAstraUlt: Replace unconditional host/screen capture and submit
         // for tiled intermediates with bounded lazy finalization. Every pixel,
         // twin, dirty range and CPU-write guard above is retained. A later
@@ -4539,21 +4598,41 @@ impl Hardware {
             self.deferred_tiled += 1;
             self.cache_epoch = self.cache_epoch.saturating_add(1);
             if self.deferred_tiled >= DEFERRED_TILED_LIMIT {
-                self.submit()?;
+                self.submit_transfer()?;
                 self.diagnostics.deferred_transfer_flushes = self.diagnostics.deferred_transfer_flushes.saturating_add(1);
             }
             self.diagnostics.deferred_tiled_transfers = self.diagnostics.deferred_tiled_transfers.saturating_add(1);
             return Ok(true);
         }
-        self.capture(target)?;
-        // turned upright for showing at any scale, at the console's own too
-        // that beats the CPU waiting for the GPU and decoding the buffer
-        self.capture_screen(target)?;
-        if twinned && self.direct {
-            self.upright_image(target, true)?;
+        let started = std::time::Instant::now();
+        let captured = self.capture(target);
+        self.diagnostics.transfer_work.native_capture = self.diagnostics.transfer_work.native_capture.saturating_add(started.elapsed());
+        captured?;
+        // CodexAstraUlt: Remove the unconditional upright presentation copy
+        // only for the immutable native-byte consumer. The title player reads
+        // guest framebuffers through sync/store, never these separate images.
+        // Keep native capture, host visibility and submission exactly as before.
+        if self.presentation == FramebufferPresentation::NativeReadback {
+            self.diagnostics.skipped_screen_captures = self.diagnostics.skipped_screen_captures.saturating_add(1);
+        } else {
+            let started = std::time::Instant::now();
+            let presented = self.capture_screen(target).and_then(|()| {
+                if twinned && self.direct { self.upright_image(target, true) } else { Ok(()) }
+            });
+            self.diagnostics.transfer_work.presentation_capture = self.diagnostics.transfer_work.presentation_capture.saturating_add(started.elapsed());
+            presented?;
         }
-        self.submit()?;
+        self.submit_transfer()?;
         Ok(true)
+    }
+
+    // CodexAstraUlt: Display-transfer submission can wait for command-buffer
+    // room. Keep that wall phase separate without timing ordinary draw submits.
+    fn submit_transfer(&mut self) -> Result<(), String> {
+        let started = std::time::Instant::now();
+        let result = self.submit();
+        self.diagnostics.transfer_work.submission = self.diagnostics.transfer_work.submission.saturating_add(started.elapsed());
+        result
     }
 
     /// records the transfer shader going over size pixels, from one image
@@ -4887,6 +4966,8 @@ impl Hardware {
         }
         capture.batch = batch;
         capture.current = true;
+        // CodexAstraUlt: This counts recorded work, not completed GPU execution.
+        self.diagnostics.native_captures = self.diagnostics.native_captures.saturating_add(1);
         Ok(())
     }
 
@@ -4940,6 +5021,8 @@ impl Hardware {
         }
         screen.batch = batch;
         screen.current = true;
+        // CodexAstraUlt: Distinguish host-upright copies from native readback.
+        self.diagnostics.screen_captures = self.diagnostics.screen_captures.saturating_add(1);
         Ok(())
     }
 
@@ -5003,6 +5086,9 @@ impl Hardware {
             self.unfenced = true;
             self.device.cmd_dispatch(self.commands, width.div_ceil(8), height.div_ceil(8), 1);
         }
+        // CodexAstraUlt: Count real and twin direct-output image recordings,
+        // separately from host-upright buffers and native guest-memory captures.
+        self.diagnostics.upright_image_captures = self.diagnostics.upright_image_captures.saturating_add(1);
         Ok(())
     }
 
@@ -5118,6 +5204,11 @@ impl Hardware {
     /// GPU has not written it back yet. from now on each picture it gets is
     /// kept as its batch finishes.
     pub(crate) fn screen(&mut self, addr: u32, (width, height): (u32, u32), stride: u32, format: ColorFormat, guest: &[u8]) -> Option<ScreenRef> {
+        // CodexAstraUlt: Native-only consumers own no scaled image/history;
+        // the core's general scaled API retains its existing native fallback.
+        if self.presentation == FramebufferPresentation::NativeReadback {
+            return None;
+        }
         // the buffer the screen is rows of, maybe some rows into it
         let row_bytes = stride * Kind::Color(format).bytes();
         let found = self.surfaces.iter().position(|s| {
@@ -5151,8 +5242,9 @@ impl Hardware {
     /// scale it is at, waiting for the GPU to finish it when it has not yet.
     /// none once a later picture took its buffer.
     pub(crate) fn picture(&mut self, screen: ScreenRef) -> Result<Option<Picture>, String> {
-        // a presenter sharing the device has the pictures, the host none
-        if self.direct {
+        // CodexAstraUlt: Only scaled-host consumers own this capture history;
+        // direct/native-byte instances expose their output through other APIs.
+        if self.presentation != FramebufferPresentation::ScaledReadback {
             return Ok(None);
         }
         let (width, height) = screen.size;
@@ -5553,7 +5645,13 @@ impl Hardware {
             // running the others may have finished it already
             let Some(capture) = self.surfaces[i].captured() else { continue };
             let batch = capture.batch;
-            self.wait_for(batch)?;
+            // CodexAstraUlt: Readback waits may be nested in transfer or draw
+            // reconciliation. These clocks count completion checks, never pixels.
+            let started = std::time::Instant::now();
+            let waited = self.wait_for(batch);
+            self.diagnostics.transfer_work.readback_wait = self.diagnostics.transfer_work.readback_wait.saturating_add(started.elapsed());
+            self.diagnostics.transfer_work.readback_wait_calls = self.diagnostics.transfer_work.readback_wait_calls.saturating_add(1);
+            waited?;
             let Some(capture) = self.surfaces[i].captured() else { continue };
             let buffer = &capture.buffer;
             if buffer.incoherent {
@@ -5640,8 +5738,13 @@ impl Hardware {
         // SAFETY: recording
         unsafe { self.device.cmd_pipeline_barrier2(self.commands, &vk::DependencyInfo::default().memory_barriers(&to_host)) };
 
-        self.submit()?;
-        self.wait()?;
+        // CodexAstraUlt: Include required submit/fence completion in readback
+        // wait time; CPU conversion/store has its own nested observation.
+        let started = std::time::Instant::now();
+        let waited = self.submit().and_then(|()| self.wait());
+        self.diagnostics.transfer_work.readback_wait = self.diagnostics.transfer_work.readback_wait.saturating_add(started.elapsed());
+        self.diagnostics.transfer_work.readback_wait_calls = self.diagnostics.transfer_work.readback_wait_calls.saturating_add(1);
+        waited?;
         let Some(readback) = self.readback.as_ref() else { return Ok(()) };
         if readback.incoherent {
             let range = [vk::MappedMemoryRange::default().memory(readback.memory).offset(0).size(vk::WHOLE_SIZE)];
@@ -5660,6 +5763,9 @@ impl Hardware {
 
     /// writes what the GPU read back of a surface to guest memory.
     fn store<M: GpuMemory>(&mut self, memory: &mut M, index: usize, data: &[u8]) {
+        // CodexAstraUlt: One clock pair per surface writeback covers conversion,
+        // shadow reconciliation and guest writes, without per-pixel timing.
+        let started = std::time::Instant::now();
         // the drawing goes over some rows of a shadow a pixel stood in for
         self.surfaces[index].shadow();
         let s = &self.surfaces[index];
@@ -5752,6 +5858,8 @@ impl Hardware {
             surface.pixel = None;
             surface.checked = false;
         }
+        self.diagnostics.transfer_work.readback_store = self.diagnostics.transfer_work.readback_store.saturating_add(started.elapsed());
+        self.diagnostics.transfer_work.readback_store_calls = self.diagnostics.transfer_work.readback_store_calls.saturating_add(1);
     }
 }
 
@@ -6121,6 +6229,205 @@ mod tests {
         hardware.begin().unwrap();
         hardware.surface(memory, 0x1000, (16, 16), Kind::Color(ColorFormat::Rgba8), true).unwrap();
         hardware
+    }
+
+    // CodexAstraUlt: Configure each authored renderer through the immutable
+    // constructor; these tests never mutate a live presentation mode.
+    fn presentation_transfer_hardware(
+        memory: &mut TransferMemory,
+        scale: u32,
+        presentation: crate::FramebufferPresentation,
+    ) -> Hardware {
+        let shared = Arc::new(own_device().expect("Vulkan device for presentation qualification"));
+        let mut hardware = Hardware::with_device_and_presentation(
+            shared, None, VertexShading::Cpu, presentation,
+        ).expect("Vulkan renderer for presentation qualification");
+        assert_eq!(hardware.set_scale(scale), scale);
+        hardware.begin().unwrap();
+        hardware.surface(memory, 0x1000, (16, 16), Kind::Color(ColorFormat::Rgba8), true).unwrap();
+        hardware
+    }
+
+    // CodexAstraUlt: The public software transfer supplies the pixel oracle
+    // for both tiled-source and linear-source requests. No Vulkan conversion
+    // or native readback implementation is reproduced here.
+    fn presentation_scalar_transfer(memory: &mut TransferMemory, transfer: &Transfer) {
+        assert_eq!((transfer.input_width, transfer.output_width, transfer.output_height), (16, 16, 16));
+        assert_eq!((transfer.scale, transfer.input_format, transfer.output_format),
+            ((1, 1), ColorFormat::Rgba8, ColorFormat::Rgba8));
+        let flags = (u32::from(transfer.input_linear) << 1)
+            | (u32::from(transfer.input_linear != transfer.output_tiled) << 5);
+        crate::Gpu::new().display_transfer(memory, transfer.input, transfer.output,
+            16 | (16 << 16), 16 | (16 << 16), flags);
+    }
+
+    // CodexAstraUlt: Native scanout still needs every native byte and its
+    // original synchronization. Exercise clean CPU edits, partial GPU fills,
+    // synchronized edits to dirty output, then the actual texture-copy wrapper
+    // reading another pending linear transfer. No upright output is consumed.
+    #[test]
+    fn native_readback_preserves_cpu_edits_fills_and_texture_copy_bytes() {
+        for scale in [1, 3] {
+            let mut memory = TransferMemory::original();
+            let mut expected = memory.clone();
+            let mut hardware = presentation_transfer_hardware(&mut memory, scale,
+                crate::FramebufferPresentation::NativeReadback);
+            let first = original_transfer(0x1000, 0x4000, false);
+            assert!(hardware.display_transfer(&mut memory, &first).unwrap());
+            presentation_scalar_transfer(&mut expected, &first);
+            assert_eq!(hardware.diagnostics.submissions, 1);
+            assert!(hardware.surfaces.iter().any(|surface| surface.addr == 0x4000 && surface.captured().is_some()));
+
+            // A clean source can be edited without a write guard. The next
+            // ordinary transfer boundary must continue to revalidate it.
+            memory.write(0x1000, &[13, 113, 197, 255]);
+            expected.write(0x1000, &[13, 113, 197, 255]);
+            assert!(hardware.display_transfer(&mut memory, &first).unwrap());
+            presentation_scalar_transfer(&mut expected, &first);
+            assert_eq!(hardware.diagnostics.submissions, 2);
+
+            let fill_addr = 0x4000 + 4 * 16 * 4;
+            let fill = [31, 67, 173, 255].repeat(2 * 16);
+            hardware.before_fill(&mut memory, fill_addr, fill.len() as u32, 4).unwrap();
+            memory.write(fill_addr, &fill);
+            expected.write(fill_addr, &fill);
+            hardware.filled(fill_addr, &fill).unwrap();
+            hardware.sync(&mut memory, 0x4000, 4).unwrap();
+            assert_eq!(&memory.0[0x4000..0x4400], &expected.0[0x4000..0x4400], "partial fill at scale {scale}");
+            memory.write(0x4000, &[211, 71, 19, 255]);
+            expected.write(0x4000, &[211, 71, 19, 255]);
+
+            let mut second = original_transfer(0x4000, 0x8000, false);
+            second.input_linear = true;
+            assert!(hardware.display_transfer(&mut memory, &second).unwrap());
+            presentation_scalar_transfer(&mut expected, &second);
+            assert!(hardware.surfaces.iter().any(|surface| surface.addr == 0x8000 && surface.captured().is_some()));
+            assert!(hardware.screen(0x8000, (16, 16), 16, ColorFormat::Rgba8,
+                &memory.0[0x8000..0x8400]).is_none());
+
+            let mut gpu = crate::Gpu::new();
+            gpu.resources.hardware = Some(hardware);
+            // Both nonzero widths select the real strided-copy route. It must
+            // synchronize pending native output before reading those bytes.
+            gpu.texture_copy(&mut memory, 0x8000, 0xc000, 1024, 1, 1);
+            crate::Gpu::new().texture_copy(&mut expected, 0x8000, 0xc000, 1024, 1, 1);
+            let hardware = gpu.resources.hardware.as_mut().unwrap();
+            hardware.flush(&mut memory).unwrap();
+            assert_eq!(memory.0, expected.0, "native bytes at scale {scale}");
+            assert_eq!(hardware.diagnostics().framebuffer_presentation,
+                crate::FramebufferPresentation::NativeReadback);
+            assert_eq!(hardware.diagnostics.native_captures, 3);
+            assert_eq!(hardware.diagnostics.skipped_screen_captures, 3);
+            assert_eq!(hardware.diagnostics.screen_captures, 0);
+            assert_eq!(hardware.diagnostics.upright_image_captures, 0);
+            assert!(hardware.surfaces.iter().all(|surface|
+                surface.screen.is_none() && surface.upright.is_none() && surface.twin_upright.is_none()));
+        }
+    }
+
+    // CodexAstraUlt: A native-readback instance must not change a separate
+    // ordinary renderer's history or output API. The ordinary constructor is
+    // deliberately used for the control, preserving its existing default.
+    #[test]
+    fn native_readback_is_instance_scoped_and_preserves_default_screen_history() {
+        for scale in [1, 3] {
+            let mut native_memory = TransferMemory::original();
+            let mut scaled_memory = native_memory.clone();
+            let mut expected = native_memory.clone();
+            let mut native = presentation_transfer_hardware(&mut native_memory, scale,
+                crate::FramebufferPresentation::NativeReadback);
+            let mut scaled = transfer_hardware(&mut scaled_memory, scale);
+            let transfer = original_transfer(0x1000, 0x4000, false);
+            assert!(native.display_transfer(&mut native_memory, &transfer).unwrap());
+            assert!(scaled.display_transfer(&mut scaled_memory, &transfer).unwrap());
+            presentation_scalar_transfer(&mut expected, &transfer);
+            assert!(native.screen(0x4000, (16, 16), 16, ColorFormat::Rgba8,
+                &native_memory.0[0x4000..0x4400]).is_none());
+            let old = scaled.screen(0x4000, (16, 16), 16, ColorFormat::Rgba8,
+                &scaled_memory.0[0x4000..0x4400]).unwrap();
+            let old_pixels = scaled.picture(old).unwrap().unwrap().0;
+            assert!(native.picture(old).unwrap().is_none());
+            assert!(native.screen_image(old).unwrap().is_none());
+
+            let changed = [17, 37, 91, 255];
+            native_memory.write(0x1000, &changed);
+            scaled_memory.write(0x1000, &changed);
+            expected.write(0x1000, &changed);
+            assert!(native.display_transfer(&mut native_memory, &transfer).unwrap());
+            assert!(scaled.display_transfer(&mut scaled_memory, &transfer).unwrap());
+            presentation_scalar_transfer(&mut expected, &transfer);
+            let current = scaled.screen(0x4000, (16, 16), 16, ColorFormat::Rgba8,
+                &scaled_memory.0[0x4000..0x4400]).unwrap();
+            assert_ne!(current.batch, old.batch);
+            assert_eq!(scaled.picture(old).unwrap().unwrap().0, old_pixels);
+            assert_ne!(scaled.picture(current).unwrap().unwrap().0, old_pixels);
+            assert_eq!(scaled.picture(old).unwrap().unwrap().0, old_pixels);
+            native.flush(&mut native_memory).unwrap();
+            scaled.flush(&mut scaled_memory).unwrap();
+            assert_eq!(native_memory.0, expected.0);
+            assert_eq!(scaled_memory.0, expected.0);
+            assert_eq!(native.diagnostics().framebuffer_presentation,
+                crate::FramebufferPresentation::NativeReadback);
+            assert_eq!(scaled.diagnostics().framebuffer_presentation,
+                crate::FramebufferPresentation::ScaledReadback);
+            assert_eq!((native.diagnostics.native_captures, native.diagnostics.submissions), (2, 2));
+            assert_eq!((scaled.diagnostics.native_captures, scaled.diagnostics.submissions), (2, 2));
+            assert_eq!((native.diagnostics.screen_captures, native.diagnostics.skipped_screen_captures), (0, 2));
+            assert_eq!((scaled.diagnostics.screen_captures, scaled.diagnostics.skipped_screen_captures), (2, 0));
+        }
+    }
+
+    // CodexAstraUlt: This optional component comparison models both final-only
+    // consumption and a texture-like native read after every linear transfer.
+    // The timed interval includes required readbacks and final flush on both
+    // paths. Warm pipeline/device setup and public-wrapper timers are outside
+    // it; exact bytes and work counts are gates, elapsed time is not.
+    #[test]
+    #[ignore = "manual same-binary authored native-readback measurement"]
+    fn measure_native_readback_against_scaled_capture() {
+        for count in [64, 256] {
+            for sync_each in [false, true] {
+                for round in 0..3 {
+                    let mut expected = TransferMemory::original();
+                    for i in 0..count {
+                        let output = if i % 2 == 0 { 0x4000 } else { 0x8000 };
+                        presentation_scalar_transfer(&mut expected, &original_transfer(0x1000, output, false));
+                    }
+                    for native in if round % 2 == 0 { [false, true] } else { [true, false] } {
+                        let presentation = if native { crate::FramebufferPresentation::NativeReadback }
+                            else { crate::FramebufferPresentation::ScaledReadback };
+                        let mut memory = TransferMemory::original();
+                        let mut hardware = presentation_transfer_hardware(&mut memory, 1, presentation);
+                        hardware.transfer_pipeline().unwrap();
+                        hardware.upright_pipeline().unwrap();
+                        let started = std::time::Instant::now();
+                        for i in 0..count {
+                            let output = if i % 2 == 0 { 0x4000 } else { 0x8000 };
+                            assert!(hardware.display_transfer(&mut memory,
+                                &original_transfer(0x1000, output, false)).unwrap());
+                            if sync_each {
+                                hardware.sync(&mut memory, output, 1024).unwrap();
+                            }
+                        }
+                        hardware.flush(&mut memory).unwrap();
+                        let elapsed = started.elapsed();
+                        assert_eq!(memory.0, expected.0);
+                        assert_eq!(hardware.diagnostics.submissions, count as u64);
+                        assert_eq!(hardware.diagnostics.native_captures, count as u64);
+                        assert_eq!(hardware.diagnostics.screen_captures, if native { 0 } else { count as u64 });
+                        assert_eq!(hardware.diagnostics.skipped_screen_captures, if native { count as u64 } else { 0 });
+                        assert_eq!(hardware.diagnostics.upright_image_captures, 0);
+                        let captures = hardware.surfaces.iter().filter(|surface| surface.capture.is_some()).count();
+                        let screens = hardware.surfaces.iter().filter(|surface| surface.screen.is_some()).count();
+                        assert_eq!(captures, 2);
+                        assert_eq!(screens, if native { 0 } else { 2 });
+                        eprintln!("authored linear capture: count={count}; sync_each={sync_each}; round={round}; native={native}; ns={}; submissions={}; native_captures={}; screen_captures={}; retained_native_buffers={captures}; retained_screen_buffers={screens}",
+                            elapsed.as_nanos(), hardware.diagnostics.submissions,
+                            hardware.diagnostics.native_captures, hardware.diagnostics.screen_captures);
+                    }
+                }
+            }
+        }
     }
 
     // CodexAstraUlt: A clean source has no write guard. Its direct host edit

@@ -61,6 +61,30 @@ impl VertexShading {
     }
 }
 
+/// CodexAstraUlt: The frontend declares its immutable framebuffer consumer.
+/// NativeReadback reads guest-sized bytes and needs no additional upright
+/// presentation copies. Existing callers retain scaled host or shared-device
+/// output; this does not change rendering resolution or guest-memory visibility.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FramebufferPresentation {
+    NativeReadback,
+    #[default]
+    ScaledReadback,
+    Direct,
+}
+
+impl FramebufferPresentation {
+    /// CodexAstraUlt: Report the actual instance contract, not a UI preference.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NativeReadback => "native_readback",
+            Self::ScaledReadback => "scaled_readback",
+            Self::Direct => "direct",
+        }
+    }
+}
+
 /// how the GPU reaches guest memory.
 pub trait GpuMemory {
     fn read(&mut self, addr: u32, out: &mut [u8]);
@@ -744,15 +768,34 @@ impl Gpu {
         title: Option<u64>,
         policy: VertexShading,
     ) -> Result<String, String> {
+        // CodexAstraUlt: Preserve the existing device-derived presentation
+        // contract; only a frontend explicitly requesting native bytes opts out
+        // of the separate upright capture path.
+        let presentation = if device.is_some() { FramebufferPresentation::Direct } else { FramebufferPresentation::ScaledReadback };
+        self.enable_hardware_renderer_with_presentation(scale, device, title, policy, presentation)
+    }
+
+    /// CodexAstraUlt: Select the framebuffer consumer during construction, so
+    /// no live ScreenRef or captured history can outlast a mid-session switch.
+    /// Direct output requires the presenter's device; readback owns its device.
+    #[cfg(feature = "vulkan")]
+    pub fn enable_hardware_renderer_with_presentation(
+        &mut self,
+        scale: u32,
+        device: Option<std::sync::Arc<SharedDevice>>,
+        title: Option<u64>,
+        policy: VertexShading,
+        presentation: FramebufferPresentation,
+    ) -> Result<String, String> {
+        if device.is_some() != (presentation == FramebufferPresentation::Direct) {
+            return Err("framebuffer presentation does not match the shared-device contract".into());
+        }
         let kept = title.and_then(raster::hardware::pipeline_cache);
-        let (device, direct) = match device {
-            Some(device) => (device, true),
-            None => (std::sync::Arc::new(raster::hardware::own_device()?), false),
+        let device = match device {
+            Some(device) => device,
+            None => std::sync::Arc::new(raster::hardware::own_device()?),
         };
-        let mut hardware = match policy {
-            VertexShading::Automatic => raster::hardware::Hardware::with_device(device, direct, kept)?,
-            _ => raster::hardware::Hardware::with_device_and_vertex_shading(device, direct, kept, policy)?,
-        };
+        let mut hardware = raster::hardware::Hardware::with_device_and_presentation(device, kept, policy, presentation)?;
         let scale = hardware.set_scale(scale);
         let shaded = if hardware.shades() { "" } else { ", vertices shaded on the CPU," };
         let direct = if hardware.direct() { ", shown straight from the GPU," } else { "" };
@@ -2523,6 +2566,39 @@ mod tests {
         gpu.display_transfer(&mut memory, 0x100, 0x180, 4 | (2 << 16), 4 | (2 << 16), flags);
         let red_at = |i: usize| ColorFormat::Rgba8.decode(&memory.0[0x180 + i * 4..0x184 + i * 4])[0];
         assert_eq!([red_at(0), red_at(1)], [50, 100]);
+    }
+
+    // CodexAstraUlt: Reject incompatible presentation/device choices before
+    // replacing an existing renderer; the old wrapper keeps its scaled default.
+    #[cfg(feature = "vulkan")]
+    #[test]
+    fn presentation_contract_rejects_invalid_devices_without_replacing_renderer() {
+        let mut gpu = Gpu::new();
+        gpu.enable_hardware_renderer_with_vertex_shading(1, None, None, VertexShading::Cpu).unwrap();
+        assert_eq!(gpu.hardware_diagnostics().unwrap().framebuffer_presentation, FramebufferPresentation::ScaledReadback);
+        assert!(gpu.enable_hardware_renderer_with_presentation(
+            1, None, None, VertexShading::Cpu, FramebufferPresentation::Direct,
+        ).is_err());
+        let shared = std::sync::Arc::new(raster::hardware::own_device().expect("Vulkan presentation contract device"));
+        for presentation in [FramebufferPresentation::NativeReadback, FramebufferPresentation::ScaledReadback] {
+            assert!(gpu.enable_hardware_renderer_with_presentation(
+                1, Some(shared.clone()), None, VertexShading::Cpu, presentation,
+            ).is_err());
+            assert_eq!(gpu.hardware_diagnostics().unwrap().framebuffer_presentation, FramebufferPresentation::ScaledReadback);
+            assert!(!gpu.shows_directly());
+        }
+        // The existing shared-device wrapper still selects direct output.
+        let mut direct = Gpu::new();
+        direct.enable_hardware_renderer_with_vertex_shading(1, Some(shared), None, VertexShading::Cpu).unwrap();
+        assert_eq!(direct.hardware_diagnostics().unwrap().framebuffer_presentation, FramebufferPresentation::Direct);
+        assert!(direct.shows_directly());
+        // A separate explicit native consumer must not alter the first one.
+        let mut native = Gpu::new();
+        native.enable_hardware_renderer_with_presentation(
+            1, None, None, VertexShading::Cpu, FramebufferPresentation::NativeReadback,
+        ).unwrap();
+        assert_eq!(native.hardware_diagnostics().unwrap().framebuffer_presentation, FramebufferPresentation::NativeReadback);
+        assert_eq!(gpu.hardware_diagnostics().unwrap().framebuffer_presentation, FramebufferPresentation::ScaledReadback);
     }
 
     // CodexAstraUlt: Actual overlapping output, a zero rectangle and the tiled

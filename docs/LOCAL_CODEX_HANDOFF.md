@@ -1,22 +1,25 @@
 # Local Dark Moon Native/CPU performance handoff
 
 <!-- CodexAstraUlt: Point a resumed session to the owner-requested local save locations and completed code17 evidence before the historical packaging handoff below. -->
-**Continuation update, 2026-11-09:** code 17 testing and verified report publication are complete. Start with [the saved local session locator](LOCAL_SESSION_CONTINUATION.md) for the transcript and resume-handoff paths. The packaging/test instructions below describe the prior handoff; do not repeat them to resume. Every new Thor/ADB batch still requires fresh explicit owner approval.
+**Continuation update, 2026-11-09:** code 17 testing and verified report publication are complete. Start with [the saved local session locator](LOCAL_SESSION_CONTINUATION.md) for the transcript and resume-handoff paths. Do not repeat completed code 17 packaging/testing merely to resume. The pending code 18 handoff below is a separate future batch. Every new Thor/ADB batch still requires fresh explicit owner approval.
 
-<!-- CodexAstraUlt: Hand off verified cloud work for compatible repackaging;
-publication does not authorize the new Thor connection or qualify performance. -->
-Current candidate: **[0.0.8-preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**, published.
-Bounded tiled-transfer deferral and fixed route/phase diagnostics are implemented.
-Local correctness/runtime, retained-library APK, independent bundle and hosted
-main checks pass at `9296010`; tag publication and independent
-public-download verification pass at `1c7fffa`. The
-[build record](builds/0.0.8-transfer-followup.md) records exact identities and gates.
-The new Thor test is **unperformed**; no handheld gain is established. Repackage
-the retained ARM64 library with recorded tools and the same owner signer, then
-signal the owner and **STOP until explicit approval** before any Thor/ADB
-connection or device-work batch. Do not repeat unchanged code 16. Read
-[AGENTS.md](../AGENTS.md) and
-[the current procedure](ANDROID_TITLE_BUILD.md#current-dark-moon-repackaging-and-audio-test).
+<!-- CodexAstraUlt: Resume cloud investigation from completed code 17 while
+keeping the next compatible package and device check explicitly pending. -->
+Published **[preview.7/code 17](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.7)**
+passed local/runtime/package and hosted main checks at `9296010`, with tag
+publication and independent download verification at `1c7fffa`. Preserve its
+[build record](builds/0.0.8-transfer-followup.md) and completed device report.
+
+Next candidate: **preview.8/code 18**, under cloud development. The proposed
+immutable NativeReadback profile removes unused upright/screen captures for the
+title frontend's native-byte consumer, retaining native capture/sync/submission
+and default scaled/direct modes. Fixed phase/readback metrics are implemented
+for qualification.
+Correctness, benchmark, package and publication gates remain **pending**; read
+[the draft](builds/0.0.8-native-readback-followup.md). Do not start its local batch
+until those gates pass. The owner's resumed
+[native Android architecture investigation](NATIVE_ANDROID_DIRECTION.md) stages
+GPU resource/graphics work while preserving AOT, title ABI and completed libraries.
 
 Published **[preview.6/code 16](https://github.com/RegiRex/DroiDDS/releases/tag/v0.0.8-preview.6)**
 passed local correctness/runtime, retained-library APK, independent bundle and
@@ -28,66 +31,58 @@ implementation `f687911` and release `365c1a0` identities.
 
 ## Completed evidence
 
-<!-- CodexAstraUlt: Preserve the single faster sample and unresolved subphases;
-transfer wall time and endpoint retention do not prove a particular cause. -->
-The [code 16 report](device-tests/0.0.8-preview6-dark-moon-thor.md) reached file
-selection at **18.70% speed**, versus code 15's 16.70%, with no reported runtime/
-rendering errors or visible corruption. A/Stop occurred at 91.056/110.111 seconds.
-A sustained or causal improvement remains unproven. Display transfers
-(**26.917 s**) and texture copies (**6.061 s**) account for 97.82% of SVC time
-outside PICA lists; their wait/readback versus conversion/copy costs remain
-unseparated. Retain 1,532 underruns and 160 discarded input frames, without a
-fresh listening assessment. Nine retained surfaces is an entry count, not bytes
-or a leak test. File 1/save state remains preserved.
+<!-- CodexAstraUlt: Preserve the actual inactive route and fresh audio report;
+newly planned native-readback work has no device performance result yet. -->
+The [code 17 report](device-tests/0.0.8-preview7-dark-moon-thor.md) reached file
+selection and stopped normally at **18.66% speed**, essentially unchanged from
+code 16's 18.70%. Tiled accepts/deferred counters are zero. Hardware-transfer
+attempts take **23.980 s** and texture synchronization **5.906 s**. Retain
+**1,531 underruns**, 480 discarded input frames and the owner's fresh severe
+clipping observation; waveform clipping is not measured. Frame events are not
+unique game FPS. Existing File 1/save state remains preserved.
 
 The preparation, **521 Linux objects/library**, **521 ARM64 objects/library**,
-imports, saves, signer and prior reports remain reusable. Native/CPU performance
-is the priority; further Thor GPU tests and audio-perfection work are deferred.
+imports, saves, signer, prior reports and local handoff suffix remain reusable.
+Further Thor GPU tests and audio-perfection work remain deferred.
 
 ## Connection approval
 
-<!-- CodexAstraUlt: This is the owner's explicit instruction, not an inferred
-approval policy or a requirement to pause independent cloud development. -->
+<!-- CodexAstraUlt: This is the owner's explicit instruction, separate from
+authorization to continue cloud coding, builds and uploaded-report review. -->
 **“Signal me before connecting” means stop and wait for explicit approval.**
 Before any new Thor/ADB connection or device-work batch, including discovery,
-report export, installation or testing, signal the owner and wait for that
-approval. Notification alone, an available device or an earlier batch does not
-authorize access. Cloud coding/building and review of already uploaded reports
-may continue. Prepare the compatible package first when possible, using existing
-build/installation records without querying the device in advance.
+report export, installation or testing, signal the owner and wait. Notification
+alone, an available device or an earlier batch does not authorize access.
+Prepare the compatible package first, using prior verified build/installation
+records without querying the device in advance.
 
-## Suggested task for local Codex
+## Suggested task for local Codex after cloud gates pass
 
-<!-- CodexAstraUlt: Make the package reviewable before asking for access; the
-remaining device procedure is conditional on the owner's actual answer. -->
+<!-- CodexAstraUlt: Keep the future task limited to compatible repackaging,
+approved bounded testing and direct diagnostic delivery. -->
 ```text
 Safely update RegiRex/DroiDDS to current main, preserving local work.
-Follow the current Dark Moon repackaging section in docs/ANDROID_TITLE_BUILD.md.
-Read the verified preview.7 build record before repackaging.
-Preserve code 16 and all previous reports. Reuse recorded tools, preparation,
-completed ARM64 compilation and the same owner signing profile. Repackage only
-with the same package/certificate and a code above the last verified installed
-code, at least 17. Use prior build/installation records; do not query the Thor.
-Preserve imports, saves and both completed title builds.
+Follow “Current Dark Moon repackaging and audio test” in docs/ANDROID_TITLE_BUILD.md.
+Confirm preview.8 cloud correctness/package/publication gates passed.
+Reuse recorded tools, preparation, completed ARM64 compilation and owner signing
+profile. Repackage only, keeping the same package/certificate and a code above
+the last verified installation, at least 18. Use prior records before connecting.
+Preserve imports, saves, both completed title builds, local continuation files
+and all previous reports.
 
-Finish package verification, then signal me and STOP for explicit approval before
-any Thor/ADB connection or device work, including discovery, export, installation
-or testing. Notification alone is not approval. Do not infer approval from an
-available device or a previous session.
-
+Verify the package, then signal me and STOP for explicit approval before any
+Thor/ADB connection or device work, including discovery, export, install or test.
 After approval, confirm exclusive device operation and package compatibility.
-Preserve the latest report before installing the compatible update. Keep Native
-execution, CPU vertex shaders, Vulkan 1x and comparable menu progression/settings.
-Run once: press A around 91 seconds after Play if the title prompt is ready, then
-Stop around 110 seconds; never exceed 120 wall seconds. Stop early on failure or
-corruption and do not extend for a late prompt. Record actual input timing and
-progression. Further GPU testing is deferred.
+Preserve the latest report before installing the compatible update.
 
-Export the full JSON immediately after stop/failure and before any restart.
-Record worker time, CPU processing, scene progression, rendering paths and actual
-audio/visual observations separately. Follow docs/DEVICE_REPORT_HANDOFF.md to
-upload reviewed reports, a short summary and relevant bounded failure excerpts.
-Verify remote bytes and return commit/file links. Keep raw originals and private
-game/build/signing files local. Do not repeat setup, preparation, title compilation,
-historical traces or permission configuration, or reset saves.
+Run once with Native execution, CPU vertex shaders and Vulkan 1x. Press A around
+91 seconds after Play if ready, then normal Stop around 110 seconds; never exceed
+120 wall seconds. Stop early on failure/corruption and do not extend for a late
+prompt. Record actual input timing, progression and audible/visual observations.
+
+Export the full JSON after stop/failure and before restart. Follow
+docs/DEVICE_REPORT_HANDOFF.md to upload reviewed reports, the short summary and
+any relevant bounded failure excerpt; verify remote bytes and return links.
+Keep private game/build/signing data and raw captures local. Do not repeat
+preparation or title compilation, reset saves, or perform further GPU trials.
 ```
