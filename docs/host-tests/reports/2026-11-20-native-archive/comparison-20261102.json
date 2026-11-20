@@ -1,0 +1,1658 @@
+{
+  "admission": {
+    "compiled_manifest_sha256": "4dec6c72ab6d3e9833c0442343517f84597e955b6b92371f926b13a6b7096949",
+    "contract_sha256": "741514611f85f26a1a43493c361c4240e2147f4c865cb461b5c5206ca2a65a93",
+    "identity_bundle": {
+      "bytes": 8717824,
+      "sha256": "5319d52ecccb331662f0a7616e048c3db215e952b9a19befa74e87a85b5f71f1"
+    },
+    "input": {
+      "bytes": 1073741824,
+      "sha256": "e1c69aa34aa8fe4d95ca1a174f9ceb0485f596775cdba94205559c6de809a07a"
+    },
+    "library": {
+      "bytes": 309564552,
+      "sha256": "507286b34c936c39645ddbbecf7dcfcef4a628c3661f3d63312ee6588bb275c8"
+    },
+    "preparation_sha256": "586780c59bdd6dfffa5e89e77a0e18a7cedd6bcc4c0b55215edd774c3e8e1884",
+    "static_audit": {
+      "abi": 4,
+      "bytes": 309564552,
+      "class": "ELF64",
+      "code_freshness_validated": false,
+      "compile_contract_sha256": "741514611f85f26a1a43493c361c4240e2147f4c865cb461b5c5206ca2a65a93",
+      "endian": "little",
+      "entry_count": 379291,
+      "executable_stack": false,
+      "generation": 3,
+      "guest_execution_performed": false,
+      "library_loaded": false,
+      "library_sha256": "507286b34c936c39645ddbbecf7dcfcef4a628c3661f3d63312ee6588bb275c8",
+      "machine": "x86_64",
+      "metadata_elements": 949754,
+      "module_count": 0,
+      "needed": [
+        "libm.so.6",
+        "libc.so.6"
+      ],
+      "preparation_sha256": "586780c59bdd6dfffa5e89e77a0e18a7cedd6bcc4c0b55215edd774c3e8e1884",
+      "relocations_checked": 379305,
+      "runtime_tables_validated": true,
+      "text_relocations": false,
+      "trusted_local_build_required": true,
+      "type": "DYN",
+      "units": [
+        {
+          "base_address": null,
+          "entries_address": 301278208,
+          "entry_count": 379291,
+          "function_count": 50688,
+          "name": null,
+          "origins_address": 301278144,
+          "piece_count": 59491,
+          "stale_address": 307550240,
+          "starts_address": 307347456,
+          "text_bytes": 7969784,
+          "text_start": 1048576
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "callback_interpreted_instructions": 0,
+    "compiled_dispatch_instructions": 1999970,
+    "guest_exit_match": null,
+    "matched_cycles": [
+      500000,
+      1000000
+    ],
+    "mismatches": [
+      {
+        "cycle": 100000,
+        "different_fields": [
+          "cpsr"
+        ]
+      },
+      {
+        "cycle": 2000000,
+        "different_fields": [
+          "cpsr"
+        ]
+      }
+    ],
+    "native_instructions_observed": 1999970,
+    "scope": "bounded CPU/state fingerprint comparison; not a boot or correctness proof",
+    "status": "different",
+    "unmatched_cycles": []
+  },
+  "coordinator": {
+    "private_runtime_elf.py": "d1f65bb372acb060f5281ff8e81d5f02c70cdd7b96413f10f468d6760c0df8ec",
+    "private_runtime_inputs.py": "6c96d40e58b02ca6ce68f645c6649ed5834b12ff7fd635d1adbe0da7d3c6e643",
+    "private_runtime_process.py": "79c931d7f2b58c86f833c55601bff6ae5bc4cfcf70c9e47418e9c5fd889a449b",
+    "run_compiled_title.py": "89e1d228981fc87376905b079c67df3c19fb369448f85175de6ac6230460e0b9"
+  },
+  "kind": "droidds_private_native_comparison",
+  "limitations": [
+    "Linux host base-code diagnostic fence; dynamic modules stay interpreted.",
+    "SIGSEGV alone does not identify a code write or its cause.",
+    "No Android/Thor performance or interactive boot qualification.",
+    "Trusted local native build; not an untrusted-library sandbox."
+  ],
+  "preserved_inputs_verified": true,
+  "reason": "different",
+  "routes": {
+    "interpreter": {
+      "process": {
+        "elapsed_seconds": 1.239711090000128,
+        "exit_code": 0,
+        "limits": {
+          "cpu_scope": "per_process_all_threads",
+          "cpu_seconds": 120,
+          "file_bytes": 67108864,
+          "log_retained_bytes": 0,
+          "memory_mib": 4096,
+          "passed_sealed_fds": 3,
+          "wall_seconds": 70
+        },
+        "log_bytes_seen": 0,
+        "outcome": "completed"
+      },
+      "request_sha256": "7b74b018d5e57215c8ccbbf0267a272118ecb87981cd689ac5584c6c76412ee6",
+      "worker_report": {
+        "blocker": null,
+        "checkpoints": [
+          {
+            "exact_cycle": true,
+            "requested_cycle": 100000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 2147483679,
+              "current_thread": 0,
+              "cycles": 100000,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 0,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "e3dafd553e171bc6",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "d568b46ec3da706d",
+                "mapping_fnv1a64": "82bd7b6e9d13646e",
+                "region_used_bytes": [
+                  9281536,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                9894360,
+                10165252,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                268435456,
+                1048580,
+                1048624
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "exact_cycle": true,
+            "requested_cycle": 500000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 536870943,
+              "current_thread": 0,
+              "cycles": 500000,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 50331648,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "5c79471a3a001324",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "89d1641278a559ba",
+                "mapping_fnv1a64": "a2dc705c6f39cb77",
+                "region_used_bytes": [
+                  67108864,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                268434847,
+                99,
+                3357929309,
+                34,
+                335545752,
+                0,
+                335545696,
+                0,
+                335545536,
+                1,
+                3668440,
+                0,
+                0,
+                268434800,
+                3734312,
+                6140388
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                1036831949,
+                1092616192,
+                1036831949,
+                256,
+                8192,
+                13,
+                375,
+                16,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1036831949,
+                1090519040,
+                1092616192,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "exact_cycle": true,
+            "requested_cycle": 1000000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 536870943,
+              "current_thread": 0,
+              "cycles": 1000000,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 50331648,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "5c79471a3a001324",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "61095a98b05e1d37",
+                "mapping_fnv1a64": "a2dc705c6f39cb77",
+                "region_used_bytes": [
+                  67108864,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                2241735,
+                3122031567,
+                3122031520,
+                98,
+                9449532,
+                9408208,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                9158648,
+                268435416,
+                2241024,
+                6140404
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                0,
+                0,
+                0,
+                3193375293,
+                1088421888,
+                1081920717,
+                1042536202,
+                1079404134,
+                1085276160,
+                1075838976,
+                1080033280,
+                1088421888,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "exact_cycle": true,
+            "requested_cycle": 2000000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 536870943,
+              "current_thread": 0,
+              "cycles": 2000000,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 50331648,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "5c79471a3a001324",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "7a96ea9eb2f09c7e",
+                "mapping_fnv1a64": "a2dc705c6f39cb77",
+                "region_used_bytes": [
+                  67108864,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                4,
+                1,
+                5512231,
+                268434964,
+                5512237,
+                268434800,
+                6,
+                5512231,
+                268434800,
+                0,
+                5512276,
+                0,
+                108,
+                268434768,
+                3733824,
+                3733776
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                1008981770,
+                1101004800,
+                1008981770,
+                1031127695,
+                1088421888,
+                1081920717,
+                1042536202,
+                1079404134,
+                1085276160,
+                1075838976,
+                1080033280,
+                1088421888,
+                0,
+                0,
+                0,
+                0,
+                1036831949,
+                1008981770,
+                1101004800,
+                1092616192,
+                1101004800,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        ],
+        "configuration": {
+          "checkpoint_schedule": [
+            100000,
+            500000,
+            1000000,
+            2000000
+          ],
+          "clock_ms_since_1900": 4000000000000,
+          "dlc": false,
+          "failed_attempt_counters_may_be_incomplete": true,
+          "input_events": "neutral",
+          "model_requested": "old",
+          "model_resolved": "old",
+          "mods": false,
+          "native_discovery": false,
+          "native_scope": "immutable_base_executable_only_modules_interpreted",
+          "parent_admission": "sealed_local_coordinator_request_not_plugin_sandbox",
+          "private_images_or_audio_exported": false,
+          "renderer": "software",
+          "state_fingerprint": "noncryptographic_fnv1a64_diagnostic_only",
+          "strict_diagnostics": true,
+          "synchronized_checkpoint_policy": "first_post_svc_at_or_after_pending_cycle_no_budget_extension",
+          "texture_packs": false,
+          "updates": false
+        },
+        "contract_sha256": "741514611f85f26a1a43493c361c4240e2147f4c865cb461b5c5206ca2a65a93",
+        "elapsed_seconds": 0.948146449,
+        "guest_execution_attempted": true,
+        "guest_execution_performed": true,
+        "kind": "droidds_private_native_run",
+        "library_load_attempted": false,
+        "library_loaded": false,
+        "library_sha256": "507286b34c936c39645ddbbecf7dcfcef4a628c3661f3d63312ee6588bb275c8",
+        "limits": {
+          "max_cycles": 2000000,
+          "max_frames": 120,
+          "max_seconds": 60,
+          "max_steps": 10000000
+        },
+        "observed": {
+          "cycles": 2000000,
+          "cycles_after_budget": 0,
+          "frames": 0,
+          "guest_debug_bytes_discarded": 0,
+          "interpreted_instructions": 2000000,
+          "native_callback_fallback_instructions": 0,
+          "recompiled_instructions": 0,
+          "services_seen": [],
+          "state": {
+            "all_blocked": false,
+            "audio": {
+              "nonzero_pairs": 0,
+              "pcm_fnv1a64": "cbf29ce484222325",
+              "pcm_pairs": 0
+            },
+            "cpsr": 536870943,
+            "current_thread": 0,
+            "cycles": 2000000,
+            "exclusive_address": null,
+            "fpexc": 1073741824,
+            "fpscr": 50331648,
+            "frames": 0,
+            "graphics": {
+              "command_lists": 0,
+              "draw_calls": 0,
+              "vertices_drawn": 0
+            },
+            "guest_exited": false,
+            "memory": {
+              "allocation_fnv1a64": "5c79471a3a001324",
+              "allocation_regions": [
+                [
+                  0,
+                  16384
+                ],
+                [
+                  16384,
+                  11264
+                ],
+                [
+                  27648,
+                  5120
+                ]
+              ],
+              "axi_wram_fnv1a64": "c625088557c10a87",
+              "dsp_ram_fnv1a64": "fc31bff590c22325",
+              "fcram_fnv1a64": "7a96ea9eb2f09c7e",
+              "mapping_fnv1a64": "a2dc705c6f39cb77",
+              "region_used_bytes": [
+                67108864,
+                0,
+                4096
+              ],
+              "vram_fnv1a64": "467a69b11ba22325"
+            },
+            "next_kernel_event": null,
+            "registers": [
+              4,
+              1,
+              5512231,
+              268434964,
+              5512237,
+              268434800,
+              6,
+              5512231,
+              268434800,
+              0,
+              5512276,
+              0,
+              108,
+              268434768,
+              3733824,
+              3733776
+            ],
+            "reschedule_pending": false,
+            "thread_guest_id": 0,
+            "tls": 536354816,
+            "vfp_registers": [
+              1008981770,
+              1101004800,
+              1008981770,
+              1031127695,
+              1088421888,
+              1081920717,
+              1042536202,
+              1079404134,
+              1085276160,
+              1075838976,
+              1080033280,
+              1088421888,
+              0,
+              0,
+              0,
+              0,
+              1036831949,
+              1008981770,
+              1101004800,
+              1092616192,
+              1101004800,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "steps": 2000000
+        },
+        "preparation_sha256": "586780c59bdd6dfffa5e89e77a0e18a7cedd6bcc4c0b55215edd774c3e8e1884",
+        "reason": "cycle_budget",
+        "route": "interpreter",
+        "runtime_binding_enforced": true,
+        "schema_version": 1,
+        "status": "budget_exhausted",
+        "synchronized_checkpoints": [
+          {
+            "boundary": {
+              "cycle": 303222,
+              "number": 33,
+              "ordinal": 1,
+              "svc_pc": 1077384,
+              "thread_guest_id": 0
+            },
+            "instructions": {
+              "callback_interpreted": 0,
+              "interpreted": 303222,
+              "recompiled": 0
+            },
+            "requested_cycle": 100000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 1610612767,
+              "current_thread": 0,
+              "cycles": 303222,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 0,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "e3dafd553e171bc6",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "e95344c2f2d9c871",
+                "mapping_fnv1a64": "82bd7b6e9d13646e",
+                "region_used_bytes": [
+                  9281536,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                0,
+                65536,
+                0,
+                0,
+                9743296,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                268435428,
+                1072916,
+                1077388
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        ],
+        "tool_version": "0.0.1"
+      }
+    },
+    "native": {
+      "process": {
+        "elapsed_seconds": 1.0631874020000396,
+        "exit_code": 0,
+        "limits": {
+          "cpu_scope": "per_process_all_threads",
+          "cpu_seconds": 120,
+          "file_bytes": 67108864,
+          "log_retained_bytes": 0,
+          "memory_mib": 4096,
+          "passed_sealed_fds": 3,
+          "wall_seconds": 70
+        },
+        "log_bytes_seen": 0,
+        "outcome": "completed"
+      },
+      "request_sha256": "26b4d3cc5f441be51cb430f83f1a00e5ba09ef2064b35bae8083d606ca2eea65",
+      "worker_report": {
+        "blocker": null,
+        "checkpoints": [
+          {
+            "exact_cycle": true,
+            "requested_cycle": 100000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 31,
+              "current_thread": 0,
+              "cycles": 100000,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 0,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "e3dafd553e171bc6",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "d568b46ec3da706d",
+                "mapping_fnv1a64": "82bd7b6e9d13646e",
+                "region_used_bytes": [
+                  9281536,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                9894360,
+                10165252,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                268435456,
+                1048580,
+                1048624
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "exact_cycle": true,
+            "requested_cycle": 500000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 536870943,
+              "current_thread": 0,
+              "cycles": 500000,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 50331648,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "5c79471a3a001324",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "89d1641278a559ba",
+                "mapping_fnv1a64": "a2dc705c6f39cb77",
+                "region_used_bytes": [
+                  67108864,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                268434847,
+                99,
+                3357929309,
+                34,
+                335545752,
+                0,
+                335545696,
+                0,
+                335545536,
+                1,
+                3668440,
+                0,
+                0,
+                268434800,
+                3734312,
+                6140388
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                1036831949,
+                1092616192,
+                1036831949,
+                256,
+                8192,
+                13,
+                375,
+                16,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1036831949,
+                1090519040,
+                1092616192,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "exact_cycle": true,
+            "requested_cycle": 1000000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 536870943,
+              "current_thread": 0,
+              "cycles": 1000000,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 50331648,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "5c79471a3a001324",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "61095a98b05e1d37",
+                "mapping_fnv1a64": "a2dc705c6f39cb77",
+                "region_used_bytes": [
+                  67108864,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                2241735,
+                3122031567,
+                3122031520,
+                98,
+                9449532,
+                9408208,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                9158648,
+                268435416,
+                2241024,
+                6140404
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                0,
+                0,
+                0,
+                3193375293,
+                1088421888,
+                1081920717,
+                1042536202,
+                1079404134,
+                1085276160,
+                1075838976,
+                1080033280,
+                1088421888,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "exact_cycle": true,
+            "requested_cycle": 2000000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 1610612767,
+              "current_thread": 0,
+              "cycles": 2000000,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 50331648,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "5c79471a3a001324",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "7a96ea9eb2f09c7e",
+                "mapping_fnv1a64": "a2dc705c6f39cb77",
+                "region_used_bytes": [
+                  67108864,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                4,
+                1,
+                5512231,
+                268434964,
+                5512237,
+                268434800,
+                6,
+                5512231,
+                268434800,
+                0,
+                5512276,
+                0,
+                108,
+                268434768,
+                3733824,
+                3733776
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                1008981770,
+                1101004800,
+                1008981770,
+                1031127695,
+                1088421888,
+                1081920717,
+                1042536202,
+                1079404134,
+                1085276160,
+                1075838976,
+                1080033280,
+                1088421888,
+                0,
+                0,
+                0,
+                0,
+                1036831949,
+                1008981770,
+                1101004800,
+                1092616192,
+                1101004800,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        ],
+        "configuration": {
+          "checkpoint_schedule": [
+            100000,
+            500000,
+            1000000,
+            2000000
+          ],
+          "clock_ms_since_1900": 4000000000000,
+          "dlc": false,
+          "failed_attempt_counters_may_be_incomplete": true,
+          "input_events": "neutral",
+          "model_requested": "old",
+          "model_resolved": "old",
+          "mods": false,
+          "native_discovery": false,
+          "native_scope": "immutable_base_executable_only_modules_interpreted",
+          "parent_admission": "sealed_local_coordinator_request_not_plugin_sandbox",
+          "private_images_or_audio_exported": false,
+          "renderer": "software",
+          "state_fingerprint": "noncryptographic_fnv1a64_diagnostic_only",
+          "strict_diagnostics": true,
+          "synchronized_checkpoint_policy": "first_post_svc_at_or_after_pending_cycle_no_budget_extension",
+          "texture_packs": false,
+          "updates": false
+        },
+        "contract_sha256": "741514611f85f26a1a43493c361c4240e2147f4c865cb461b5c5206ca2a65a93",
+        "elapsed_seconds": 0.862656534,
+        "guest_execution_attempted": true,
+        "guest_execution_performed": true,
+        "kind": "droidds_private_native_run",
+        "library_load_attempted": true,
+        "library_loaded": true,
+        "library_sha256": "507286b34c936c39645ddbbecf7dcfcef4a628c3661f3d63312ee6588bb275c8",
+        "limits": {
+          "max_cycles": 2000000,
+          "max_frames": 120,
+          "max_seconds": 60,
+          "max_steps": 10000000
+        },
+        "observed": {
+          "cycles": 2000000,
+          "cycles_after_budget": 0,
+          "frames": 0,
+          "guest_debug_bytes_discarded": 0,
+          "interpreted_instructions": 30,
+          "native_callback_fallback_instructions": 0,
+          "recompiled_instructions": 1999970,
+          "services_seen": [],
+          "state": {
+            "all_blocked": false,
+            "audio": {
+              "nonzero_pairs": 0,
+              "pcm_fnv1a64": "cbf29ce484222325",
+              "pcm_pairs": 0
+            },
+            "cpsr": 1610612767,
+            "current_thread": 0,
+            "cycles": 2000000,
+            "exclusive_address": null,
+            "fpexc": 1073741824,
+            "fpscr": 50331648,
+            "frames": 0,
+            "graphics": {
+              "command_lists": 0,
+              "draw_calls": 0,
+              "vertices_drawn": 0
+            },
+            "guest_exited": false,
+            "memory": {
+              "allocation_fnv1a64": "5c79471a3a001324",
+              "allocation_regions": [
+                [
+                  0,
+                  16384
+                ],
+                [
+                  16384,
+                  11264
+                ],
+                [
+                  27648,
+                  5120
+                ]
+              ],
+              "axi_wram_fnv1a64": "c625088557c10a87",
+              "dsp_ram_fnv1a64": "fc31bff590c22325",
+              "fcram_fnv1a64": "7a96ea9eb2f09c7e",
+              "mapping_fnv1a64": "a2dc705c6f39cb77",
+              "region_used_bytes": [
+                67108864,
+                0,
+                4096
+              ],
+              "vram_fnv1a64": "467a69b11ba22325"
+            },
+            "next_kernel_event": null,
+            "registers": [
+              4,
+              1,
+              5512231,
+              268434964,
+              5512237,
+              268434800,
+              6,
+              5512231,
+              268434800,
+              0,
+              5512276,
+              0,
+              108,
+              268434768,
+              3733824,
+              3733776
+            ],
+            "reschedule_pending": false,
+            "thread_guest_id": 0,
+            "tls": 536354816,
+            "vfp_registers": [
+              1008981770,
+              1101004800,
+              1008981770,
+              1031127695,
+              1088421888,
+              1081920717,
+              1042536202,
+              1079404134,
+              1085276160,
+              1075838976,
+              1080033280,
+              1088421888,
+              0,
+              0,
+              0,
+              0,
+              1036831949,
+              1008981770,
+              1101004800,
+              1092616192,
+              1101004800,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "steps": 52
+        },
+        "preparation_sha256": "586780c59bdd6dfffa5e89e77a0e18a7cedd6bcc4c0b55215edd774c3e8e1884",
+        "reason": "cycle_budget",
+        "route": "native",
+        "runtime_binding_enforced": true,
+        "schema_version": 1,
+        "status": "budget_exhausted",
+        "synchronized_checkpoints": [
+          {
+            "boundary": {
+              "cycle": 303222,
+              "number": 33,
+              "ordinal": 1,
+              "svc_pc": 1077384,
+              "thread_guest_id": 0
+            },
+            "instructions": {
+              "callback_interpreted": 0,
+              "interpreted": 0,
+              "recompiled": 303222
+            },
+            "requested_cycle": 100000,
+            "state": {
+              "all_blocked": false,
+              "audio": {
+                "nonzero_pairs": 0,
+                "pcm_fnv1a64": "cbf29ce484222325",
+                "pcm_pairs": 0
+              },
+              "cpsr": 1610612767,
+              "current_thread": 0,
+              "cycles": 303222,
+              "exclusive_address": null,
+              "fpexc": 1073741824,
+              "fpscr": 0,
+              "frames": 0,
+              "graphics": {
+                "command_lists": 0,
+                "draw_calls": 0,
+                "vertices_drawn": 0
+              },
+              "guest_exited": false,
+              "memory": {
+                "allocation_fnv1a64": "e3dafd553e171bc6",
+                "allocation_regions": [
+                  [
+                    0,
+                    16384
+                  ],
+                  [
+                    16384,
+                    11264
+                  ],
+                  [
+                    27648,
+                    5120
+                  ]
+                ],
+                "axi_wram_fnv1a64": "c625088557c10a87",
+                "dsp_ram_fnv1a64": "fc31bff590c22325",
+                "fcram_fnv1a64": "e95344c2f2d9c871",
+                "mapping_fnv1a64": "82bd7b6e9d13646e",
+                "region_used_bytes": [
+                  9281536,
+                  0,
+                  4096
+                ],
+                "vram_fnv1a64": "467a69b11ba22325"
+              },
+              "next_kernel_event": null,
+              "registers": [
+                0,
+                65536,
+                0,
+                0,
+                9743296,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                268435428,
+                1072916,
+                1077388
+              ],
+              "reschedule_pending": false,
+              "thread_guest_id": 0,
+              "tls": 536354816,
+              "vfp_registers": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        ],
+        "tool_version": "0.0.1"
+      }
+    }
+  },
+  "schema_version": 1,
+  "source": {
+    "binary_source_attested": false,
+    "checkout_commit": "857ff47a24ec35f29f813816865a9cc060c7542e",
+    "checkout_dirty": false,
+    "files_sha256": {
+      "Cargo.lock": "69de33351691333926691de8e89b219f4f5ee094d833ecaaa18afdb2a9eae60e",
+      "Cargo.toml": "dbc94390cbfdfb49aa3935483a52d06a6a94f41b6a1c761597c1fde1d30cb8c7",
+      "crates/droidds-native-title-tools/Cargo.toml": "2a4df4259ed76abfcff2aef0b7c030811b52a0ffd1c0f2c637e7cb8f7bc54764",
+      "crates/droidds-native-title-tools/src/lib.rs": "733da92da7ccfc7ca05d85fbf8f39d76c8c3b2f22bcbc4709ab322da5afcb06b",
+      "crates/droidds-native-title-tools/src/main.rs": "2cbf8fe4a3ef41c8d84182dc93091e150db3f90eff9da57333366d03446085ab",
+      "crates/droidds-native-title-tools/src/request.rs": "b92b952b8158dacc2110211726418011035ecd19fc8cfc63d9855942abb1719b",
+      "crates/droidds-native-title-tools/src/state.rs": "849c55a5a6d980f7ec3317ed32d37a6ddc4b95f2c8a7008d495b59d782fc0a63",
+      "crates/droidds-native-title-tools/src/tests.rs": "266cd68af1a22ed310fdda73b0bb60e86aad412ace5b55c09112f2fbb05833f1",
+      "crates/droidds-title-tools/Cargo.toml": "90796f54de485c7f5bb8c4f516c559dc92877a67cbd39261aa639264a50cbbfd",
+      "crates/droidds-title-tools/src/cpu_progress.rs": "d66252560b9d68b33cf84c4120a90d464a4d830d49b4919fa4a859d13adc6e20",
+      "crates/droidds-title-tools/src/lib.rs": "8d5ca9c6a03c07b4ae05d15ef85a8baa7e376b4c826682c8defc878b446b9cff",
+      "crates/droidds-title-tools/src/main.rs": "1ab36da21161c25449adea4434a03b4cb806ee0724d63c8442c096385431e85b",
+      "tools/run_private_title.py": "3038cdcbf70bf79a70b798cbbc6c03223998f42c7c3bbba2475956c79c55b338",
+      "upstream.lock.toml": "7347d51ff89f64681d9abab48f6b2789dc1bca774ddd68411ef86245f5a42407",
+      "vendor/zakuro/crates/zakuro-core/Cargo.toml": "a022635f15e32c4131a7c8d284a187b1693a1ef80bf45d352834707c9e605a48",
+      "vendor/zakuro/crates/zakuro-core/src/diagnostics.rs": "5e065d3be2122da5c58b328a451af7691cf617c7cd399d23d92cfeba2ba23685",
+      "vendor/zakuro/crates/zakuro-core/src/kernel/mod.rs": "75799845546ffc5281fe4afd3b2e1d819b07f1faf602d52f1cc4f96fcfdc22fd",
+      "vendor/zakuro/crates/zakuro-core/src/kernel/object.rs": "f6dbb66e0badea84590e397a82d6da30072c67b22eb831f802baf5d11d47b875",
+      "vendor/zakuro/crates/zakuro-core/src/kernel/svc.rs": "6a0defc0b484577da88fe760bf9e6e32a804fffb416e417e38831f50ceb3f5a1",
+      "vendor/zakuro/crates/zakuro-core/src/kernel/thread.rs": "de60da2279dff573e8453f28e77fa019b218fa587c8723d55f950b1152ed73b8",
+      "vendor/zakuro/crates/zakuro-core/src/lib.rs": "d6603fb1b495d9be134a3d5d7ad297c2b3a529d45b5424c90c4f2120bf6d3b32",
+      "vendor/zakuro/crates/zakuro-core/src/memory/config.rs": "27022ade81c734ccd068db93da1ab01409f294d069e32e1a68742cb58de85136",
+      "vendor/zakuro/crates/zakuro-core/src/memory/fence.rs": "0b2489b8d831c0b59457429e770094a0af2001de1d138fe8216b59b84eabb9c0",
+      "vendor/zakuro/crates/zakuro-core/src/memory/mod.rs": "9c1478e945164b082fce0a7463c7b41b9d1cc95a268c79feff411c27af539509",
+      "vendor/zakuro/crates/zakuro-core/src/memory/physical.rs": "112c00865ece0394f7283ecb38629fb7b3d61f55bc7b9d38c8978d652dd53539",
+      "vendor/zakuro/crates/zakuro-core/src/recompiled.rs": "ed3987e6f0227724a51f06344dc214c5c148a95d76c9dd9eff0f9c4554b4f9d3",
+      "vendor/zakuro/crates/zakuro-core/src/state/mod.rs": "19b3930fe6e54da505516a1c0b0986a3f715fd0facc3cb303c85514d1793fa01"
+    },
+    "runtime_has_local_patches": true,
+    "runtime_revision": "412900a5a020301da15c1cc382585e05a489a535"
+  },
+  "status": "compared",
+  "synchronized_comparison": {
+    "matched_boundaries": [
+      {
+        "boundary": {
+          "cycle": 303222,
+          "number": 33,
+          "ordinal": 1,
+          "svc_pc": 1077384,
+          "thread_guest_id": 0
+        },
+        "cycle": 303222,
+        "native_instructions_observed": 303222,
+        "requested_cycle": 100000
+      }
+    ],
+    "mismatches": [],
+    "missing_boundaries": [
+      {
+        "interpreter_observed": false,
+        "native_observed": false,
+        "requested_cycle": 500000
+      },
+      {
+        "interpreter_observed": false,
+        "native_observed": false,
+        "requested_cycle": 1000000
+      },
+      {
+        "interpreter_observed": false,
+        "native_observed": false,
+        "requested_cycle": 2000000
+      }
+    ],
+    "scope": "sampled post-SVC state only; raw checkpoint differences remain unresolved",
+    "status": "matched",
+    "zero_native_work_boundaries": []
+  },
+  "worker": {
+    "bytes": 44874064,
+    "sha256": "9853b5b3346d39afa99301d768dd3e6af519493349362fb3fe6dbf7ebb3ca876"
+  }
+}
