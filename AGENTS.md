@@ -1,5 +1,9 @@
 # DroiDDS working instructions
 
+<!-- CodexAstraUlt: The owner's 2026-11-20 cleanup instruction supersedes historical raw-retention and deferred-cleanup guidance. -->
+**Local storage rule (2026-11-20):** keep concise summaries and one compact evolving ledger locally. Upload important reviewed diagnostic data to GitHub and verify the remote bytes, then promptly remove temporary logs, raw captures, obsolete snapshots, copied checkouts, installers and packaging/build scratch files. Do not accumulate a backup per step. Keep only necessary working files. The owner explicitly retained the validated Dark Moon preparation and completed Linux/ARM64 title builds; also preserve the original game, saves/imports, signer, installed tools still needed, and unpublished source work. Never upload private game/build/signing payloads. If upload is blocked, retain only the minimal irreplaceable evidence pending transfer and report the blocker. See [HOST_SETUP_CLEANUP.md](docs/HOST_SETUP_CLEANUP.md) for the current procedure.
+
+
 <!-- CodexAstraUlt: Use the owner's renamed GitHub repository for current links
 and publication; preserve existing artifact identities in historical evidence. -->
 - The repository is `RegiRex/DroiDDS`. Use that spelling in current GitHub links.
@@ -45,8 +49,8 @@ restart summary, and progress from completed code 11 testing into route analysis
   historical, not permission to repeat it.
 <!-- CodexAstraUlt: The owner requests direct diagnostic delivery so local
 exports become retrievable evidence instead of another attachment-only handoff. -->
-- Follow docs/DEVICE_REPORT_HANDOFF.md after local testing. Preserve raw originals
-  outside Git; upload reviewed diagnostic JSON, a short summary and needed failure
+- Follow docs/DEVICE_REPORT_HANDOFF.md after local testing. Keep raw originals temporarily
+  outside Git until upload verification; upload reviewed diagnostic JSON, a short summary and needed failure
   excerpts to docs/device-tests/reports/<date>-<build>-<batch>/ in RegiRex/DroiDDS.
   Keep complete runtime/timing/audio fields and run identities; exclude private
   game/build/signing data, personal paths, serials and unrelated device captures.
@@ -234,12 +238,12 @@ setup and continue the authorized build, without global installation changes. --
   The previous preview.3 development candidate introduced authored homebrew-v2 to fix
   startup pitch updates clearing pending DSP flags. Historical v1 reports and
   published preview.2 remain unchanged; private generated title C is unaffected.
-<!-- CodexAstraUlt: Retain the owner's deferred cleanup preference separately
-from the current test prompt; no removals are part of this Android build. -->
-- At version 0.1.0, provide selective local cleanup guidance using
-  docs/HOST_SETUP_CLEANUP.md and actual tool ownership records. The new isolated
-  installation records its components in setup-state.json and receipts/. Do not
-  remove preexisting/shared software or add this deferred task to test prompts.
+<!-- CodexAstraUlt: Apply the owner's explicit immediate housekeeping rule after each completed batch. -->
+- Follow docs/HOST_SETUP_CLEANUP.md now; cleanup is no longer deferred to 0.1.0.
+  Verify important reports on GitHub, retain summaries and the compact ledger,
+  and clear completed temporary outputs. Keep explicitly retained reusable title
+  preparation/builds and installed tool metadata in setup-state.json/receipts/.
+  Do not remove shared/preexisting software or unpublished source work.
 
 <!-- CodexAstraUlt: The owner now authorizes development and reuse from multiple
 open-source projects; continue from measured foundation results, not the old

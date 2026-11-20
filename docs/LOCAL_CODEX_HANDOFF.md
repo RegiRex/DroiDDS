@@ -1,7 +1,10 @@
 # Local Dark Moon Native/CPU performance handoff
 
+<!-- CodexAstraUlt: Point future batches to verified remote evidence and the owner's completed local cleanup. -->
+**Storage update, 2026-11-20:** [cleanup is complete](host-tests/local-cleanup-2026-11-20.md). Local run directories retain summaries; obsolete raw data, chat exports, diagnostic targets and private APK copies were removed. Use the [verified report archive](host-tests/archived-local-reports-2026-11-20.md) and [package identity ledger](host-tests/local-artifact-ledger.csv). The owner retained preparation and both completed title builds for reuse. Follow [the immediate cleanup policy](HOST_SETUP_CLEANUP.md) after future batches.
+
 <!-- CodexAstraUlt: Point a resumed session to the owner-requested local save locations and completed code17 evidence before the historical packaging handoff below. -->
-**Continuation update, 2026-11-09:** code 17 testing and verified report publication are complete. Start with [the saved local session locator](LOCAL_SESSION_CONTINUATION.md) for the transcript and resume-handoff paths. Do not repeat completed code 17 packaging/testing merely to resume. The code 18 handoff below is a separate new batch. Every new Thor/ADB batch still requires fresh explicit owner approval.
+**Continuation update, 2026-11-09:** code 17 testing and verified report publication are complete. Start with [the saved local session locator](LOCAL_SESSION_CONTINUATION.md) for the retained resume summary. Do not repeat completed code 17 packaging/testing merely to resume. The code 18 handoff below is a separate new batch. Every new Thor/ADB batch still requires fresh explicit owner approval.
 
 <!-- CodexAstraUlt: Hand off verified code 18 cloud work while preserving
 completed code 17 evidence and the unperformed new private device qualification. -->

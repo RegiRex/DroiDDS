@@ -13,8 +13,8 @@ needed for the reviewed files described here.
 <!-- CodexAstraUlt: Preserve the app's replaceable latest report immediately;
 missing uploads must not trigger another unchanged device run. -->
 After each run stops, export its full JSON **before any restart** and save it
-under a distinct local filename recording build, route and run. Preserve the
-original outside Git. Keep CPU/GPU comparisons and later manual restarts as
+under a distinct local filename recording build, route and run. Keep the
+original temporarily outside Git until reviewed upload and remote-byte verification complete. Keep CPU/GPU comparisons and later manual restarts as
 separate reports; filenames alone do not establish their package or session.
 For an already completed test, use the existing files. Do not rerun the test
 merely because a report was not uploaded.
@@ -50,8 +50,10 @@ saves, memory/code dumps, private screenshots/video or signing keys/passwords.
 For a failure log, retain only the bounded relevant diagnostic section after
 review as a `.txt` excerpt; `.log` files are intentionally ignored by Git. Do not
 broaden ignore rules or force-add private directories. Keep the complete raw log
-locally. If essential evidence cannot be made suitable for the repository,
-describe what remains local instead of publishing it.
+only while preparing the report and relevant reviewed excerpt. After verified
+publication, remove temporary logs/captures under the owner's cleanup policy.
+If essential evidence cannot be made suitable for the repository, retain a
+nonprivate finding in the summary instead of publishing private payloads.
 
 ## Upload and verify
 
@@ -76,7 +78,10 @@ observed audio/images, failures, redactions and remaining limitations.
    session's commits to deliver reports.
 4. Read the files back at the pushed commit using Git or the GitHub connector
    and verify their bytes/hashes. A successful local commit is not an upload.
-5. Return the commit URL and direct file URLs pinned to that commit, along with
+5. Update the concise local summary and evolving ledger, then clear temporary
+   raw originals, test logs, captures and obsolete output copies. Preserve only
+   explicitly reusable/necessary inputs; follow [HOST_SETUP_CLEANUP.md](HOST_SETUP_CLEANUP.md).
+6. Return the commit URL and direct file URLs pinned to that commit, along with
    the concise findings. Include local original paths only in the local reply,
    not the public summary.
 

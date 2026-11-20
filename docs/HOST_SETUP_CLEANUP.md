@@ -1,63 +1,27 @@
-# Laptop setup and eventual cleanup
+# Local storage and cleanup
 
-<!-- CodexAstraUlt: Persist the owner's 2026-10-22 request for selective cleanup
-after testing, without treating that request as permission to remove tools now. -->
-The owner requests the cleanup guidance when **version 0.1.0 is built**: provide
-exact commands to remove development additions that are then no longer needed,
-while preserving software and data that were already on the Nobara
-laptop. Prepare those commands from the actual local inventory; do not remove
-anything automatically or during ongoing testing. Install another tool only
-when a concrete build or diagnostic requires it. The current host baseline
-already runs, so a longer bounded run does not require another tool installation.
+<!-- CodexAstraUlt: Replace deferred cleanup with the owner's explicit 2026-11-20 immediate housekeeping requirement. -->
 
-<!-- CodexAstraUlt: Distinguish requested installation from measured ownership;
-the cloud session has not inspected the laptop's package or Rust history. -->
-The setup instructions requested `git`, `gcc`, `curl` and `python3` through DNF,
-Rustup if missing, Rust 1.95.0 with rustfmt/clippy, locked Cargo dependencies and
-a release worker build. This list does not prove that every package was newly
-installed. No pre-install inventory was captured by that procedure. The owner
-reports substantial additions; exact package changes and sizes remain for local
-inspection. Toolchains, dependency caches and build artifacts can occupy
-substantial disk space. Their presence alone does not show that background work
-is running; these setup instructions did not configure a background service.
+The owner requires a clean laptop. Keep concise summaries and one evolving CSV ledger locally; upload important reviewed diagnostics to **RegiRex/DroiDDS**, verify remote bytes, and promptly remove temporary data after the reports are complete. This supersedes the former request to wait until version 0.1.0 and older instructions to retain every raw output indefinitely.
 
-## Record before further changes
+The completed [2026-11-20 cleanup](host-tests/local-cleanup-2026-11-20.md) and [artifact ledger](host-tests/local-artifact-ledger.csv) record what was removed and retained. Historical report paths can now point to summary-only directories; deleted raw files are not missing test results and do not justify rerunning tests.
 
-<!-- CodexAstraUlt: Recover a selective cleanup record without guessing which
-preexisting packages or shared development tools belong to DroidDS. -->
-Local Codex should keep a cleanup inventory outside Git, using read-only checks:
+## Retain only necessary files
 
-- Find the actual setup transaction with `dnf history list`, then inspect its
-  ID using `dnf history info`. Record newly installed packages separately from
-  already present packages and upgrades; retain relevant setup console output.
-- Record the Rustup installation, toolchain list and actual Cargo/Rustup storage
-  locations. Use the earlier setup/session evidence to determine whether Rustup
-  and Rust 1.95.0 were newly added. Current presence or timestamps alone do not
-  establish that they were absent before setup. Preserve anything of uncertain
-  ownership and check whether another project now needs a newly added tool.
-- Record the exact checkout, effective Cargo build-output directory, shared
-  dependency caches and their sizes. A configured target directory may be
-  outside the checkout or shared, so do not infer its ownership from its name.
-- Record each private baseline directory and distinguish its full `input.*`
-  game snapshot from small reports. Keep the original game, saves, source
-  changes, signing material and diagnostic summaries outside the removal list.
+<!-- CodexAstraUlt: Preserve the owner's explicit reusable-build exception and irreplaceable inputs. -->
 
-## Prepare cleanup at the 0.1.0 build
+The owner explicitly chose to retain the successful Dark Moon preparation run-002, completed original Linux build run-001, and completed ARM64 build run-001. Preserve their validation metadata, 521 objects per build, and linked libraries. Also preserve the original authorized game, saves/imports, signing identity, unpublished local code and the single working checkout. Keep installed pinned tools and offline dependencies still required for packaging. A generated build cache is not the retained title library.
 
-<!-- CodexAstraUlt: Require concrete, reviewed removal scope instead of a broad
-undo that can remove system tools, other projects' caches or private originals. -->
-Provide the owner with exact paths/package names, estimated recoverable space,
-and separate commands for each verified category. Start with disposable,
-exclusively owned build output and redundant staged game copies, retaining the
-reports and original input. Preserve any run still needed to reproduce a result.
+Keep summary Markdown and one small local droidds-storage-ledger.csv. Append useful identities, outcomes and verified GitHub links to that ledger rather than creating another raw backup directory for each step. Private game images, generated C, objects/libraries, private APKs, saves, memory/code dumps, recordings and signing secrets must never be uploaded to GitHub.
 
-Remove a Rust toolchain only when it was added for this work and is no longer
-needed. Full Rustup removal is appropriate only if the entire installation was
-new for this task and has no other users/projects. Shared Cargo caches must not
-be deleted wholesale. Package removals need the actual DNF history and a reviewed
-transaction preview showing their dependency effects; retain uncertain items.
+## Complete each batch with cleanup
 
-Do not prescribe blanket removal of `git gcc curl python3`, blind DNF history
-undo/autoremove, or recursive deletion of shared Cargo/Rustup directories. Those
-operations are not equivalent to undoing only this project's additions. No final
-removal command is established until local evidence identifies its exact scope.
+<!-- CodexAstraUlt: Couple remote verification with immediate removal of obsolete local working data. -->
+
+1. Export the run report before any restart and retain it temporarily outside Git.
+2. Review the full diagnostic JSON, summary and only the bounded failure excerpts needed for analysis. Follow [DEVICE_REPORT_HANDOFF.md](DEVICE_REPORT_HANDOFF.md); retain counters and zero/null fields and record redactions.
+3. Upload reviewed important data and read it back at the published commit. Compare exact bytes or hashes before deleting the sole local copy. If upload is blocked, retain only the minimal irreplaceable pending evidence and report the blocker.
+4. Preserve necessary artifact identities in the summary/ledger. Clear completed test/build logs, screenshots/UI captures, extracted memory/code, staged game copies, obsolete APK/intermediate copies, old diagnostic targets and frozen source snapshots no longer needed. Remove downloaded installers after the installed tools are verified. Clear this task's own temporary cleanup scripts and audit files too.
+5. Check the retained files, local changes and remaining disk use. Report what was removed, exceptions, verified links and any blocker.
+
+Do not remove active work, a reusable artifact explicitly retained by the owner, or shared software whose ownership is uncertain. Inspect before deleting an unused checkout and preserve unique changes. Do not run blanket DNF undo/autoremove or remove shared Cargo/Rustup directories. This housekeeping instruction does not authorize a new Thor/ADB batch; the separate signal, STOP and explicit approval boundary still applies.
